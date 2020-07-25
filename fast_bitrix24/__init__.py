@@ -1,0 +1,1 @@
+from fast_bitrix24.bitrix import Bitrix
