@@ -99,7 +99,7 @@ class Bitrix:
         return r['result'], (r['total'] if 'total' in r.keys() else None)
 
 
-    async def _request_list(self, method, item_list, real_len=None, real_start=0):
+    async def _request_list(self, method, item_list, real_len=None, real_start=0, preserve_IDs=False):
         if not real_len:
             real_len = len(item_list)
 
@@ -110,7 +110,8 @@ class Bitrix:
                 batch = [{
                     'halt': 0,
                     'cmd': {
-                        f'cmd{i}': f'{method}?{http_build_query(item)}'
+                        item['ID'] if preserve_IDs else f'cmd{i}': 
+                        f'{method}?{http_build_query(item)}'
                         for i, item in enumerate(next_batch)
                     }}
                     for next_batch in more_itertools.chunked(item_list, batch_size)
@@ -134,9 +135,12 @@ class Bitrix:
                 for x in asyncio.as_completed((*tasks, self._sw.release_task)):
                     r, __ = await x
                     if self._autobatch:
-                        r = list(r['result'].values())
-                        if type(r[0]) == list:
-                            r = list(itertools.chain(*r))
+                        if preserve_IDs:
+                            r = r['result'].items()
+                        else:
+                            r = list(r['result'].values())
+                            if type(r[0]) == list:
+                                r = list(itertools.chain(*r))
                     results.extend(r)
                     pbar.update(len(r))
                     if all([t.done() for t in tasks]):
@@ -173,7 +177,8 @@ class Bitrix:
         return asyncio.run(self._request_list(
             method,
             [merge_dict({'ID': ID}, details) for ID in ID_list] if details else
-            [{'ID': ID} for ID in ID_list]
+            [{'ID': ID} for ID in set(ID_list)],
+            preserve_IDs=True
         ))
 
     def post(self, method, item_list):
