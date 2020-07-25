@@ -166,17 +166,17 @@ class Bitrix:
 #            }]
             return dedup_results
 
-    def get_list(self, method, details=None):
+    def get_all(self, method, details=None):
         return asyncio.run(self._get_paginated_list(method, details))
 
-    def get_items_by_ID_list(self, method, ID_list, details=None):
+    def get_by_ID(self, method, ID_list, details=None):
         return asyncio.run(self._request_list(
             method,
             [merge_dict({'ID': ID}, details) for ID in ID_list] if details else
             [{'ID': ID} for ID in ID_list]
         ))
 
-    def post_list(self, method, item_list):
+    def post(self, method, item_list):
         return asyncio.run(self._request_list(method, item_list))
 
 
