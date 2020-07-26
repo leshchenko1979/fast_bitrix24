@@ -38,8 +38,8 @@ release_task - указатель на задачу, которая увелич
 
 Методы:
 
-__init__(self, custom_pool_size, cautious)
-acquire()
+__init__(self, pool_size: int, cautious: bool)
+acquire(self)
 '''
 
 
@@ -129,7 +129,30 @@ acquire()
 
 
 class Bitrix:
-    def __init__(self, webhook, custom_pool_size=50, cautious=False, autobatch=True):
+    '''
+    Класс, оборачивающий весь цикл запросов к серверу Битрикс24.
+
+    Методы:
+    __init__(self, webhook: str, custom_pool_size=50, cautious=False, autobatch=True)
+    get_all(self, method: str, details=None)
+    get_by_ID(self, method: str, ID_list, details=None)
+    def post(self, method: str, item_list)
+    '''
+
+    __init__()
+    def __init__(self, webhook: str, custom_pool_size=50, cautious=False, autobatch=True):
+        '''
+        Создает объект класса Bitrix.
+
+        Параметры:
+        webhook: str - URL вебхука, полученного от сервера Битрикс
+        custom_pool_size: int = 50 - размер пула запросов. По умолчанию 50 запросов - 
+        это размер, указанный в официальной документации Битрикс24
+        на июль 2020 г. (https://dev.1c-bitrix.ru/rest_help/rest_sum/index.php)
+        cautious: bool = False - стартовать, считая, что пул запросов уже
+        исчерпан, и нужно контролировать скорость запросов с первого запроса
+        autobatch: bool = True - автоматически объединять списки запросов в батчи
+        '''
         self.webhook = webhook
         self._sw = SemaphoreWrapper(custom_pool_size, cautious)
         self._autobatch = autobatch
@@ -215,10 +238,11 @@ class Bitrix:
 #            }]
             return dedup_results
 
-    def get_all(self, method, details=None):
+    def get_all(self, method: str, details=None):
+        
         return asyncio.run(self._get_paginated_list(method, details))
 
-    def get_by_ID(self, method, ID_list, details=None):
+    def get_by_ID(self, method: str, ID_list, details=None):
         return asyncio.run(self._request_list(
             method,
             [merge_dict({'ID': ID}, details) for ID in ID_list] if details else
@@ -226,7 +250,7 @@ class Bitrix:
             preserve_IDs=True
         ))
 
-    def post(self, method, item_list):
+    def post(self, method: str, item_list):
         return asyncio.run(self._request_list(method, item_list))
 
 
