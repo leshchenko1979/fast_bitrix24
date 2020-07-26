@@ -89,9 +89,9 @@ class Bitrix:
         self._sw = SemaphoreWrapper(custom_pool_size, cautious)
         self._autobatch = autobatch
 
-    async def _request(self, session, method, details=None, pbar=None):
+    async def _request(self, session, method, params=None, pbar=None):
         await self._sw.acquire()
-        url = f'{self.webhook}{method}?{http_build_query(details)}'
+        url = f'{self.webhook}{method}?{bitrix_url(params)}'
         async with session.get(url) as response:
             r = await response.json(encoding='utf-8')
         if pbar:
@@ -111,7 +111,7 @@ class Bitrix:
                     'halt': 0,
                     'cmd': {
                         item['ID'] if preserve_IDs else f'cmd{i}': 
-                        f'{method}?{http_build_query(item)}'
+                        f'{method}?{bitrix_url(item)}'
                         for i, item in enumerate(next_batch)
                     }}
                     for next_batch in more_itertools.chunked(item_list, batch_size)
@@ -147,13 +147,13 @@ class Bitrix:
                         break
             return results
 
-    async def _get_paginated_list(self, method, details=None):
+    async def _get_paginated_list(self, method, params=None):
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
-            results, total = await self._request(session, method, details)
+            results, total = await self._request(session, method, params)
             if not total or total <= 50:
                 return results
             remaining_results = await self._request_list(method, [
-                merge_dict({'start': start}, details)
+                merge_dict({'start': start}, params)
                 for start in range(len(results), total, 50)
             ], total, len(results))
 
@@ -170,18 +170,18 @@ class Bitrix:
 #            }]
             return dedup_results
 
-    def get_all(self, method, details=None):
-        return asyncio.run(self._get_paginated_list(method, details))
+    def get_all(self, method, params=None):
+        return asyncio.run(self._get_paginated_list(method, params))
 
-    def get_by_ID(self, method, ID_list, details=None):
+    def get_by_ID(self, method, ID_list, params=None):
         return asyncio.run(self._request_list(
             method,
-            [merge_dict({'ID': ID}, details) for ID in ID_list] if details else
+            [merge_dict({'ID': ID}, params) for ID in ID_list] if params else
             [{'ID': ID} for ID in set(ID_list)],
             preserve_IDs=True
         ))
 
-    def post(self, method, item_list):
+    def call(self, method, item_list):
         return asyncio.run(self._request_list(method, item_list))
 
 
@@ -192,14 +192,14 @@ class Bitrix:
 ##########################################
 
 
-def http_build_query(data):
+def bitrix_url(data):
     parents = list()
-    pairs = dict()
+    pairs = list()
 
     def renderKey(parents):
         depth, outStr = 0, ''
         for x in parents:
-            s = "[%s]" if depth > 0 or isinstance(x, int) else "%s"
+            s = "[%s]" if (depth > 0 or isinstance(x, int)) and x!='[]' else "%s"
             outStr += s % str(x)
             depth += 1
         return outStr
@@ -207,7 +207,7 @@ def http_build_query(data):
     def r_urlencode(data):
         if isinstance(data, list) or isinstance(data, tuple):
             for i in range(len(data)):
-                parents.append(i)
+                parents.append('[]')
                 r_urlencode(data[i])
                 parents.pop()
         elif isinstance(data, dict):
@@ -216,11 +216,37 @@ def http_build_query(data):
                 r_urlencode(value)
                 parents.pop()
         else:
-            pairs[renderKey(parents)] = str(data)
+            pairs.append((renderKey(parents), str(data)))
 
         return pairs
     return urllib.parse.urlencode(r_urlencode(data))
 
+
+def url_encoder(params):
+    g_encode_params = {}
+
+    def _encode_params(params, p_key=None):
+        encode_params = {}
+        if isinstance(params, dict):
+            for key in params:
+                encode_key = '{}[{}]'.format(p_key,key)
+                encode_params[encode_key] = params[key]
+        elif isinstance(params, (list, tuple)):
+            for offset,value in enumerate(params):
+                encode_key = '{}[{}]'.format(p_key, offset)
+                encode_params[encode_key] = value
+        else:
+            g_encode_params[p_key] = params
+
+        for key in encode_params:
+            value = encode_params[key]
+            _encode_params(value, key)
+
+    if isinstance(params, dict):
+        for key in params:
+            _encode_params(params[key], key)
+
+    return urllib.parse.urlencode(g_encode_params)
 
 def merge_dict(d1, d2):
     d3 = d1.copy()
