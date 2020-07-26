@@ -163,7 +163,7 @@ class Bitrix:
 
     async def _request(self, session, method, params=None, pbar=None):
         await self._sw.acquire()
-        url = f'{self.webhook}{method}?{bitrix_url(params)}'
+        url = f'{self.webhook}{method}?{_bitrix_url(params)}'
         async with session.get(url) as response:
             r = await response.json(encoding='utf-8')
         if pbar:
@@ -183,7 +183,7 @@ class Bitrix:
                     'halt': 0,
                     'cmd': {
                         item['ID'] if preserve_IDs else f'cmd{i}': 
-                        f'{method}?{bitrix_url(item)}'
+                        f'{method}?{_bitrix_url(item)}'
                         for i, item in enumerate(next_batch)
                     }}
                     for next_batch in more_itertools.chunked(item_list, batch_size)
@@ -225,7 +225,7 @@ class Bitrix:
             if not total or total <= 50:
                 return results
             remaining_results = await self._request_list(method, [
-                merge_dict({'start': start}, params)
+                _merge_dict({'start': start}, params)
                 for start in range(len(results), total, 50)
             ], total, len(results))
 
@@ -293,7 +293,7 @@ class Bitrix:
 
         return asyncio.run(self._request_list(
             method,
-            [merge_dict({'ID': ID}, params) for ID in ID_list] if params else
+            [_merge_dict({'ID': ID}, params) for ID in ID_list] if params else
             [{'ID': ID} for ID in set(ID_list)],
             preserve_IDs=True
         ))
@@ -319,7 +319,7 @@ class Bitrix:
 ##########################################
 
 
-def bitrix_url(data):
+def _bitrix_url(data):
     parents = list()
     pairs = list()
 
@@ -349,33 +349,7 @@ def bitrix_url(data):
     return urllib.parse.urlencode(r_urlencode(data))
 
 
-def url_encoder(params):
-    g_encode_params = {}
-
-    def _encode_params(params, p_key=None):
-        encode_params = {}
-        if isinstance(params, dict):
-            for key in params:
-                encode_key = '{}[{}]'.format(p_key,key)
-                encode_params[encode_key] = params[key]
-        elif isinstance(params, (list, tuple)):
-            for offset,value in enumerate(params):
-                encode_key = '{}[{}]'.format(p_key, offset)
-                encode_params[encode_key] = value
-        else:
-            g_encode_params[p_key] = params
-
-        for key in encode_params:
-            value = encode_params[key]
-            _encode_params(value, key)
-
-    if isinstance(params, dict):
-        for key in params:
-            _encode_params(params[key], key)
-
-    return urllib.parse.urlencode(g_encode_params)
-
-def merge_dict(d1, d2):
+def _merge_dict(d1, d2):
     d3 = d1.copy()
     if d2:
         d3.update(d2)
