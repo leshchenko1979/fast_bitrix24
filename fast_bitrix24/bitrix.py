@@ -1,3 +1,5 @@
+'''Высокоуровневый API для доступа к Битрикс24'''
+
 import urllib.parse
 import asyncio
 import aiohttp
@@ -19,8 +21,39 @@ BITRIX_URI_MAX_LEN = 5820
 
 
 class SemaphoreWrapper():
+    '''
+    Используется для контроля скорости доступа к серверам Битрикс.
 
-    def __init__(self, custom_pool_size, cautious):
+    Основная цель - вести учет количества запросов, которые можно передать
+    серверу Битрикс без получения ошибки 503.
+
+    Используется как контекстный менеджер, оборачивающий несколько
+    последовательных запросов к серверу.
+
+    Свойства:
+    - release_task - указатель на задачу, которая увеличивает счетчик количества
+    доступных запросов к серверу Битрикс. Должна выполняться параллельно
+    с другими задачами в цикле asyncio.
+
+    Методы:
+    - __init__(self, pool_size: int, cautious: bool)/
+    - acquire(self)
+    '''
+
+
+    def __init__(self, pool_size: int, cautious: bool):
+        '''
+        Создает объект SemaphoreWrapper.
+        
+        Параметры:
+        - pool_size: int - размер пула доступных запросов.
+        - cautious: bool - если равно True, то при старте количество
+        доступных запросов равно нулю, а не pool_size. Другими словами,
+        при подачи очереди запросов к серверу они будут подаваться без
+        начального "взрыва", исчерпывающего изначально доступный пул
+        запросов. 
+        '''
+
         if cautious:
             self._stopped_time = time.monotonic()
             self._stopped_value = 0
@@ -28,7 +61,7 @@ class SemaphoreWrapper():
             self._stopped_time = None
             self._stopped_value = None
         self._REQUESTS_PER_SECOND = 2
-        self._pool_size = custom_pool_size
+        self._pool_size = pool_size
 
     async def __aenter__(self):
         self._sem = asyncio.BoundedSemaphore(self._pool_size)
@@ -73,6 +106,18 @@ class SemaphoreWrapper():
             await asyncio.sleep(1 / self._REQUESTS_PER_SECOND)
 
     async def acquire(self):
+        '''
+        Вызов acquire() должен предшествовать любому обращению
+        к серверу Bitrix. Он возвращает True, когда к серверу
+        можно осуществить запрос.
+
+        Использование:
+        ```
+        await self.aquire()
+        # теперь можно делать запросы
+        ...
+        ```
+        '''
         return await self._sem.acquire()
 
 
@@ -84,14 +129,40 @@ class SemaphoreWrapper():
 
 
 class Bitrix:
-    def __init__(self, webhook, custom_pool_size=50, cautious=False, autobatch=True):
+    '''
+    Класс, оборачивающий весь цикл запросов к серверу Битрикс24.
+
+    Методы:
+    - __init__(self, webhook: str, custom_pool_size=50, cautious=False, autobatch=True)
+    - get_all(self, method: str, details=None)
+    - get_by_ID(self, method: str, ID_list, details=None)
+    - def post(self, method: str, item_list)
+    '''
+
+    __init__()
+    def __init__(self, webhook: str, custom_pool_size=50, cautious=False, autobatch=True):
+        '''
+        Создает объект класса Bitrix.
+
+        Параметры:
+        - webhook: str - URL вебхука, полученного от сервера Битрикс
+        
+        - custom_pool_size: int = 50 - размер пула запросов. По умолчанию 50 запросов - 
+        это размер, указанный в официальной документации Битрикс24
+        на июль 2020 г. (https://dev.1c-bitrix.ru/rest_help/rest_sum/index.php)
+        
+        - cautious: bool = False - стартовать, считая, что пул запросов уже
+        исчерпан, и нужно контролировать скорость запросов с первого запроса
+        
+        - autobatch: bool = True - автоматически объединять списки запросов в батчи
+        '''
         self.webhook = webhook
         self._sw = SemaphoreWrapper(custom_pool_size, cautious)
         self._autobatch = autobatch
 
     async def _request(self, session, method, params=None, pbar=None):
         await self._sw.acquire()
-        url = f'{self.webhook}{method}?{bitrix_url(params)}'
+        url = f'{self.webhook}{method}?{_bitrix_url(params)}'
         async with session.get(url) as response:
             r = await response.json(encoding='utf-8')
         if pbar:
@@ -111,7 +182,7 @@ class Bitrix:
                     'halt': 0,
                     'cmd': {
                         item['ID'] if preserve_IDs else f'cmd{i}': 
-                        f'{method}?{bitrix_url(item)}'
+                        f'{method}?{_bitrix_url(item)}'
                         for i, item in enumerate(next_batch)
                     }}
                     for next_batch in more_itertools.chunked(item_list, batch_size)
@@ -153,7 +224,7 @@ class Bitrix:
             if not total or total <= 50:
                 return results
             remaining_results = await self._request_list(method, [
-                merge_dict({'start': start}, params)
+                _merge_dict({'start': start}, params)
                 for start in range(len(results), total, 50)
             ], total, len(results))
 
@@ -170,18 +241,70 @@ class Bitrix:
 #            }]
             return dedup_results
 
-    def get_all(self, method, params=None):
+    def get_all(self, method: str, params=None):
+        '''
+        Получить полный список сущностей по запросу method.
+
+        Под капотом использует параллельные запросы и автоматическое построение
+        батчей, чтобы ускорить получение данных. Также самостоятельно
+        обратывает постраничные ответы сервера, чтобы вернуть полный список.
+
+        Параметры:
+        - method - метод REST API для запроса к серверу
+        - params - параметры для передачи методу. Используется именно тот формат,
+            который указан в документации к REST API Битрикс24
+
+        Возвращает полный список сущностей, имеющихся на сервере,
+        согласно заданным методу и параметрам.
+        '''
+
         return asyncio.run(self._get_paginated_list(method, params))
 
-    def get_by_ID(self, method, ID_list, params=None):
+    def get_by_ID(self, method: str, ID_list, params=None):
+        '''
+        Получить список сущностей по запросу method и списку ID.
+
+        Используется для случаев, когда нужны не все сущности,
+        имеющиеся в базе, а конкретный список поименованных ID.
+        Например, все контакты, привязанные к сделкам.
+
+        Параметры:
+        - method - метод REST API для запроса к серверу
+        - ID_list - список ID
+        - params - параметры для передачи методу. Используется именно тот
+            формат, который указан в документации к REST API Битрикс24
+
+        Возвращает список кортежей вида:
+
+            [
+                (ID, <результат запроса>), 
+                (ID, <результат запроса>), 
+                ...
+            ]
+
+        Вторым элементом каждого кортежа будет результат выполнения запроса
+        относительно этого ID. Это может быть, например, список связанных
+        сущностей или пустой список, если не найдено ни одной привязанной
+        сущности.
+        '''
+
         return asyncio.run(self._request_list(
             method,
-            [merge_dict({'ID': ID}, params) for ID in ID_list] if params else
+            [_merge_dict({'ID': ID}, params) for ID in ID_list] if params else
             [{'ID': ID} for ID in set(ID_list)],
             preserve_IDs=True
         ))
 
-    def call(self, method, item_list):
+    def call(self, method: str, item_list):
+        '''
+        Вызвать метод REST API по списку.
+
+        Параметры:
+        - method - метод REST API
+        - item_list - список параметров вызываемого метода
+
+        Возвращает список ответов сервера для каждого из элементов item_list.
+        '''
         return asyncio.run(self._request_list(method, item_list))
 
 
@@ -192,7 +315,7 @@ class Bitrix:
 ##########################################
 
 
-def bitrix_url(data):
+def _bitrix_url(data):
     parents = list()
     pairs = list()
 
@@ -222,33 +345,7 @@ def bitrix_url(data):
     return urllib.parse.urlencode(r_urlencode(data))
 
 
-def url_encoder(params):
-    g_encode_params = {}
-
-    def _encode_params(params, p_key=None):
-        encode_params = {}
-        if isinstance(params, dict):
-            for key in params:
-                encode_key = '{}[{}]'.format(p_key,key)
-                encode_params[encode_key] = params[key]
-        elif isinstance(params, (list, tuple)):
-            for offset,value in enumerate(params):
-                encode_key = '{}[{}]'.format(p_key, offset)
-                encode_params[encode_key] = value
-        else:
-            g_encode_params[p_key] = params
-
-        for key in encode_params:
-            value = encode_params[key]
-            _encode_params(value, key)
-
-    if isinstance(params, dict):
-        for key in params:
-            _encode_params(params[key], key)
-
-    return urllib.parse.urlencode(g_encode_params)
-
-def merge_dict(d1, d2):
+def _merge_dict(d1, d2):
     d3 = d1.copy()
     if d2:
         d3.update(d2)

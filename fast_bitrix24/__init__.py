@@ -1,1 +1,3 @@
-from fast_bitrix24.bitrix import Bitrix, bitrix_url, url_encoder
+'''Высокоуровневый API для доступа к Битрикс24'''
+
+from fast_bitrix24.bitrix import Bitrix, _bitrix_url
