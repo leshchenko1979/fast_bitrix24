@@ -139,7 +139,6 @@ class Bitrix:
     - def post(self, method: str, item_list)
     '''
 
-    __init__()
     def __init__(self, webhook: str, custom_pool_size=50, cautious=False, autobatch=True):
         '''
         Создает объект класса Bitrix.
@@ -174,7 +173,7 @@ class Bitrix:
         if not real_len:
             real_len = len(item_list)
 
-        if self._autobatch:
+        if (self._autobatch) and (method != 'batch'):
 
             batch_size = 50
             while True:
@@ -195,17 +194,17 @@ class Bitrix:
                 else:
                     break
 
+            method = 'batch'
             item_list = batch
 
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
-            tasks = [asyncio.create_task(self._request(session,
-                        'batch' if self._autobatch else method, i))
+            tasks = [asyncio.create_task(self._request(session, method, i))
                      for i in item_list]
             results = []
             with tqdm(total=real_len, initial=real_start) as pbar:
                 for x in asyncio.as_completed((*tasks, self._sw.release_task)):
                     r, __ = await x
-                    if self._autobatch:
+                    if method == 'batch':
                         if preserve_IDs:
                             r = r['result'].items()
                         else:
