@@ -1,3 +1,5 @@
+'''Высокоуровневый API для доступа к Битрикс24'''
+
 import urllib.parse
 import asyncio
 import aiohttp
@@ -19,8 +21,41 @@ BITRIX_URI_MAX_LEN = 5820
 
 
 class SemaphoreWrapper():
+'''
+Используется для контроля скорости доступа к серверам Битрикс.
 
-    def __init__(self, custom_pool_size, cautious):
+Основная цель - вести учет количества запросов, которые можно передать
+серверу Битрикс без получения ошибки 503.
+
+Используется как контекстный менеджер, оборачивающий несколько
+последовательных запросов к серверу.
+
+Свойства:
+
+release_task - указатель на задачу, которая увеличивает счетчик количества
+доступных запросов к серверу Битрикс. Должна выполняться параллельно
+с другими задачами в цикле asyncio.
+
+Методы:
+
+__init__(self, custom_pool_size, cautious)
+acquire()
+'''
+
+
+    def __init__(self, pool_size: int, cautious: bool):
+        '''
+        Создает объект SemaphoreWrapper.
+        
+        Параметры:
+        pool_size: int - размер пула доступных запросов.
+        cautious: bool - если равно True, то при старте количество
+        доступных запросов равно нулю, а не pool_size. Другими словами,
+        при подачи очереди запросов к серверу они будут подаваться без
+        начального "взрыва", исчерпывающего изначально доступный пул
+        запросов. 
+        '''
+
         if cautious:
             self._stopped_time = time.monotonic()
             self._stopped_value = 0
@@ -28,7 +63,7 @@ class SemaphoreWrapper():
             self._stopped_time = None
             self._stopped_value = None
         self._REQUESTS_PER_SECOND = 2
-        self._pool_size = custom_pool_size
+        self._pool_size = pool_size
 
     async def __aenter__(self):
         self._sem = asyncio.BoundedSemaphore(self._pool_size)
@@ -73,6 +108,16 @@ class SemaphoreWrapper():
             await asyncio.sleep(1 / self._REQUESTS_PER_SECOND)
 
     async def acquire(self):
+        '''
+        Вызов acquire() должен предшествовать любому обращению
+        к серверу Bitrix. Он возвращает True, когда к серверу
+        можно осуществить запрос.
+
+        Использование:
+        await self.aquire()
+        # теперь можно делать запросы
+        ...
+        '''
         return await self._sem.acquire()
 
 
