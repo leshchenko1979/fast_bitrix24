@@ -205,6 +205,8 @@ class Bitrix:
                 pbar = tqdm(total=real_len, initial=real_start)
             for x in asyncio.as_completed((*tasks, self._sw.release_task)):
                 r, __ = await x
+                if r['result_error']:
+                    raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
                 if method == 'batch':
                     if preserve_IDs:
                         r = r['result'].items()
@@ -222,6 +224,11 @@ class Bitrix:
             return results
 
     async def _get_paginated_list(self, method, params=None):
+        if params:
+            if 'order' not in [x.lower() for x in params.keys()]:
+                params.update({'order': {'ID': 'ASC'}})
+        else:
+            params = {'order': {'ID': 'ASC'}}
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
             results, total = await self._request(session, method, params)
             if not total or total <= 50:
