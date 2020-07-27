@@ -53,7 +53,7 @@ users = b.get_all('user.get')
 # список сделок в работе, включая пользовательские поля
 deals = b.get_all('crm.deal.get', params={
     'select': ['*', 'UF_*'],
-    'filter': ['CLOSED': 'N']
+    'filter': {'CLOSED': 'N'}
 })
 ```
 
