@@ -32,28 +32,23 @@ class SemaphoreWrapper():
 
     Свойства:
     - release_task - указатель на задачу, которая увеличивает счетчик количества
-    доступных запросов к серверу Битрикс. Должна выполняться параллельно
-    с другими задачами в цикле asyncio.
+        доступных запросов к серверу Битрикс. Должна выполняться параллельно
+        с другими задачами в цикле asyncio.
+        
+    Параметры:
+    - pool_size: int - размер пула доступных запросов.
+    - cautious: bool - если равно True, то при старте количество
+        доступных запросов равно нулю, а не pool_size. Другими словами,
+        при подачи очереди запросов к серверу они будут подаваться без
+        начального "взрыва", исчерпывающего изначально доступный пул
+        запросов. 
 
     Методы:
-    - __init__(self, pool_size: int, cautious: bool)/
     - acquire(self)
     '''
 
 
     def __init__(self, pool_size: int, cautious: bool):
-        '''
-        Создает объект SemaphoreWrapper.
-        
-        Параметры:
-        - pool_size: int - размер пула доступных запросов.
-        - cautious: bool - если равно True, то при старте количество
-        доступных запросов равно нулю, а не pool_size. Другими словами,
-        при подачи очереди запросов к серверу они будут подаваться без
-        начального "взрыва", исчерпывающего изначально доступный пул
-        запросов. 
-        '''
-
         if cautious:
             self._stopped_time = time.monotonic()
             self._stopped_value = 0
@@ -132,32 +127,37 @@ class Bitrix:
     '''
     Класс, оборачивающий весь цикл запросов к серверу Битрикс24.
 
+    Параметры:
+    - webhook: str - URL вебхука, полученного от сервера Битрикс
+    
+    - custom_pool_size: int = 50 - размер пула запросов. По умолчанию 50 запросов - 
+    это размер, указанный в официальной документации Битрикс24
+    на июль 2020 г. (https://dev.1c-bitrix.ru/rest_help/rest_sum/index.php)
+    
+    - cautious: bool = False - стартовать, считая, что пул запросов уже
+    исчерпан, и нужно контролировать скорость запросов с первого запроса
+    
+    - autobatch: bool = True - автоматически объединять списки запросов в батчи
+
+    - verbose: bool = True - показывать ли прогрессбар при выполнении запроса
+
     Методы:
-    - __init__(self, webhook: str, custom_pool_size=50, cautious=False, autobatch=True)
     - get_all(self, method: str, details=None)
     - get_by_ID(self, method: str, ID_list, details=None)
-    - def post(self, method: str, item_list)
+    - post(self, method: str, item_list)
     '''
 
-    def __init__(self, webhook: str, custom_pool_size=50, cautious=False, autobatch=True):
+    def __init__(self, webhook: str, custom_pool_size=50, cautious=False, 
+            autobatch=True, verbose=True):
         '''
         Создает объект класса Bitrix.
 
-        Параметры:
-        - webhook: str - URL вебхука, полученного от сервера Битрикс
-        
-        - custom_pool_size: int = 50 - размер пула запросов. По умолчанию 50 запросов - 
-        это размер, указанный в официальной документации Битрикс24
-        на июль 2020 г. (https://dev.1c-bitrix.ru/rest_help/rest_sum/index.php)
-        
-        - cautious: bool = False - стартовать, считая, что пул запросов уже
-        исчерпан, и нужно контролировать скорость запросов с первого запроса
-        
-        - autobatch: bool = True - автоматически объединять списки запросов в батчи
         '''
+        
         self.webhook = webhook
         self._sw = SemaphoreWrapper(custom_pool_size, cautious)
         self._autobatch = autobatch
+        self._verbose = verbose
 
     async def _request(self, session, method, params=None, pbar=None):
         await self._sw.acquire()
@@ -201,20 +201,24 @@ class Bitrix:
             tasks = [asyncio.create_task(self._request(session, method, i))
                      for i in item_list]
             results = []
-            with tqdm(total=real_len, initial=real_start) as pbar:
-                for x in asyncio.as_completed((*tasks, self._sw.release_task)):
-                    r, __ = await x
-                    if method == 'batch':
-                        if preserve_IDs:
-                            r = r['result'].items()
-                        else:
-                            r = list(r['result'].values())
-                            if type(r[0]) == list:
-                                r = list(itertools.chain(*r))
-                    results.extend(r)
+            if self._verbose:
+                pbar = tqdm(total=real_len, initial=real_start)
+            for x in asyncio.as_completed((*tasks, self._sw.release_task)):
+                r, __ = await x
+                if method == 'batch':
+                    if preserve_IDs:
+                        r = r['result'].items()
+                    else:
+                        r = list(r['result'].values())
+                        if type(r[0]) == list:
+                            r = list(itertools.chain(*r))
+                results.extend(r)
+                if self._verbose:
                     pbar.update(len(r))
-                    if all([t.done() for t in tasks]):
-                        break
+                if all([t.done() for t in tasks]):
+                    break
+            if self._verbose:
+                pbar.close()
             return results
 
     async def _get_paginated_list(self, method, params=None):
@@ -227,18 +231,18 @@ class Bitrix:
                 for start in range(len(results), total, 50)
             ], total, len(results))
 
-            # дедуплицируем по id
-            dedup_results = results
-            for r in remaining_results:
-                if r['ID'] not in [dr['ID'] for dr in dedup_results]:
-                    dedup_results.append(r)
+        # дедуплицируем по id
+        dedup_results = results
+        for r in remaining_results:
+            if r['ID'] not in [dr['ID'] for dr in dedup_results]:
+                dedup_results.append(r)
 
-#           а более элегантный механизм ниже (через построение set()) не работает,
-#           так как результаты содержат вложенные списки, которые не хэшируются
-#           results = [dict(t) for t in {
-#                tuple(d.items()) for d in list(itertools.chain(results, remaining_results))
-#            }]
-            return dedup_results
+#       а более элегантный механизм ниже (через построение set()) не работает,
+#       так как результаты содержат вложенные списки, которые не хэшируются
+#       results = [dict(t) for t in {
+#            tuple(d.items()) for d in list(itertools.chain(results, remaining_results))
+#       }]
+        return dedup_results
 
     def get_all(self, method: str, params=None):
         '''

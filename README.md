@@ -94,4 +94,4 @@ b.call('crm.deal.update', tasks)
 
 ## Как связаться с автором
 - e-mail: leshchenko@gmail.com
-- telegram: https://t.me/@leshchenko1979
+- telegram: https://t.me/leshchenko1979
