@@ -161,7 +161,7 @@ class Bitrix:
 
         '''
         
-        self.webhook = webhook
+        self.webhook = _correct_webhook(webhook)
         self._sw = SemaphoreWrapper(custom_pool_size, requests_per_second, cautious)
         self._autobatch = autobatch
         self._verbose = verbose
@@ -426,3 +426,20 @@ def _check_params(p):
             ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
         ):
             raise TypeError(f'Clause "{pi[0]}" should be of type {t}, but its type is {type(pi[1])}')
+
+
+def _url_valid(url):
+    try:
+        result = urllib.parse.urlparse(url)
+        return all([result.scheme, result.netloc, result.path])
+    except:
+        return False
+
+import re
+
+def _correct_webhook(wh):
+    if not isinstance(wh, str):
+        raise TypeError(f'Webhook should be a {str}')
+    if not _url_valid(wh):
+        raise ValueError('Webhook is not a valid URL')
+    return wh if wh[-1] == '/' else wh + '/'
