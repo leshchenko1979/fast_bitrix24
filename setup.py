@@ -5,7 +5,7 @@ with open("README.md", "r", encoding='utf-8') as fh:
 
 setuptools.setup(
     name="fast_bitrix24",
-    version="0.2.3",
+    version="0.2.4",
     author="Alexey Leshchenko",
     author_email="leshchenko@gmail.com",
     description="A high-level Python SDK for Bitrix24 REST API aiming for speed of high volume transactions. Async operations, automatic batching and traffic throttling to prevent server rejections.",

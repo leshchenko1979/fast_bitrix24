@@ -48,14 +48,15 @@ class SemaphoreWrapper():
     '''
 
 
-    def __init__(self, pool_size: int, cautious: bool):
+    def __init__(self, pool_size: int, requests_per_second: float, 
+                 cautious: bool):
         if cautious:
             self._stopped_time = time.monotonic()
             self._stopped_value = 0
         else:
             self._stopped_time = None
             self._stopped_value = None
-        self._REQUESTS_PER_SECOND = 2
+        self.requests_per_second = requests_per_second
         self._pool_size = pool_size
 
     async def __aenter__(self):
@@ -72,7 +73,7 @@ class SemaphoreWrapper():
             time_passed = time.monotonic() - self._stopped_time
 
             # сколько шагов должно было пройти
-            add_steps = time_passed / self._REQUESTS_PER_SECOND // 1
+            add_steps = time_passed / self.requests_per_second // 1
 
             # сколько шагов могло пройти с учетом ограничений + еще один
             real_add_steps = min(self._pool_size - self._stopped_value,
@@ -82,7 +83,7 @@ class SemaphoreWrapper():
             self._sem._value += real_add_steps
 
             # ждем время, излишне списанное при добавлении дополнительного шага
-            await asyncio.sleep((add_steps + 1) / self._REQUESTS_PER_SECOND - time_passed)
+            await asyncio.sleep((add_steps + 1) / self.requests_per_second - time_passed)
 
             self._stopped_time = None
             self._stopped_value = None
@@ -98,7 +99,7 @@ class SemaphoreWrapper():
         while True:
             if self._sem._value < self._sem._bound_value:
                 self._sem.release()
-            await asyncio.sleep(1 / self._REQUESTS_PER_SECOND)
+            await asyncio.sleep(1 / self.requests_per_second)
 
     async def acquire(self):
         '''
@@ -131,11 +132,15 @@ class Bitrix:
     - webhook: str - URL вебхука, полученного от сервера Битрикс
     
     - custom_pool_size: int = 50 - размер пула запросов. По умолчанию 50 запросов - 
-    это размер, указанный в официальной документации Битрикс24
-    на июль 2020 г. (https://dev.1c-bitrix.ru/rest_help/rest_sum/index.php)
+        это размер, указанный в официальной документации Битрикс24
+        на июль 2020 г. (https://dev.1c-bitrix.ru/rest_help/rest_sum/index.php)
     
+    - requests_per_second: float = 2 - скорость отправки запросов. По умолчанию
+        2 запроса в секунду - предельная скорость, согласно официальной
+        документации.
+
     - cautious: bool = False - стартовать, считая, что пул запросов уже
-    исчерпан, и нужно контролировать скорость запросов с первого запроса
+        исчерпан, и нужно контролировать скорость запросов с первого запроса
     
     - autobatch: bool = True - автоматически объединять списки запросов в батчи
 
@@ -145,17 +150,19 @@ class Bitrix:
     - get_all(self, method: str, details=None)
     - get_by_ID(self, method: str, ID_list, details=None)
     - post(self, method: str, item_list)
+    - set_requests_per_second(self, requests_per_second: float)
     '''
 
-    def __init__(self, webhook: str, custom_pool_size=50, cautious=False, 
-            autobatch=True, verbose=True):
+    def __init__(self, webhook: str, custom_pool_size: int = 50,
+                 requests_per_second: float = 2, cautious: bool = False,
+                 autobatch: bool = True, verbose: bool = True):
         '''
         Создает объект класса Bitrix.
 
         '''
         
         self.webhook = webhook
-        self._sw = SemaphoreWrapper(custom_pool_size, cautious)
+        self._sw = SemaphoreWrapper(custom_pool_size, requests_per_second, cautious)
         self._autobatch = autobatch
         self._verbose = verbose
 
@@ -317,6 +324,21 @@ class Bitrix:
         '''
         return asyncio.run(self._request_list(method, item_list))
 
+
+    def set_requests_per_second(self, requests_per_second: float) -> None:
+        '''
+        Установить скорость запросов к серверу Битрикса, равную 
+        requests_per_second. Может использоваться для понижения скорости
+        запросов припроведении большого количества операций, нагружающих сервер
+        (например, создание лидов или сделок), из-за чего он может возвращать
+        ошибку 500 Internal Server Error.
+
+        Параметры:
+        - requests_per_second - новая скорость в запросах в секунду
+
+        Возвращает None.
+        '''
+        self._sw.requests_per_second = requests_per_second
 
 ##########################################
 #
