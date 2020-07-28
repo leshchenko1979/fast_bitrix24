@@ -6,6 +6,7 @@ import aiohttp
 import time
 import itertools
 import more_itertools
+import pickle
 
 from tqdm import tqdm
 
@@ -236,27 +237,20 @@ class Bitrix:
                 params.update({'order': {'ID': 'ASC'}})
         else:
             params = {'order': {'ID': 'ASC'}}
+
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
             results, total = await self._request(session, method, params)
             if not total or total <= 50:
                 return results
-            remaining_results = await self._request_list(method, [
+
+            results = results.extend(await self._request_list(method, [
                 _merge_dict({'start': start}, params)
                 for start in range(len(results), total, 50)
-            ], total, len(results))
+            ], total, len(results)))
 
-        # дедуплицируем по id
-        dedup_results = results
-        for r in remaining_results:
-            if r['ID'] not in [dr['ID'] for dr in dedup_results]:
-                dedup_results.append(r)
+        # дедупликация через сериализацию, превращение в set и десериализацию
+        return [pickle.loads(y) for y in set([pickle.dumps(x) for x in results])]
 
-#       а более элегантный механизм ниже (через построение set()) не работает,
-#       так как результаты содержат вложенные списки, которые не хэшируются
-#       results = [dict(t) for t in {
-#            tuple(d.items()) for d in list(itertools.chain(results, remaining_results))
-#       }]
-        return dedup_results
 
     def get_all(self, method: str, params=None):
         '''
@@ -435,7 +429,6 @@ def _url_valid(url):
     except:
         return False
 
-import re
 
 def _correct_webhook(wh):
     if not isinstance(wh, str):
