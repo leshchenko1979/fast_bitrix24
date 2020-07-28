@@ -184,7 +184,7 @@ class Bitrix:
 
             batch_size = 50
             while True:
-                batch = [{
+                batches = [{
                     'halt': 0,
                     'cmd': {
                         item['ID'] if preserve_IDs else f'cmd{i}': 
@@ -194,7 +194,7 @@ class Bitrix:
                     for next_batch in more_itertools.chunked(item_list, batch_size)
                 ]
                 uri_len = len(self.webhook + 'batch' +
-                              urllib.parse.urlencode(batch[0]))
+                              urllib.parse.urlencode(batches[0]))
                 if uri_len > BITRIX_URI_MAX_LEN:
                     batch_size = int(
                         batch_size // (uri_len / BITRIX_URI_MAX_LEN))
@@ -202,7 +202,7 @@ class Bitrix:
                     break
 
             method = 'batch'
-            item_list = batch
+            item_list = batches
 
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
             tasks = [asyncio.create_task(self._request(session, method, i))
@@ -275,6 +275,7 @@ class Bitrix:
         согласно заданным методу и параметрам.
         '''
 
+        if params: _check_params(params)
         return asyncio.run(self._get_paginated_list(method, params))
 
     def get_by_ID(self, method: str, ID_list, params=None):
@@ -305,6 +306,7 @@ class Bitrix:
         сущности.
         '''
 
+        if params: _check_params(params)
         return asyncio.run(self._request_list(
             method,
             [_merge_dict({'ID': ID}, params) for ID in ID_list] if params else
@@ -322,6 +324,11 @@ class Bitrix:
 
         Возвращает список ответов сервера для каждого из элементов item_list.
         '''
+        try:
+            [_check_params(p) for p in item_list]
+        except (TypeError, ValueError) as err:
+            raise ValueError(
+                'item_list contains items with incorrect method params') from err 
         return asyncio.run(self._request_list(method, item_list))
 
 
@@ -360,7 +367,8 @@ def _bitrix_url(data):
         return outStr
 
     def r_urlencode(data):
-        if isinstance(data, list) or isinstance(data, tuple):
+        if any(isinstance(data, t) for t in [list, tuple, set]):
+            data = list(data)
             for i in range(len(data)):
                 parents.append('[]')
                 r_urlencode(data[i])
@@ -382,3 +390,33 @@ def _merge_dict(d1, d2):
     if d2:
         d3.update(d2)
     return d3
+
+def _check_params(p):
+
+    # check if p is dict
+    if not isinstance(p, dict):
+        raise TypeError('params agrument should be a dict')
+
+    # check for allowed keys
+    clauses = {
+        'select': list,
+        'halt': int,
+        'cmd': dict,
+        'limit': int,
+        'order': dict,
+        'filter': dict,
+        'start': int
+    }
+
+    for pk in p.keys():
+        if pk not in clauses.keys():
+            raise ValueError(f'Unknown clause "{pk}" in params argument')
+
+    # check for allowed types of key values
+    for pi in p.items():
+        t = clauses[pi[0]]
+        if not (
+            (isinstance(pi[1], t)) or
+            ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
+        ):
+            raise TypeError(f'Clause "{pi[0]}" should be of type {t}, but its type is {type(pi[1])}')
