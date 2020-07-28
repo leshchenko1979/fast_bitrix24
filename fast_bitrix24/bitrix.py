@@ -269,13 +269,19 @@ class Bitrix:
         Параметры:
         - method - метод REST API для запроса к серверу
         - params - параметры для передачи методу. Используется именно тот формат,
-            который указан в документации к REST API Битрикс24
+            который указан в документации к REST API Битрикс24. get_all() не
+            поддерживает параметры 'start', 'limit' и 'order'.
 
         Возвращает полный список сущностей, имеющихся на сервере,
         согласно заданным методу и параметрам.
         '''
 
-        if params: _check_params(params)
+        if params:
+            _check_params(params)
+            for k in params.keys():
+                if k in ['start', 'limit', 'order']:
+                    raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
+
         return asyncio.run(self._get_paginated_list(method, params))
 
     def get_by_ID(self, method: str, ID_list, params=None):
