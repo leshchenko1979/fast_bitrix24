@@ -411,17 +411,18 @@ def _check_params(p):
         'order': dict,
         'filter': dict,
         'start': int,
-        'fields': dict
+        'fields': dict,
+        'id': None
     }
 
     for pk in p.keys():
-        if pk not in clauses.keys():
+        if pk.lower() not in clauses.keys():
             raise ValueError(f'Unknown clause "{pk}" in params argument')
 
     # check for allowed types of key values
     for pi in p.items():
-        t = clauses[pi[0]]
-        if not (
+        t = clauses[pi[0].lower()]
+        if t and not (
             (isinstance(pi[1], t)) or
             ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
         ):
