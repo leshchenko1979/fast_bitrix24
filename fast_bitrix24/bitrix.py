@@ -243,13 +243,14 @@ class Bitrix:
             if not total or total <= 50:
                 return results
 
-            results = results.extend(await self._request_list(method, [
+            results.extend(await self._request_list(method, [
                 _merge_dict({'start': start}, params)
                 for start in range(len(results), total, 50)
             ], total, len(results)))
 
         # дедупликация через сериализацию, превращение в set и десериализацию
-        return [pickle.loads(y) for y in set([pickle.dumps(x) for x in results])]
+        return ([pickle.loads(y) for y in set([pickle.dumps(x) for x in results])]  
+            if results else [])
 
 
     def get_all(self, method: str, params=None):
@@ -307,6 +308,8 @@ class Bitrix:
         '''
 
         if params: _check_params(params)
+        if len(ID_list) == 0:
+            return []
         return asyncio.run(self._request_list(
             method,
             [_merge_dict({'ID': ID}, params) for ID in ID_list] if params else
@@ -324,6 +327,8 @@ class Bitrix:
 
         Возвращает список ответов сервера для каждого из элементов item_list.
         '''
+        if len(item_list) == 0:
+            return []
         try:
             [_check_params(p) for p in item_list]
         except (TypeError, ValueError) as err:
@@ -405,7 +410,8 @@ def _check_params(p):
         'limit': int,
         'order': dict,
         'filter': dict,
-        'start': int
+        'start': int,
+        'fields': dict
     }
 
     for pk in p.keys():
