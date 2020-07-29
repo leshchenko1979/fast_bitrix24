@@ -7,21 +7,25 @@ import time
 import itertools
 import more_itertools
 import pickle
+import warnings
 
 from tqdm import tqdm
 
 import fast_bitrix24.correct_asyncio
 
 BITRIX_URI_MAX_LEN = 5820
+BITRIX_MAX_BATCH_SIZE = 50
+BITRIX_POOL_SIZE = 50
+BITRIX_RPS = 2.0
 
 ##########################################
 #
-#   SemaphoreWrapper class
+#   BitrixSemaphoreWrapper class
 #
 ##########################################
 
 
-class SemaphoreWrapper():
+class BitrixSemaphoreWrapper():
     '''
     Используется для контроля скорости доступа к серверам Битрикс.
 
@@ -38,31 +42,24 @@ class SemaphoreWrapper():
         
     Параметры:
     - pool_size: int - размер пула доступных запросов.
-    - cautious: bool - если равно True, то при старте количество
-        доступных запросов равно нулю, а не pool_size. Другими словами,
-        при подачи очереди запросов к серверу они будут подаваться без
-        начального "взрыва", исчерпывающего изначально доступный пул
-        запросов. 
+    - requests_per_second: int - скорость подачи запросов.
 
     Методы:
     - acquire(self)
     '''
 
 
-    def __init__(self, pool_size: int, requests_per_second: float, 
-                 cautious: bool):
-        if cautious:
-            self._stopped_time = time.monotonic()
-            self._stopped_value = 0
-        else:
-            self._stopped_time = None
-            self._stopped_value = None
+    def __init__(self, pool_size: int, requests_per_second: float):
+        self._stopped_time = None
+        self._stopped_value = None
         self.requests_per_second = requests_per_second
         self._pool_size = pool_size
+        self._slow_last_acquire = None
 
     async def __aenter__(self):
+        global _SLOW
         self._sem = asyncio.BoundedSemaphore(self._pool_size)
-        if self._stopped_time:
+        if (self._stopped_time) and not (_SLOW):
             '''
 -----v-----------------------------v---------------------
      ^ - _stopped_time             ^ - current time
@@ -93,14 +90,18 @@ class SemaphoreWrapper():
 
     async def __aexit__(self, a1, a2, a3):
         self._stopped_time = time.monotonic()
-        self._stopped_value = self._sem._value
+        
+        # в slow-режиме обнуляем пул запросов, чтобы после выхода
+        # не выдать на сервер пачку запросов и не словить отказ
+        self._stopped_value = 0 if _SLOW else self._sem._value
         self.release_task.cancel()
 
     async def _release_sem(self):
-        while True:
-            if self._sem._value < self._sem._bound_value:
-                self._sem.release()
-            await asyncio.sleep(1 / self.requests_per_second)
+        if not _SLOW:
+            while True:
+                if self._sem._value < self._sem._bound_value:
+                    self._sem.release()
+                await asyncio.sleep(1 / self.requests_per_second)
 
     async def acquire(self):
         '''
@@ -115,7 +116,21 @@ class SemaphoreWrapper():
         ...
         ```
         '''
-        return await self._sem.acquire()
+        global _SLOW, _SLOW_RPS
+        if _SLOW:
+            # ждать, исходя из времени последнего запроса в slow-режиме
+            await asyncio.sleep(
+                max (0, 1 / _SLOW_RPS - (time.monotonic() - self._slow_last_acquire))
+                if self._slow_last_acquire 
+                else 1 / _SLOW_RPS
+            ) 
+
+            # подготовиться к следующему вызову
+            self._slow_last_acquire = time.monotonic()
+
+            return True 
+        else:
+            return await self._sem.acquire()
 
 
 ##########################################
@@ -132,17 +147,6 @@ class Bitrix:
     Параметры:
     - webhook: str - URL вебхука, полученного от сервера Битрикс
     
-    - custom_pool_size: int = 50 - размер пула запросов. По умолчанию 50 запросов - 
-        это размер, указанный в официальной документации Битрикс24
-        на июль 2020 г. (https://dev.1c-bitrix.ru/rest_help/rest_sum/index.php)
-    
-    - requests_per_second: float = 2 - скорость отправки запросов. По умолчанию
-        2 запроса в секунду - предельная скорость, согласно официальной
-        документации.
-
-    - cautious: bool = False - стартовать, считая, что пул запросов уже
-        исчерпан, и нужно контролировать скорость запросов с первого запроса
-    
     - autobatch: bool = True - автоматически объединять списки запросов в батчи
 
     - verbose: bool = True - показывать ли прогрессбар при выполнении запроса
@@ -154,18 +158,17 @@ class Bitrix:
     - set_requests_per_second(self, requests_per_second: float)
     '''
 
-    def __init__(self, webhook: str, custom_pool_size: int = 50,
-                 requests_per_second: float = 2, cautious: bool = False,
-                 autobatch: bool = True, verbose: bool = True):
+    def __init__(self, webhook: str, autobatch: bool = True, verbose: bool = True):
         '''
         Создает объект класса Bitrix.
 
         '''
         
         self.webhook = _correct_webhook(webhook)
-        self._sw = SemaphoreWrapper(custom_pool_size, requests_per_second, cautious)
+        self._sw = BitrixSemaphoreWrapper(BITRIX_POOL_SIZE, BITRIX_RPS)
         self._autobatch = autobatch
         self._verbose = verbose
+
 
     async def _request(self, session, method, params=None, pbar=None):
         await self._sw.acquire()
@@ -183,7 +186,7 @@ class Bitrix:
 
         if (self._autobatch) and (method != 'batch'):
 
-            batch_size = 50
+            batch_size = BITRIX_MAX_BATCH_SIZE
             while True:
                 batches = [{
                     'halt': 0,
@@ -206,11 +209,12 @@ class Bitrix:
             item_list = batches
 
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
-            tasks = [asyncio.create_task(self._request(session, method, i))
-                     for i in item_list]
+            tasks = (asyncio.create_task(self._request(session, method, i))
+                     for i in item_list)
             results = []
             if self._verbose:
                 pbar = tqdm(total=real_len, initial=real_start)
+            tasks_to_process = len(item_list)
             for x in asyncio.as_completed((*tasks, self._sw.release_task)):
                 r, __ = await x
                 if r['result_error']:
@@ -225,7 +229,8 @@ class Bitrix:
                 results.extend(r)
                 if self._verbose:
                     pbar.update(len(r))
-                if all([t.done() for t in tasks]):
+                tasks_to_process -= 1
+                if tasks_to_process == 0:
                     break
             if self._verbose:
                 pbar.close()
@@ -249,8 +254,15 @@ class Bitrix:
             ], total, len(results)))
 
         # дедупликация через сериализацию, превращение в set и десериализацию
-        return ([pickle.loads(y) for y in set([pickle.dumps(x) for x in results])]  
-            if results else [])
+        results = [pickle.loads(y) for y in set([pickle.dumps(x) for x in results])] \
+            if results else []
+
+        if len(results) != total:
+            warnings.warn(f"Number of results returned ({len(results)}) "
+                "doesn't equal 'total' from the server reply ({total})",
+                RuntimeWarning)
+
+        return results
 
 
     def get_all(self, method: str, params=None):
@@ -329,28 +341,39 @@ class Bitrix:
         '''
         if len(item_list) == 0:
             return []
+
         try:
             [_check_params(p) for p in item_list]
         except (TypeError, ValueError) as err:
             raise ValueError(
                 'item_list contains items with incorrect method params') from err 
+
         return asyncio.run(self._request_list(method, item_list))
 
 
-    def set_requests_per_second(self, requests_per_second: float) -> None:
-        '''
-        Установить скорость запросов к серверу Битрикса, равную 
-        requests_per_second. Может использоваться для понижения скорости
-        запросов припроведении большого количества операций, нагружающих сервер
-        (например, создание лидов или сделок), из-за чего он может возвращать
-        ошибку 500 Internal Server Error.
+##########################################
+#
+#   slow() context manager
+#
+##########################################
 
-        Параметры:
-        - requests_per_second - новая скорость в запросах в секунду
+_SLOW = False
+_SLOW_RPS = 0
 
-        Возвращает None.
-        '''
-        self._sw.requests_per_second = requests_per_second
+class slow:
+    def __init__(self, requests_per_second = 0.5):
+        global _SLOW_RPS
+        _SLOW_RPS = requests_per_second
+
+    def __enter__(self):
+        global _SLOW
+        _SLOW = True
+
+    def __exit__(self, a1, a2, a3):
+        global _SLOW, _SLOW_RPS
+        _SLOW = False
+        _SLOW_RPS = 0
+
 
 ##########################################
 #
