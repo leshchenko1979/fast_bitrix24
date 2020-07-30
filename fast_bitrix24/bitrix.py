@@ -8,6 +8,7 @@ import itertools
 import more_itertools
 import pickle
 import warnings
+from collections.abc import Iterable
 
 from tqdm import tqdm
 
@@ -86,22 +87,29 @@ class BitrixSemaphoreWrapper():
             self._stopped_time = None
             self._stopped_value = None
 
-        self.release_task = asyncio.create_task(self._release_sem())
+            self.release_task = asyncio.create_task(self._release_sem())
+
 
     async def __aexit__(self, a1, a2, a3):
         self._stopped_time = time.monotonic()
         
-        # в slow-режиме обнуляем пул запросов, чтобы после выхода
-        # не выдать на сервер пачку запросов и не словить отказ
-        self._stopped_value = 0 if _SLOW else self._sem._value
-        self.release_task.cancel()
+        if _SLOW:
+            # в slow-режиме обнуляем пул запросов, чтобы после выхода
+            # не выдать на сервер пачку запросов и не словить отказ
+            self._stopped_value = 0
+        else:
+            self._stopped_value = self._sem._value
+            self.release_task.cancel()
 
+
+    # _release_sem не запускается в основном цикле списочных методов
+    # в slow-режиме
     async def _release_sem(self):
-        if not _SLOW:
-            while True:
-                if self._sem._value < self._sem._bound_value:
-                    self._sem.release()
-                await asyncio.sleep(1 / self.requests_per_second)
+        while True:
+            if self._sem._value < self._sem._bound_value:
+                self._sem.release()
+            await asyncio.sleep(1 / self.requests_per_second)
+
 
     async def acquire(self):
         '''
@@ -205,13 +213,17 @@ class Bitrix:
             item_list = batches
 
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
-            tasks = (asyncio.create_task(self._request(session, method, i))
-                     for i in item_list)
-            results = []
+            tasks = [asyncio.create_task(self._request(session, method, i))
+                     for i in item_list]
+            global _SLOW
+            if not _SLOW:
+                tasks.extend(self._sw.release_task)
+
             if self._verbose:
                 pbar = tqdm(total=real_len, initial=real_start)
+            results = []
             tasks_to_process = len(item_list)
-            for x in asyncio.as_completed((*tasks, self._sw.release_task)):
+            for x in asyncio.as_completed(tasks):
                 r, __ = await x
                 if r['result_error']:
                     raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
@@ -287,7 +299,7 @@ class Bitrix:
 
         return asyncio.run(self._get_paginated_list(method, params))
 
-    def get_by_ID(self, method: str, ID_list, params=None):
+    def get_by_ID(self, method: str, ID_list: Iterable, params=None):
         '''
         Получить список сущностей по запросу method и списку ID.
 
@@ -321,6 +333,9 @@ class Bitrix:
                 if k.lower() == 'id':
                     raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
 
+        if not isinstance(ID_list, Iterable):
+            raise TypeError("get_by_ID(): 'ID_list' should be iterable")
+
         if len(ID_list) == 0:
             return []
         return asyncio.run(self._request_list(
@@ -330,7 +345,7 @@ class Bitrix:
             preserve_IDs=True
         ))
 
-    def call(self, method: str, item_list):
+    def call(self, method: str, item_list: Iterable):
         '''
         Вызвать метод REST API по списку.
 
@@ -348,6 +363,9 @@ class Bitrix:
         except (TypeError, ValueError) as err:
             raise ValueError(
                 'item_list contains items with incorrect method params') from err 
+
+        if not isinstance(item_list, Iterable):
+            raise TypeError("get_by_ID(): 'item_list' should be iterable")
 
         return asyncio.run(self._request_list(method, item_list))
 
