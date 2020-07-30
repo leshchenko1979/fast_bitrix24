@@ -26,7 +26,7 @@ pip install fast_bitrix24
 Далее в python:
 
 ```python
-from fast_bitrix24 import Bitrix
+from fast_bitrix24 import *
 
 # замените на ваш вебхук для доступа к Bitrix24
 webhook = "https://your_domain.bitrix24.ru/rest/1/your_code/"
@@ -187,7 +187,7 @@ contacts = b.get_by_ID('crm.deal.contact.item.get',
 ```python
 # временно снижаем скорость до 0.2 запроса в секунду
 slower_requests_per_second = 0.2
-with fast_bitrix24.slow(slower_requests_per_second):
+with slow(slower_requests_per_second):
     b.call('crm.lead.add', [{} for x in range(2500)])
 
 # а теперь несемся с прежней скоростью

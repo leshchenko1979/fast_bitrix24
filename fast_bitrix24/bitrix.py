@@ -31,15 +31,14 @@ class BitrixSemaphoreWrapper():
     Используется для контроля скорости доступа к серверам Битрикс.
 
     Основная цель - вести учет количества запросов, которые можно передать
-    серверу Битрикс без получения ошибки 503.
+    серверу Битрикс без получения ошибки `503`.
 
     Используется как контекстный менеджер, оборачивающий несколько
     последовательных запросов к серверу.
 
-    Свойства:
-    - release_task - указатель на задачу, которая увеличивает счетчик количества
-        доступных запросов к серверу Битрикс. Должна выполняться параллельно
-        с другими задачами в цикле asyncio.
+    Чтобы все работало, нужно, чтобы внутри метода класса `Bitrix`, в котором
+    используется этот семафор, выполнял параллельно по совими задачами и
+    корутину-метод `release_sem()`.
         
     Параметры:
     - pool_size: int - размер пула доступных запросов.
@@ -47,6 +46,7 @@ class BitrixSemaphoreWrapper():
 
     Методы:
     - acquire(self)
+    - release_sem(self)
     '''
 
 
@@ -55,39 +55,39 @@ class BitrixSemaphoreWrapper():
         self._stopped_value = None
         self.requests_per_second = requests_per_second
         self._pool_size = pool_size
-        self._slow_last_acquire = None
 
     async def __aenter__(self):
         global _SLOW
         self._sem = asyncio.BoundedSemaphore(self._pool_size)
-        if (self._stopped_time) and not (_SLOW):
-            '''
+        if _SLOW:
+            self._slow_lock = asyncio.Lock()
+        else:
+            if self._stopped_time:
+                '''
 -----v-----------------------------v---------------------
      ^ - _stopped_time             ^ - current time
      |-------- time_passed --------|
      |- step -|- step -|- step |          - add_steps (whole steps to add)
                                |- step -| - additional 1 step added
                                    |-aw-| - additional waiting time
-            '''
-            time_passed = time.monotonic() - self._stopped_time
+                '''
+                time_passed = time.monotonic() - self._stopped_time
 
-            # сколько шагов должно было пройти
-            add_steps = time_passed / self.requests_per_second // 1
+                # сколько шагов должно было пройти
+                add_steps = time_passed / self.requests_per_second // 1
 
-            # сколько шагов могло пройти с учетом ограничений + еще один
-            real_add_steps = min(self._pool_size - self._stopped_value,
-                                 add_steps + 1)
+                # сколько шагов могло пройти с учетом ограничений + еще один
+                real_add_steps = min(self._pool_size - self._stopped_value,
+                                    add_steps + 1)
 
-            # добавляем пропущенные шаги
-            self._sem._value += real_add_steps
+                # добавляем пропущенные шаги
+                self._sem._value += real_add_steps
 
-            # ждем время, излишне списанное при добавлении дополнительного шага
-            await asyncio.sleep((add_steps + 1) / self.requests_per_second - time_passed)
+                # ждем время, излишне списанное при добавлении дополнительного шага
+                await asyncio.sleep((add_steps + 1) / self.requests_per_second - time_passed)
 
-            self._stopped_time = None
-            self._stopped_value = None
-
-            self.release_task = asyncio.create_task(self._release_sem())
+                self._stopped_time = None
+                self._stopped_value = None
 
 
     async def __aexit__(self, a1, a2, a3):
@@ -99,12 +99,17 @@ class BitrixSemaphoreWrapper():
             self._stopped_value = 0
         else:
             self._stopped_value = self._sem._value
-            self.release_task.cancel()
 
 
-    # _release_sem не запускается в основном цикле списочных методов
-    # в slow-режиме
-    async def _release_sem(self):
+    async def release_sem(self):
+        '''
+        Корутина-метод, которая увеличивает счетчик доступных в пуле запросов.
+
+        Должна запускаться единожды в параллели со всеми другими задачами
+        внутри основного цикла `Bitrix._request_list`, кроме случаев
+        выполнения в slow-режиме, когда она запускаться на должна.
+        '''
+
         while True:
             if self._sem._value < self._sem._bound_value:
                 self._sem.release()
@@ -113,8 +118,8 @@ class BitrixSemaphoreWrapper():
 
     async def acquire(self):
         '''
-        Вызов acquire() должен предшествовать любому обращению
-        к серверу Bitrix. Он возвращает True, когда к серверу
+        Вызов `await acquire()` должен предшествовать любому обращению
+        к серверу Битрикс. Он возвращает `True`, когда к серверу
         можно осуществить запрос.
 
         Использование:
@@ -126,16 +131,10 @@ class BitrixSemaphoreWrapper():
         '''
         global _SLOW, _SLOW_RPS
         if _SLOW:
-            # ждать, исходя из времени последнего запроса в slow-режиме
-            await asyncio.sleep(
-                max (0, 1 / _SLOW_RPS - (time.monotonic() - self._slow_last_acquire))
-                if self._slow_last_acquire 
-                else 1 / _SLOW_RPS
-            ) 
-
-            # подготовиться к следующему вызову
-            self._slow_last_acquire = time.monotonic()
-
+            # ждать, пока отработают другие запросы, запущенные параллельно,
+            async with self._slow_lock:
+            # потом ждать основное время "остывания"
+                await asyncio.sleep(1 / _SLOW_RPS)
             return True 
         else:
             return await self._sem.acquire()
@@ -213,11 +212,11 @@ class Bitrix:
             item_list = batches
 
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
-            tasks = [asyncio.create_task(self._request(session, method, i))
-                     for i in item_list]
             global _SLOW
+            tasks = [asyncio.create_task(self._request(session, method, i))
+                        for i in item_list]
             if not _SLOW:
-                tasks.extend(self._sw.release_task)
+                tasks.append(asyncio.create_task(self._sw.release_sem()))
 
             if self._verbose:
                 pbar = tqdm(total=real_len, initial=real_start)
@@ -462,12 +461,14 @@ def _check_params(p):
 
     # check for allowed types of key values
     for pi in p.items():
-        t = clauses[pi[0].lower()]
-        if t and not (
-            (isinstance(pi[1], t)) or
-            ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
-        ):
-            raise TypeError(f'Clause "{pi[0]}" should be of type {t}, but its type is {type(pi[1])}')
+        if pi[0] in clauses.keys():
+            t = clauses[pi[0].lower()]
+            if t and not (
+                (isinstance(pi[1], t)) or
+                ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
+            ):
+                raise TypeError(f'Clause "{pi[0]}" should be of type {t}, '
+                    'but its type is {type(pi[1])}')
 
 
 def _url_valid(url):
