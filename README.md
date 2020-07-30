@@ -102,14 +102,12 @@ b.call('crm.deal.update', tasks)
 
 Перед обращением к серверу во всех методах происходит проверка корректности самых популярных параметров, передаваемых к серверу, и поднимается `TypeError` при наличии ошибок.
 
-### Метод ` __init__(self, webhook: str, autobatch: bool = True, verbose: bool = True):`
+### Метод ` __init__(self, webhook: str, verbose: bool = True):`
 Создаёт экземпляр объекта `Bitrix`.
 
 #### Параметры 
 * `webhook: str` - URL вебхука, полученного от сервера Битрикс.
         
-* `autobatch: bool = True` - автоматически объединять списки запросов в батчи для ускорения обмена с сервером.
-
 * `verbose: bool = True` - показывать прогрессбар при выполнении запроса.
 
 ### Метод `get_all(self, method: str, params: dict = None)`

@@ -146,9 +146,6 @@ class Bitrix:
 
     Параметры:
     - webhook: str - URL вебхука, полученного от сервера Битрикс
-    
-    - autobatch: bool = True - автоматически объединять списки запросов в батчи
-
     - verbose: bool = True - показывать ли прогрессбар при выполнении запроса
 
     Методы:
@@ -157,7 +154,7 @@ class Bitrix:
     - call(self, method: str, item_list)
     '''
 
-    def __init__(self, webhook: str, autobatch: bool = True, verbose: bool = True):
+    def __init__(self, webhook: str, verbose: bool = True):
         '''
         Создает объект класса Bitrix.
 
@@ -165,7 +162,7 @@ class Bitrix:
         
         self.webhook = _correct_webhook(webhook)
         self._sw = BitrixSemaphoreWrapper(BITRIX_POOL_SIZE, BITRIX_RPS)
-        self._autobatch = autobatch
+        self._autobatch = True
         self._verbose = verbose
 
 
