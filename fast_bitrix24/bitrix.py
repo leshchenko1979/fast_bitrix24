@@ -154,8 +154,7 @@ class Bitrix:
     Методы:
     - get_all(self, method: str, details=None)
     - get_by_ID(self, method: str, ID_list, details=None)
-    - post(self, method: str, item_list)
-    - set_requests_per_second(self, requests_per_second: float)
+    - call(self, method: str, item_list)
     '''
 
     def __init__(self, webhook: str, autobatch: bool = True, verbose: bool = True):
@@ -286,7 +285,7 @@ class Bitrix:
         if params:
             _check_params(params)
             for k in params.keys():
-                if k in ['start', 'limit', 'order']:
+                if k.lower() in ['start', 'limit', 'order']:
                     raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
 
         return asyncio.run(self._get_paginated_list(method, params))
@@ -319,7 +318,12 @@ class Bitrix:
         сущности.
         '''
 
-        if params: _check_params(params)
+        if params: 
+            _check_params(params)
+            for k in params.keys():
+                if k.lower() == 'id':
+                    raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
+
         if len(ID_list) == 0:
             return []
         return asyncio.run(self._request_list(
@@ -434,13 +438,12 @@ def _check_params(p):
         'order': dict,
         'filter': dict,
         'start': int,
-        'fields': dict,
-        'id': None
+        'fields': dict
     }
 
-    for pk in p.keys():
-        if pk.lower() not in clauses.keys():
-            raise ValueError(f'Unknown clause "{pk}" in params argument')
+#    for pk in p.keys():
+#        if pk.lower() not in clauses.keys():
+#            raise ValueError(f'Unknown clause "{pk}" in params argument')
 
     # check for allowed types of key values
     for pi in p.items():
