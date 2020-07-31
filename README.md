@@ -1,4 +1,4 @@
-# fast-bitrix24
+# fast_bitrix24
 Высокоуровневый API для Python 3.7+ для быстрого получения данных от Битрикс24 через REST API.
 
 ## Основная функциональность
@@ -208,3 +208,4 @@ leads = b.get_all('crm.lead.list')
 ## Как связаться с автором
 - e-mail: leshchenko@gmail.com
 - telegram: https://t.me/leshchenko1979
+- создать новый github issue: https://github.com/leshchenko1979/fast_bitrix24/issues/new
