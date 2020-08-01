@@ -178,6 +178,8 @@ class Bitrix:
         url = f'{self.webhook}{method}?{_bitrix_url(params)}'
         async with session.get(url) as response:
             r = await response.json(encoding='utf-8')
+        if 'result_error' in r.keys():
+            raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
         if pbar:
             pbar.update(len(r['result']))
         return r['result'], (r['total'] if 'total' in r.keys() else None)
@@ -252,7 +254,7 @@ class Bitrix:
 
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
             results, total = await self._request(session, method, params)
-            if not total or total <= 50:
+            if not total or total <= 50 or total == len(results):
                 return results
 
             results.extend(await self._request_list(method, [
@@ -272,7 +274,7 @@ class Bitrix:
         return results
 
 
-    def get_all(self, method: str, params=None):
+    def get_all(self, method: str, params: dict = None) -> list:
         '''
         Получить полный список сущностей по запросу method.
 
@@ -283,8 +285,8 @@ class Bitrix:
         Параметры:
         - method - метод REST API для запроса к серверу
         - params - параметры для передачи методу. Используется именно тот формат,
-            который указан в документации к REST API Битрикс24. get_all() не
-            поддерживает параметры 'start', 'limit' и 'order'.
+                который указан в документации к REST API Битрикс24. get_all() не
+                поддерживает параметры 'start', 'limit' и 'order'.
 
         Возвращает полный список сущностей, имеющихся на сервере,
         согласно заданным методу и параметрам.
@@ -298,7 +300,7 @@ class Bitrix:
 
         return asyncio.run(self._get_paginated_list(method, params))
 
-    def get_by_ID(self, method: str, ID_list: Iterable, params=None):
+    def get_by_ID(self, method: str, ID_list: Iterable, params: dict = None) -> list:
         '''
         Получить список сущностей по запросу method и списку ID.
 
@@ -344,7 +346,7 @@ class Bitrix:
             preserve_IDs=True
         ))
 
-    def call(self, method: str, item_list: Iterable):
+    def call(self, method: str, item_list: Iterable) -> list:
         '''
         Вызвать метод REST API по списку.
 
@@ -354,6 +356,10 @@ class Bitrix:
 
         Возвращает список ответов сервера для каждого из элементов item_list.
         '''
+
+        if not isinstance(item_list, Iterable):
+            raise TypeError("get_by_ID(): 'item_list' should be iterable")
+
         if len(item_list) == 0:
             return []
 
@@ -362,9 +368,6 @@ class Bitrix:
         except (TypeError, ValueError) as err:
             raise ValueError(
                 'item_list contains items with incorrect method params') from err 
-
-        if not isinstance(item_list, Iterable):
-            raise TypeError("get_by_ID(): 'item_list' should be iterable")
 
         return asyncio.run(self._request_list(method, item_list))
 
