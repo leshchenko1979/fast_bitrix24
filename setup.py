@@ -5,13 +5,13 @@ with open("README.md", "r", encoding='utf-8') as fh:
 
 setuptools.setup(
     name="fast_bitrix24",
-    version="0.2.7",
+    version="0.3.0",
     author="Alexey Leshchenko",
     author_email="leshchenko@gmail.com",
     description="A high-level Python SDK for Bitrix24 REST API aiming for speed of high volume transactions. Async operations, automatic batching and traffic throttling to prevent server rejections.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/leshchenko1979/lxutils",
+    url="https://github.com/leshchenko1979/fast_bitrix24",
     packages=['fast_bitrix24'],
     exclude_package_data={
         'fast_bitrix24': ["test**"]
@@ -25,8 +25,7 @@ setuptools.setup(
     install_requires=[
         'aiohttp',
         'asyncio',
-        'tqdm',
-        'more_itertools'
+        'tqdm'
     ],
     license="MIT"
 )
