@@ -156,9 +156,9 @@ class Bitrix:
     - verbose: bool = True - показывать ли прогрессбар при выполнении запроса
 
     Методы:
-    - get_all(self, method: str, details=None)
-    - get_by_ID(self, method: str, ID_list, details=None)
-    - call(self, method: str, item_list)
+    - get_all(self, method: str, params: dict = None) -> list
+    - get_by_ID(self, method: str, ID_list: Sequence, ID_field_name: str = 'ID', params: dict = None) -> list
+    - call(self, method: str, item_list: Sequence) -> list
     '''
 
     def __init__(self, webhook: str, verbose: bool = True):
@@ -312,6 +312,8 @@ class Bitrix:
         Параметры:
         - method - метод REST API для запроса к серверу
         - ID_list - список ID
+        - ID_list_name - название поля, которе будет подаваться в запрос для 
+            каждого элемента ID_list
         - params - параметры для передачи методу. Используется именно тот
             формат, который указан в документации к REST API Битрикс24
 
