@@ -8,7 +8,7 @@ import itertools
 import more_itertools
 import pickle
 import warnings
-from collections.abc import Iterable
+from collections.abc import Sequence
 
 from tqdm import tqdm
 
@@ -196,7 +196,7 @@ class Bitrix:
                 batches = [{
                     'halt': 0,
                     'cmd': {
-                        item['ID'] if preserve_IDs else f'cmd{i}': 
+                        item[preserve_IDs] if preserve_IDs else f'cmd{i}': 
                         f'{method}?{_bitrix_url(item)}'
                         for i, item in enumerate(next_batch)
                     }}
@@ -300,7 +300,8 @@ class Bitrix:
 
         return asyncio.run(self._get_paginated_list(method, params))
 
-    def get_by_ID(self, method: str, ID_list: Iterable, params: dict = None) -> list:
+    def get_by_ID(self, method: str, ID_list: Sequence, ID_field_name: str = 'ID',
+        params: dict = None) -> list:
         '''
         Получить список сущностей по запросу method и списку ID.
 
@@ -334,19 +335,19 @@ class Bitrix:
                 if k.lower() == 'id':
                     raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
 
-        if not isinstance(ID_list, Iterable):
-            raise TypeError("get_by_ID(): 'ID_list' should be iterable")
+        if not isinstance(ID_list, Sequence):
+            raise TypeError("get_by_ID(): 'ID_list' should be a sequence")
 
         if len(ID_list) == 0:
             return []
         return asyncio.run(self._request_list(
             method,
-            [_merge_dict({'ID': ID}, params) for ID in ID_list] if params else
-            [{'ID': ID} for ID in set(ID_list)],
-            preserve_IDs=True
+            [_merge_dict({ID_field_name: ID}, params) for ID in ID_list] if params else
+            [{ID_field_name: ID} for ID in set(ID_list)],
+            preserve_IDs=ID_field_name
         ))
 
-    def call(self, method: str, item_list: Iterable) -> list:
+    def call(self, method: str, item_list: Sequence) -> list:
         '''
         Вызвать метод REST API по списку.
 
@@ -357,8 +358,8 @@ class Bitrix:
         Возвращает список ответов сервера для каждого из элементов item_list.
         '''
 
-        if not isinstance(item_list, Iterable):
-            raise TypeError("get_by_ID(): 'item_list' should be iterable")
+        if not isinstance(item_list, Sequence):
+            raise TypeError("get_by_ID(): 'item_list' should be a sequence")
 
         if len(item_list) == 0:
             return []
