@@ -186,9 +186,12 @@ class Bitrix:
 
 
     async def _request_list(self, method, item_list, real_len=None, real_start=0, preserve_IDs=False):
+        original_item_list = item_list.copy()
+        
         if not real_len:
             real_len = len(item_list)
 
+        # подготовить батчи
         if (self._autobatch) and (method != 'batch'):
 
             batch_size = BITRIX_MAX_BATCH_SIZE
@@ -202,8 +205,13 @@ class Bitrix:
                     }}
                     for next_batch in more_itertools.chunked(item_list, batch_size)
                 ]
+                
+                # проверяем длину получившегося URI
                 uri_len = len(self.webhook + 'batch' +
                               urllib.parse.urlencode(batches[0]))
+                
+                # и если слишком длинный, то уменьшаем размер батча
+                # и уходим на перекомпоновку
                 if uri_len > BITRIX_URI_MAX_LEN:
                     batch_size = int(
                         batch_size // (uri_len / BITRIX_URI_MAX_LEN))
@@ -213,6 +221,7 @@ class Bitrix:
             method = 'batch'
             item_list = batches
 
+        # основная часть - отправляем запросы
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
             global _SLOW
             tasks = [asyncio.create_task(self._request(session, method, i))
@@ -222,6 +231,7 @@ class Bitrix:
 
             if self._verbose:
                 pbar = tqdm(total=real_len, initial=real_start)
+            
             results = []
             tasks_to_process = len(item_list)
             for x in asyncio.as_completed(tasks):
@@ -243,6 +253,17 @@ class Bitrix:
                     break
             if self._verbose:
                 pbar.close()
+            
+            # сортировка результатов в том же порядке, что и 
+            if preserve_IDs:
+                
+                # выделяем ID для облегчения дальнейшего поиска
+                IDs_only = [i[preserve_IDs] for i in original_item_list]
+                    
+                # сортируем results на базе порядка ID в original_item_list
+                results.sort(key = lambda item: 
+                    IDs_only.index(item[0]))
+            
             return results
 
     async def _get_paginated_list(self, method, params=None):
