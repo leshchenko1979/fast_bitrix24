@@ -85,7 +85,7 @@ contacts = b.get_by_ID('crm.deal.contact.item.get',
 tasks = [
     {
         'ID': d['ID'],
-        'NAME': f'{d["ID"]} - {d["NAME"]}'
+        'TITLE': f'{d["ID"]} - {d["TITLE"]}'
     }
     for d in deals
 ]
