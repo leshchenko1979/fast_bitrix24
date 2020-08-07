@@ -85,7 +85,9 @@ contacts = b.get_by_ID('crm.deal.contact.item.get',
 tasks = [
     {
         'ID': d['ID'],
-        'TITLE': f'{d["ID"]} - {d["TITLE"]}'
+        fields: {
+            'TITLE': f'{d["ID"]} - {d["TITLE"]}'
+        }
     }
     for d in deals
 ]
@@ -213,6 +215,12 @@ leads = b.get_all('crm.lead.list')
 * `requests_per_second: float = 0.5` - требуемая замедленная скорость запросов. По умолчанию 0.5 запросов в секунду.
 
 # Советы и подсказки
+
+### А как мне сформировать запрос к Битриксу, чтобы  ...?
+
+1. Поищите в [официальной документации по REST API](https://dev.1c-bitrix.ru/rest_help/).
+2. Если на ваш вопрос там нет ответа - попробуйте задать его в [группе "Партнерский REST API" в Сообществе разработчиков Битрикс24](https://dev.bitrix24.ru/workgroups/group/34/).
+3. Спросите на [русском StackOverflow](https://ru.stackoverflow.com/questions/tagged/битрикс24).
 
 ### Я хочу вызвать `call()` только один раз, а не по списку.
 Берите параметры вашего вызова, заворачивайте их в список из одного элемента и делайте вызов.
