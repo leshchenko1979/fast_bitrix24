@@ -222,6 +222,15 @@ leads = b.get_all('crm.lead.list')
 2. Если на ваш вопрос там нет ответа - попробуйте задать его в [группе "Партнерский REST API" в Сообществе разработчиков Битрикс24](https://dev.bitrix24.ru/workgroups/group/34/).
 3. Спросите на [русском StackOverflow](https://ru.stackoverflow.com/questions/tagged/битрикс24).
 
+### Я хочу добавить несколько лидов списком, но получаю ошибку сервера.
+
+Оберните вызов `call()` в `slow`, установив скорость запросов в 1 - 1,3 в секунду:
+
+```python
+with slow(1):
+    results = b.call('crm.lead.add', tasks)
+```
+
 ### Я хочу вызвать `call()` только один раз, а не по списку.
 Берите параметры вашего вызова, заворачивайте их в список из одного элемента и делайте вызов.
 
@@ -247,7 +256,7 @@ b.call(method, item_list)
 
 ```python
 deals = b.get_all('crm.deal.list')
-deals.sort(key = lambda d: d['ID'])
+deals.sort(key = lambda d: int(d['ID']))
 ```
 То же самое касается и методов `get_by_ID()` и `call()` - порядок элементов в списке результатов не совпадает с порядком в списке запросов.
 
