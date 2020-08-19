@@ -254,7 +254,7 @@ class Bitrix:
             if self._verbose:
                 pbar.close()
             
-            # сортировка результатов в том же порядке, что и 
+            # сортировка результатов в том же порядке, что и в original_item_list
             if preserve_IDs:
                 
                 # выделяем ID для облегчения дальнейшего поиска
@@ -363,6 +363,7 @@ class Bitrix:
 
         if len(ID_list) == 0:
             return []
+        
         return asyncio.run(self._request_list(
             method,
             [_merge_dict({ID_field_name: ID}, params) for ID in ID_list] if params else
@@ -393,7 +394,20 @@ class Bitrix:
             raise ValueError(
                 'item_list contains items with incorrect method params') from err 
 
-        return asyncio.run(self._request_list(method, item_list))
+        # добавим порядковый номер служебным полем
+        item_list_with_order = [
+            _merge_dict(item, {'__fb24_order': str(i)}) 
+            for i, item in enumerate(item_list)
+        ]
+
+        results_with_order_field =  asyncio.run(
+            self._request_list(method, 
+                               item_list_with_order, 
+                               preserve_IDs = '__fb24_order')
+        )
+        
+        # убираем поле с порядковым номером из результатов
+        return [item[1] for item in results_with_order_field]
 
 
 ##########################################
@@ -463,6 +477,13 @@ def _merge_dict(d1, d2):
     if d2:
         d3.update(d2)
     return d3
+
+
+def _check_if_IDs_are_str(item_list, ID_field_name):
+    for i, item in enumerate(item_list):
+        if type(item[ID_field_name]) != str:
+            raise TypeError(f"ID in item_list[{i}] should be a str, but it's a {type(item[ID_field_name])}")
+
 
 def _check_params(p):
 
