@@ -366,7 +366,7 @@ class Bitrix:
         return asyncio.run(self._request_list(
             method,
             [_merge_dict({ID_field_name: ID}, params) for ID in ID_list] if params else
-            [{ID_field_name: ID} for ID in set(ID_list)],
+            [{ID_field_name: ID} for ID in ID_list],
             preserve_IDs=ID_field_name
         ))
 
