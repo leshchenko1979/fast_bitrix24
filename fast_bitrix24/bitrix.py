@@ -208,7 +208,7 @@ class Bitrix:
                 
                 # проверяем длину получившегося URI
                 uri_len = len(self.webhook + 'batch' +
-                              urllib.parse.urlencode(batches[0]))
+                              _bitrix_url(batches[0]))
                 
                 # и если слишком длинный, то уменьшаем размер батча
                 # и уходим на перекомпоновку
@@ -396,7 +396,7 @@ class Bitrix:
 
         # добавим порядковый номер служебным полем
         item_list_with_order = [
-            _merge_dict(item, {'__fb24_order': str(i)}) 
+            _merge_dict(item, {'__fb24_order': 'fbo' + str(i)}) 
             for i, item in enumerate(item_list)
         ]
 
@@ -477,12 +477,6 @@ def _merge_dict(d1, d2):
     if d2:
         d3.update(d2)
     return d3
-
-
-def _check_if_IDs_are_str(item_list, ID_field_name):
-    for i, item in enumerate(item_list):
-        if type(item[ID_field_name]) != str:
-            raise TypeError(f"ID in item_list[{i}] should be a str, but it's a {type(item[ID_field_name])}")
 
 
 def _check_params(p):
