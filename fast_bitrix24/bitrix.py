@@ -186,9 +186,12 @@ class Bitrix:
 
 
     async def _request_list(self, method, item_list, real_len=None, real_start=0, preserve_IDs=False):
+        original_item_list = item_list.copy()
+        
         if not real_len:
             real_len = len(item_list)
 
+        # подготовить батчи
         if (self._autobatch) and (method != 'batch'):
 
             batch_size = BITRIX_MAX_BATCH_SIZE
@@ -202,8 +205,13 @@ class Bitrix:
                     }}
                     for next_batch in more_itertools.chunked(item_list, batch_size)
                 ]
+                
+                # проверяем длину получившегося URI
                 uri_len = len(self.webhook + 'batch' +
-                              urllib.parse.urlencode(batches[0]))
+                              _bitrix_url(batches[0]))
+                
+                # и если слишком длинный, то уменьшаем размер батча
+                # и уходим на перекомпоновку
                 if uri_len > BITRIX_URI_MAX_LEN:
                     batch_size = int(
                         batch_size // (uri_len / BITRIX_URI_MAX_LEN))
@@ -213,6 +221,7 @@ class Bitrix:
             method = 'batch'
             item_list = batches
 
+        # основная часть - отправляем запросы
         async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
             global _SLOW
             tasks = [asyncio.create_task(self._request(session, method, i))
@@ -222,6 +231,7 @@ class Bitrix:
 
             if self._verbose:
                 pbar = tqdm(total=real_len, initial=real_start)
+            
             results = []
             tasks_to_process = len(item_list)
             for x in asyncio.as_completed(tasks):
@@ -243,6 +253,17 @@ class Bitrix:
                     break
             if self._verbose:
                 pbar.close()
+            
+            # сортировка результатов в том же порядке, что и в original_item_list
+            if preserve_IDs:
+                
+                # выделяем ID для облегчения дальнейшего поиска
+                IDs_only = [i[preserve_IDs] for i in original_item_list]
+                    
+                # сортируем results на базе порядка ID в original_item_list
+                results.sort(key = lambda item: 
+                    IDs_only.index(item[0]))
+            
             return results
 
     async def _get_paginated_list(self, method, params=None):
@@ -342,10 +363,11 @@ class Bitrix:
 
         if len(ID_list) == 0:
             return []
+        
         return asyncio.run(self._request_list(
             method,
             [_merge_dict({ID_field_name: ID}, params) for ID in ID_list] if params else
-            [{ID_field_name: ID} for ID in set(ID_list)],
+            [{ID_field_name: ID} for ID in ID_list],
             preserve_IDs=ID_field_name
         ))
 
@@ -372,7 +394,20 @@ class Bitrix:
             raise ValueError(
                 'item_list contains items with incorrect method params') from err 
 
-        return asyncio.run(self._request_list(method, item_list))
+        # добавим порядковый номер служебным полем
+        item_list_with_order = [
+            _merge_dict(item, {'__fb24_order': 'fbo' + str(i)}) 
+            for i, item in enumerate(item_list)
+        ]
+
+        results_with_order_field =  asyncio.run(
+            self._request_list(method, 
+                               item_list_with_order, 
+                               preserve_IDs = '__fb24_order')
+        )
+        
+        # убираем поле с порядковым номером из результатов
+        return [item[1] for item in results_with_order_field]
 
 
 ##########################################
@@ -442,6 +477,7 @@ def _merge_dict(d1, d2):
     if d2:
         d3.update(d2)
     return d3
+
 
 def _check_params(p):
 
