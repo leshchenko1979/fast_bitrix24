@@ -52,14 +52,14 @@ users = b.get_all('user.get')
 
 ```python
 # список сделок в работе, включая пользовательские поля
-deals = b.get_all('crm.deal.get', params={
+deals = b.get_all('crm.deal.list', params={
     'select': ['*', 'UF_*'],
     'filter': {'CLOSED': 'N'}
 })
 ```
 
 ### `get_by_ID()`
-Если у вас есть список ID сущностей, то вы можете получить их при помощи метода `get_by_ID()`
+Если у вас есть список ID сущностей, то вы можете получить их свойства при помощи метода `get_by_ID()`
 и использовании методов вида `*.get`:
 
 ```python
@@ -135,7 +135,7 @@ b.call('crm.deal.update', tasks)
 Например, чтобы получить все контакты, привязанные к сделкам в работе, нужно выполнить следующий код:
 
 ```python
-deals = b.get_all('crm.deal.get', params={
+deals = b.get_all('crm.deal.list', params={
     'filter': {'CLOSED': 'N'}
 })
 
@@ -194,8 +194,8 @@ contacts = b.get_by_ID('crm.deal.contact.item.get',
 помощи контекстного менеджера `slow`:
 
 ```python
-# временно снижаем скорость до 0.2 запроса в секунду
-slower_speed = 0.2
+# временно снижаем скорость до 1.2 запроса в секунду
+slower_speed = 1.2
 with slow(slower_speed):
     b.call('crm.lead.add', [{} for x in range(2500)])
 
@@ -227,7 +227,7 @@ leads = b.get_all('crm.lead.list')
 Оберните вызов `call()` в `slow`, установив скорость запросов в 1 - 1,3 в секунду:
 
 ```python
-with slow(1):
+with slow(1.2):
     results = b.call('crm.lead.add', tasks)
 ```
 
