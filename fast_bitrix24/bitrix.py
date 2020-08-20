@@ -8,7 +8,7 @@ import itertools
 import more_itertools
 import pickle
 import warnings
-from collections.abc import Sequence
+from collections.abc import Sequence, Iterable
 
 from tqdm import tqdm
 
@@ -266,34 +266,6 @@ class Bitrix:
             
             return results
 
-    async def _get_paginated_list(self, method, params=None):
-        if params:
-            if 'order' not in [x.lower() for x in params.keys()]:
-                params.update({'order': {'ID': 'ASC'}})
-        else:
-            params = {'order': {'ID': 'ASC'}}
-
-        async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
-            results, total = await self._request(session, method, params)
-            if not total or total <= 50 or total == len(results):
-                return results
-
-            results.extend(await self._request_list(method, [
-                _merge_dict({'start': start}, params)
-                for start in range(len(results), total, 50)
-            ], total, len(results)))
-
-        # дедупликация через сериализацию, превращение в set и десериализацию
-        results = [pickle.loads(y) for y in set([pickle.dumps(x) for x in results])] \
-            if results else []
-
-        if len(results) != total:
-            warnings.warn(f"Number of results returned ({len(results)}) "
-                "doesn't equal 'total' from the server reply ({total})",
-                RuntimeWarning)
-
-        return results
-
 
     def get_all(self, method: str, params: dict = None) -> list:
         '''
@@ -313,13 +285,7 @@ class Bitrix:
         согласно заданным методу и параметрам.
         '''
 
-        if params:
-            _check_params(params)
-            for k in params.keys():
-                if k.lower() in ['start', 'limit', 'order']:
-                    raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
-
-        return asyncio.run(self._get_paginated_list(method, params))
+        return GetAllUserRequest(self, method, params).run()
 
     def get_by_ID(self, method: str, ID_list: Sequence, ID_field_name: str = 'ID',
         params: dict = None) -> list:
@@ -352,24 +318,7 @@ class Bitrix:
         сущности.
         '''
 
-        if params: 
-            _check_params(params)
-            for k in params.keys():
-                if k.lower() == 'id':
-                    raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
-
-        if not isinstance(ID_list, Sequence):
-            raise TypeError("get_by_ID(): 'ID_list' should be a sequence")
-
-        if len(ID_list) == 0:
-            return []
-        
-        return asyncio.run(self._request_list(
-            method,
-            [_merge_dict({ID_field_name: ID}, params) for ID in ID_list] if params else
-            [{ID_field_name: ID} for ID in ID_list],
-            preserve_IDs=ID_field_name
-        ))
+        return GetByIDUserRequest(self, method, params, ID_list, ID_field_name).run()
 
     def call(self, method: str, item_list: Sequence) -> list:
         '''
@@ -382,34 +331,209 @@ class Bitrix:
         Возвращает список ответов сервера для каждого из элементов item_list.
         '''
 
-        if not isinstance(item_list, Sequence):
-            raise TypeError("get_by_ID(): 'item_list' should be a sequence")
+        return CallUserRequest(self, method, item_list).run()
 
-        if len(item_list) == 0:
+
+class UserRequestAbstract():
+    def __init__(self, bitrix: Bitrix, method: str, params: dict):
+        self.bitrix = bitrix
+        self.method = method
+        self.params = params
+        
+    def check_args(self):
+        if self.params:
+            self.check_params(self.params)
+        self.check_special_limitations()
+
+    def check_params(self, p):
+        # check if p is dict
+        if not isinstance(p, dict):
+            raise TypeError('params agrument should be a dict')
+
+        clauses = {
+            'select': list,
+            'halt': int,
+            'cmd': dict,
+            'limit': int,
+            'order': dict,
+            'filter': dict,
+            'start': int,
+            'fields': dict
+        }
+
+        # check for allowed types of key values
+        for pi in p.items():
+            if pi[0] in clauses.keys():
+                t = clauses[pi[0].lower()]
+                if t and not (
+                    (isinstance(pi[1], t)) or
+                    ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
+                ):
+                    raise TypeError(f'Clause "{pi[0]}" should be of type {t}, '
+                        'but its type is {type(pi[1])}')
+
+    
+    def check_special_limitations(self):
+        raise NotImplementedError
+    
+    
+class GetAllUserRequest(UserRequestAbstract):
+    def run(self):
+        self.check_args()
+        return asyncio.run(self.get_paginated_list())
+
+
+    def check_special_limitations(self):
+        if self.params:
+            for k in self.params.keys():
+                if k.lower() in ['start', 'limit', 'order']:
+                    raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
+
+    
+    async def get_paginated_list(self):
+        self.add_order_parameter()
+
+        await self.make_first_request()
+        if self.no_more_results_expected():
+            return self.results
+
+        await self.make_remaining_requests()
+
+        self.dedup_results()
+                
+        return self.results
+
+
+    def add_order_parameter(self):
+        if self.params:
+            if 'order' not in [x.lower() for x in self.params.keys()]:
+                self.params.update({'order': {'ID': 'ASC'}})
+        else:
+            self.params = {'order': {'ID': 'ASC'}}
+
+    
+    async def make_first_request(self):
+        async with self.bitrix._sw, aiohttp.ClientSession(raise_for_status=True) as session:
+            self.results, self.total = await self.bitrix._request(session, self.method, self.params)
+
+
+    def no_more_results_expected(self):
+        return not self.total or self.total <= 50 or self.total == len(self.results)
+
+
+    async def make_remaining_requests(self):
+        self.results.extend(
+            await self.bitrix._request_list(
+                method = self.method, 
+                item_list = [
+                    _merge_dict({'start': start}, self.params)
+                    for start in range(len(self.results), self.total, 50)
+                ], 
+                real_len = self.total, 
+                real_start = len(self.results)
+            )
+        )
+
+
+    def dedup_results(self):
+        # дедупликация через сериализацию, превращение в set и десериализацию
+        self.results = [pickle.loads(y) for y in set([pickle.dumps(x) for x in self.results])] \
+            if self.results else []
+
+        if len(self.results) != self.total:
+            warnings.warn(f"Number of results returned ({len(self.results)}) "
+                f"doesn't equal 'total' from the server reply ({self.total})",
+                RuntimeWarning)
+
+
+class GetByIDUserRequest(UserRequestAbstract):
+    def __init__(self, bitrix: Bitrix, method: str, params: dict, ID_list, ID_field_name):
+        super().__init__(bitrix, method, params)
+        self.ID_list = ID_list
+        self.ID_field_name = ID_field_name
+        
+        
+    def check_special_limitations(self):
+        if self.params: 
+            for k in self.params.keys():
+                if k.lower() == 'id':
+                    raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
+
+        if not(isinstance(self.ID_list, Sequence)):
+            raise TypeError("get_by_ID(): 'ID_list' should be a sequence")
+
+
+    def run(self):
+        self.check_args()
+
+        if self.list_empty():
             return []
+        
+        self.prepare_item_list()
+        
+        return asyncio.run(self.bitrix._request_list(
+            self.method,
+            self.item_list,
+            preserve_IDs=self.ID_field_name
+        ))
+
+        
+    def list_empty(self):
+        return len(self.ID_list) == 0
+    
+    
+    def prepare_item_list(self):
+        if self.params:
+            self.item_list = [
+                _merge_dict({self.ID_field_name: ID}, self.params) 
+                for ID in self.ID_list
+            ]
+        else:
+            self.item_list = [
+                {self.ID_field_name: ID} 
+                for ID in self.ID_list
+            ] 
+
+
+class CallUserRequest(GetByIDUserRequest):
+    def __init__(self, bitrix: Bitrix, method: str, item_list):
+        self.bitrix = bitrix
+        self.method = method
+        self.item_list = item_list
+        self.params = None
+        self.ID_field_name = '__order'
+
+        
+    def check_special_limitations(self):
+        if not isinstance(self.item_list, Sequence):
+            raise TypeError("call(): 'item_list' should be a sequence")
 
         try:
-            [_check_params(p) for p in item_list]
+            [self.check_params(p) for p in self.item_list]
         except (TypeError, ValueError) as err:
             raise ValueError(
                 'item_list contains items with incorrect method params') from err 
 
-        # добавим порядковый номер служебным полем
-        item_list_with_order = [
-            _merge_dict(item, {'__fb24_order': 'fbo' + str(i)}) 
-            for i, item in enumerate(item_list)
-        ]
 
-        results_with_order_field =  asyncio.run(
-            self._request_list(method, 
-                               item_list_with_order, 
-                               preserve_IDs = '__fb24_order')
-        )
+    def run(self):
+        results = super().run()
         
         # убираем поле с порядковым номером из результатов
-        return [item[1] for item in results_with_order_field]
+        return [item[1] for item in results]
 
 
+    def list_empty(self):
+        return len(self.item_list) == 0
+
+    
+    def prepare_item_list(self):
+        # добавим порядковый номер
+        self.item_list = [
+            _merge_dict(item, {self.ID_field_name: 'order' + str(i)}) 
+            for i, item in enumerate(self.item_list)
+        ]
+        
+        
 ##########################################
 #
 #   slow() context manager
@@ -477,40 +601,6 @@ def _merge_dict(d1, d2):
     if d2:
         d3.update(d2)
     return d3
-
-
-def _check_params(p):
-
-    # check if p is dict
-    if not isinstance(p, dict):
-        raise TypeError('params agrument should be a dict')
-
-    # check for allowed keys
-    clauses = {
-        'select': list,
-        'halt': int,
-        'cmd': dict,
-        'limit': int,
-        'order': dict,
-        'filter': dict,
-        'start': int,
-        'fields': dict
-    }
-
-#    for pk in p.keys():
-#        if pk.lower() not in clauses.keys():
-#            raise ValueError(f'Unknown clause "{pk}" in params argument')
-
-    # check for allowed types of key values
-    for pi in p.items():
-        if pi[0] in clauses.keys():
-            t = clauses[pi[0].lower()]
-            if t and not (
-                (isinstance(pi[1], t)) or
-                ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
-            ):
-                raise TypeError(f'Clause "{pi[0]}" should be of type {t}, '
-                    'but its type is {type(pi[1])}')
 
 
 def _url_valid(url):
