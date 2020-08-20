@@ -12,7 +12,8 @@ from collections.abc import Sequence, Iterable
 
 from tqdm import tqdm
 
-import fast_bitrix24.correct_asyncio
+from .correct_asyncio import *
+from .utils import _correct_webhook, _bitrix_url, _merge_dict
 
 BITRIX_URI_MAX_LEN = 5820
 BITRIX_MAX_BATCH_SIZE = 50
@@ -167,11 +168,30 @@ class Bitrix:
 
         '''
         
-        self.webhook = _correct_webhook(webhook)
+        self.webhook = webhook
+        self._correct_webhook()
         self._sw = BitrixSemaphoreWrapper(BITRIX_POOL_SIZE, BITRIX_RPS)
         self._autobatch = True
         self._verbose = verbose
 
+
+    def _correct_webhook(self):
+
+        def _url_valid(url):
+            try:
+                result = urllib.parse.urlparse(url)
+                return all([result.scheme, result.netloc, result.path])
+            except:
+                return False
+
+        if not isinstance(self.webhook, str):
+            raise TypeError(f'Webhook should be a {str}')
+
+        if not _url_valid(self.webhook):
+            raise ValueError('Webhook is not a valid URL')
+
+        if self.webhook[-1] != '/':
+            self.webhook += '/'
 
     async def _request(self, session, method, params=None, pbar=None):
         await self._sw.acquire()
@@ -405,6 +425,9 @@ class GetAllUserRequest(UserRequestAbstract):
 
 
     def add_order_parameter(self):
+        # необходимо установить порядок сортировки, иначе сортировка будет рандомная
+        # и сущности будут повторяться на разных страницах
+        
         if self.params:
             if 'order' not in [x.lower() for x in self.params.keys()]:
                 self.params.update({'order': {'ID': 'ASC'}})
@@ -556,64 +579,3 @@ class slow:
         global _SLOW, _SLOW_RPS
         _SLOW = False
         _SLOW_RPS = 0
-
-
-##########################################
-#
-#   internal functions
-#
-##########################################
-
-
-def _bitrix_url(data):
-    parents = list()
-    pairs = list()
-
-    def renderKey(parents):
-        depth, outStr = 0, ''
-        for x in parents:
-            s = "[%s]" if (depth > 0 or isinstance(x, int)) and x!='[]' else "%s"
-            outStr += s % str(x)
-            depth += 1
-        return outStr
-
-    def r_urlencode(data):
-        if any(isinstance(data, t) for t in [list, tuple, set]):
-            data = list(data)
-            for i in range(len(data)):
-                parents.append('[]')
-                r_urlencode(data[i])
-                parents.pop()
-        elif isinstance(data, dict):
-            for key, value in data.items():
-                parents.append(key)
-                r_urlencode(value)
-                parents.pop()
-        else:
-            pairs.append((renderKey(parents), str(data)))
-
-        return pairs
-    return urllib.parse.urlencode(r_urlencode(data))
-
-
-def _merge_dict(d1, d2):
-    d3 = d1.copy()
-    if d2:
-        d3.update(d2)
-    return d3
-
-
-def _url_valid(url):
-    try:
-        result = urllib.parse.urlparse(url)
-        return all([result.scheme, result.netloc, result.path])
-    except:
-        return False
-
-
-def _correct_webhook(wh):
-    if not isinstance(wh, str):
-        raise TypeError(f'Webhook should be a {str}')
-    if not _url_valid(wh):
-        raise ValueError('Webhook is not a valid URL')
-    return wh if wh[-1] == '/' else wh + '/'
