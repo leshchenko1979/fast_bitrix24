@@ -3,7 +3,6 @@
 from collections.abc import Sequence
 
 from .correct_asyncio import *
-from .utils import _merge_dict
 from .user_request import GetAllUserRequest, GetByIDUserRequest, CallUserRequest
 from .srh import ServerRequestHandler, slow
 

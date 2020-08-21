@@ -14,7 +14,7 @@ def _url_valid(url):
         return False
 
 
-def _bitrix_url(data):
+def convert_dict_to_bitrix_url(data):
     parents = list()
     pairs = list()
 

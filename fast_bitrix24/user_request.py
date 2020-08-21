@@ -87,7 +87,7 @@ class GetAllUserRequest(UserRequestAbstract):
 
     
     async def make_first_request(self):
-        self.results, self.total = await self.srh._request(self.method, self.params)
+        self.results, self.total = await self.srh.single_request(self.method, self.params)
 
 
     def more_results_expected(self):

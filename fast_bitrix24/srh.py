@@ -4,10 +4,13 @@ import time
 
 from tqdm import tqdm
 
-from .utils import _bitrix_url, _url_valid
+from .utils import convert_dict_to_bitrix_url, _url_valid
 
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
+BITRIX_URI_MAX_LEN = 5820
+BITRIX_MAX_BATCH_SIZE = 50
+
 
 class ServerRequestHandler():
     '''
@@ -18,18 +21,6 @@ class ServerRequestHandler():
 
     Используется как контекстный менеджер, оборачивающий несколько
     последовательных запросов к серверу.
-
-    Чтобы все работало, нужно, чтобы внутри метода класса `Bitrix`, в котором
-    используется этот семафор, выполнял параллельно по совими задачами и
-    корутину-метод `release_sem()`.
-        
-    Параметры:
-    - pool_size: int - размер пула доступных запросов.
-    - requests_per_second: int - скорость подачи запросов.
-
-    Методы:
-    - acquire(self)
-    - release_sem(self)
     '''
 
 
@@ -111,8 +102,7 @@ class ServerRequestHandler():
         '''
         Корутина-метод, которая увеличивает счетчик доступных в пуле запросов.
 
-        Должна запускаться единожды в параллели со всеми другими задачами
-        внутри основного цикла `Bitrix._request_list`, кроме случаев
+        Должна запускаться единожды в параллели со всеми другими задачами, кроме случаев
         выполнения в slow-режиме, когда она запускаться на должна.
         '''
 
@@ -146,9 +136,9 @@ class ServerRequestHandler():
             return await self._sem.acquire()
 
 
-    async def _request(self, method, params=None):
+    async def single_request(self, method, params=None):
         await self.acquire()
-        url = f'{self.webhook}{method}?{_bitrix_url(params)}'
+        url = f'{self.webhook}{method}?{convert_dict_to_bitrix_url(params)}'
         async with self.session.get(url) as response:
             r = await response.json(encoding='utf-8')
         if 'result_error' in r.keys():
@@ -180,6 +170,12 @@ class ServerRequestHandler():
             return tqdm(total = real_len, initial = real_start)
         else:
             return MutePBar()
+
+
+    def URI_len_used(self, method, params):
+        URI_len = len(self.webhook + method + convert_dict_to_bitrix_url(params))
+        return URI_len / BITRIX_URI_MAX_LEN
+            
 
         
 ##########################################
