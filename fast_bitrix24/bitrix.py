@@ -8,13 +8,6 @@ from .user_request import GetAllUserRequest, GetByIDUserRequest, CallUserRequest
 from .srh import ServerRequestHandler, slow
 
 
-##########################################
-#
-#   Bitrix class
-#
-##########################################
-
-
 class Bitrix:
     '''
     Класс, оборачивающий весь цикл запросов к серверу Битрикс24.

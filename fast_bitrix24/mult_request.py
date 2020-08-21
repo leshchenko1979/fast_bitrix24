@@ -8,14 +8,12 @@ from .srh import _SLOW
 BITRIX_URI_MAX_LEN = 5820
 BITRIX_MAX_BATCH_SIZE = 50
 
-class ListRequestHandler:
-    def __init__(self, srh, method, item_list, real_len=None, real_start=0, preserve_IDs=False):
+class MultipleServerRequestHandler:
+    def __init__(self, srh, method, item_list, real_len=None, real_start=0):
         self.srh = srh
         self.method = method
         self.item_list = item_list
         self.pbar = srh.get_pbar(real_len if real_len else len(item_list), real_start)
-        self.preserve_IDs = preserve_IDs
-        self.original_item_list = item_list.copy()
         self.results = []
         self.tasks = []            
                 
@@ -27,9 +25,6 @@ class ListRequestHandler:
 
         await self.get_results()
 
-        if self.preserve_IDs:
-            self.sort_results()
-                        
         return self.results
 
     def prepare_batches(self):
@@ -39,7 +34,7 @@ class ListRequestHandler:
             batches = [{
                 'halt': 0,
                 'cmd': {
-                    item[self.preserve_IDs] if self.preserve_IDs else f'cmd{i}': 
+                    self.batch_command_label(i, item): 
                     f'{self.method}?{_bitrix_url(item)}'
                     for i, item in enumerate(next_batch)
                 }}
@@ -60,6 +55,10 @@ class ListRequestHandler:
 
         self.method = 'batch'
         self.item_list = batches
+
+
+    def batch_command_label(self, i, item):
+        return f'cmd{i}'
 
 
     def prepare_tasks(self):
@@ -88,20 +87,42 @@ class ListRequestHandler:
         if r['result_error']:
             raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
         if self.method == 'batch':
-            if self.preserve_IDs:
-                r = r['result'].items()
-            else:
-                r = list(r['result'].values())
-                if type(r[0]) == list:
-                    r = list(itertools.chain(*r))
+            r = self.extract_result_from_batch(r)
         return r
+
+    def extract_result_from_batch(self, r):
+        r = list(r['result'].values())
+        if type(r[0]) == list:
+            r = list(itertools.chain(*r))
+        return r
+
+
+class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
+
+    def __init__(self, srh, method, item_list, ID_field):
+        super().__init__(srh, method, item_list)
+        self.ID_field = ID_field
+        self.original_item_list = item_list.copy()
+        
+
+    async def run(self):
+        await super().run()
+        self.sort_results()
+        return self.results
+                        
+
+    def batch_command_label(self, i, item):
+        return item[self.ID_field]
+    
+
+    def extract_result_from_batch(self, r):
+        return r['result'].items()
 
 
     def sort_results(self):
         # выделяем ID для облегчения дальнейшего поиска
-        IDs_only = [i[self.preserve_IDs] for i in self.original_item_list]
+        IDs_only = [i[self.ID_field] for i in self.original_item_list]
             
         # сортируем results на базе порядка ID в original_item_list
         self.results.sort(key = lambda item: 
             IDs_only.index(item[0]))
-
