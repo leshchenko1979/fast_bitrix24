@@ -5,7 +5,8 @@ import aiohttp
 import time
 import itertools
 import more_itertools
-from collections.abc import Sequence, Iterable
+from collections.abc import Sequence
+import urllib
 
 from tqdm import tqdm
 
@@ -25,7 +26,7 @@ BITRIX_RPS = 2.0
 ##########################################
 
 
-class BitrixSemaphoreWrapper():
+class ServerRequestHandler():
     '''
     Используется для контроля скорости доступа к серверам Битрикс.
 
@@ -49,11 +50,37 @@ class BitrixSemaphoreWrapper():
     '''
 
 
-    def __init__(self, pool_size: int, requests_per_second: float):
+    def __init__(self, webhook, pool_size: int, requests_per_second: float, verbose):
+        self.webhook = webhook
+        self._correct_webhook()
+        self._verbose = verbose
+
         self._stopped_time = None
         self._stopped_value = None
         self.requests_per_second = requests_per_second
         self._pool_size = pool_size
+        
+        self.session = None
+
+
+    def _correct_webhook(self):
+
+        def _url_valid(url):
+            try:
+                result = urllib.parse.urlparse(url)
+                return all([result.scheme, result.netloc, result.path])
+            except:
+                return False
+
+        if not isinstance(self.webhook, str):
+            raise TypeError(f'Webhook should be a {str}')
+
+        if not _url_valid(self.webhook):
+            raise ValueError('Webhook is not a valid URL')
+
+        if self.webhook[-1] != '/':
+            self.webhook += '/'
+
 
     async def __aenter__(self):
         global _SLOW
@@ -88,6 +115,8 @@ class BitrixSemaphoreWrapper():
                 self._stopped_time = None
                 self._stopped_value = None
 
+        self.get_session()
+
 
     async def __aexit__(self, a1, a2, a3):
         self._stopped_time = time.monotonic()
@@ -98,6 +127,8 @@ class BitrixSemaphoreWrapper():
             self._stopped_value = 0
         else:
             self._stopped_value = self._sem._value
+
+        await self.close_session()
 
 
     async def release_sem(self):
@@ -139,6 +170,144 @@ class BitrixSemaphoreWrapper():
             return await self._sem.acquire()
 
 
+    async def _request(self, method, params=None):
+        await self.acquire()
+        url = f'{self.webhook}{method}?{_bitrix_url(params)}'
+        async with self.session.get(url) as response:
+            r = await response.json(encoding='utf-8')
+        if 'result_error' in r.keys():
+            raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
+        return r['result'], (r['total'] if 'total' in r.keys() else None)
+
+
+    def get_session(self):
+        if not self.session or self.session.closed:
+            self.session = aiohttp.ClientSession(raise_for_status=True)
+
+
+    async def close_session(self):
+        if self.session and not self.session.closed:
+            await self.session.close()
+            
+    # TODO: лишний код, спрямить вызов из UserRequest
+    async def _request_list(self, method, item_list, real_len=None, real_start=0, preserve_IDs=False):
+        return await ListRequestHandler(self, method, item_list, real_len, real_start, preserve_IDs).run()
+
+
+    def get_pbar(self, real_len, real_start):
+        
+        class MutePBar():
+            
+            def update(self, i):
+                pass
+            
+            def close(self):
+                pass
+        
+        if self._verbose:
+            return tqdm(total = real_len, initial = real_start)
+        else:
+            return MutePBar()
+
+
+class ListRequestHandler:
+    def __init__(self, srh, method, item_list, real_len=None, real_start=0, preserve_IDs=False):
+        self.srh = srh
+        self.method = method
+        self.item_list = item_list
+        self.pbar = srh.get_pbar(real_len if real_len else len(item_list), real_start)
+        self.preserve_IDs = preserve_IDs
+        self.original_item_list = item_list.copy()
+        self.results = []
+        self.tasks = []            
+                
+    async def run(self):
+        if self.method != 'batch':
+            self.prepare_batches()
+
+        self.prepare_tasks()
+
+        await self.get_results()
+
+        if self.preserve_IDs:
+            self.sort_results()
+                        
+        return self.results
+
+    def prepare_batches(self):
+        batch_size = BITRIX_MAX_BATCH_SIZE
+
+        while True:
+            batches = [{
+                'halt': 0,
+                'cmd': {
+                    item[self.preserve_IDs] if self.preserve_IDs else f'cmd{i}': 
+                    f'{self.method}?{_bitrix_url(item)}'
+                    for i, item in enumerate(next_batch)
+                }}
+                for next_batch in more_itertools.chunked(self.item_list, batch_size)
+            ]
+            
+            # проверяем длину получившегося URI
+            uri_len = len(self.srh.webhook + 'batch' +
+                            _bitrix_url(batches[0]))
+            
+            # и если слишком длинный, то уменьшаем размер батча
+            # и уходим на перекомпоновку
+            if uri_len > BITRIX_URI_MAX_LEN:
+                batch_size = int(
+                    batch_size // (uri_len / BITRIX_URI_MAX_LEN))
+            else:
+                break
+
+        self.method = 'batch'
+        self.item_list = batches
+
+
+    def prepare_tasks(self):
+        global _SLOW
+        self.tasks = [asyncio.create_task(self.srh._request(self.method, i))
+                    for i in self.item_list]
+        if not _SLOW:
+            self.tasks.append(asyncio.create_task(self.srh.release_sem()))
+
+
+    async def get_results(self):
+        tasks_to_process = len(self.item_list)
+
+        for x in asyncio.as_completed(self.tasks):
+            r, __ = await x
+            self.results.extend(self.process_result(r))
+
+            self.pbar.update(len(r))
+            tasks_to_process -= 1
+            if tasks_to_process == 0:
+                break
+
+        self.pbar.close()
+
+    def process_result(self, r):
+        if r['result_error']:
+            raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
+        if self.method == 'batch':
+            if self.preserve_IDs:
+                r = r['result'].items()
+            else:
+                r = list(r['result'].values())
+                if type(r[0]) == list:
+                    r = list(itertools.chain(*r))
+        return r
+
+
+    def sort_results(self):
+        # выделяем ID для облегчения дальнейшего поиска
+        IDs_only = [i[self.preserve_IDs] for i in self.original_item_list]
+            
+        # сортируем results на базе порядка ID в original_item_list
+        self.results.sort(key = lambda item: 
+            IDs_only.index(item[0]))
+
+
 ##########################################
 #
 #   Bitrix class
@@ -166,123 +335,7 @@ class Bitrix:
 
         '''
         
-        self.webhook = webhook
-        self._correct_webhook()
-        self._sw = BitrixSemaphoreWrapper(BITRIX_POOL_SIZE, BITRIX_RPS)
-        self._autobatch = True
-        self._verbose = verbose
-
-
-    def _correct_webhook(self):
-
-        def _url_valid(url):
-            try:
-                result = urllib.parse.urlparse(url)
-                return all([result.scheme, result.netloc, result.path])
-            except:
-                return False
-
-        if not isinstance(self.webhook, str):
-            raise TypeError(f'Webhook should be a {str}')
-
-        if not _url_valid(self.webhook):
-            raise ValueError('Webhook is not a valid URL')
-
-        if self.webhook[-1] != '/':
-            self.webhook += '/'
-
-    async def _request(self, session, method, params=None, pbar=None):
-        await self._sw.acquire()
-        url = f'{self.webhook}{method}?{_bitrix_url(params)}'
-        async with session.get(url) as response:
-            r = await response.json(encoding='utf-8')
-        if 'result_error' in r.keys():
-            raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
-        if pbar:
-            pbar.update(len(r['result']))
-        return r['result'], (r['total'] if 'total' in r.keys() else None)
-
-
-    async def _request_list(self, method, item_list, real_len=None, real_start=0, preserve_IDs=False):
-        original_item_list = item_list.copy()
-        
-        if not real_len:
-            real_len = len(item_list)
-
-        # подготовить батчи
-        if (self._autobatch) and (method != 'batch'):
-
-            batch_size = BITRIX_MAX_BATCH_SIZE
-            while True:
-                batches = [{
-                    'halt': 0,
-                    'cmd': {
-                        item[preserve_IDs] if preserve_IDs else f'cmd{i}': 
-                        f'{method}?{_bitrix_url(item)}'
-                        for i, item in enumerate(next_batch)
-                    }}
-                    for next_batch in more_itertools.chunked(item_list, batch_size)
-                ]
-                
-                # проверяем длину получившегося URI
-                uri_len = len(self.webhook + 'batch' +
-                              _bitrix_url(batches[0]))
-                
-                # и если слишком длинный, то уменьшаем размер батча
-                # и уходим на перекомпоновку
-                if uri_len > BITRIX_URI_MAX_LEN:
-                    batch_size = int(
-                        batch_size // (uri_len / BITRIX_URI_MAX_LEN))
-                else:
-                    break
-
-            method = 'batch'
-            item_list = batches
-
-        # основная часть - отправляем запросы
-        async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
-            global _SLOW
-            tasks = [asyncio.create_task(self._request(session, method, i))
-                        for i in item_list]
-            if not _SLOW:
-                tasks.append(asyncio.create_task(self._sw.release_sem()))
-
-            if self._verbose:
-                pbar = tqdm(total=real_len, initial=real_start)
-            
-            results = []
-            tasks_to_process = len(item_list)
-            for x in asyncio.as_completed(tasks):
-                r, __ = await x
-                if r['result_error']:
-                    raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
-                if method == 'batch':
-                    if preserve_IDs:
-                        r = r['result'].items()
-                    else:
-                        r = list(r['result'].values())
-                        if type(r[0]) == list:
-                            r = list(itertools.chain(*r))
-                results.extend(r)
-                if self._verbose:
-                    pbar.update(len(r))
-                tasks_to_process -= 1
-                if tasks_to_process == 0:
-                    break
-            if self._verbose:
-                pbar.close()
-            
-            # сортировка результатов в том же порядке, что и в original_item_list
-            if preserve_IDs:
-                
-                # выделяем ID для облегчения дальнейшего поиска
-                IDs_only = [i[preserve_IDs] for i in original_item_list]
-                    
-                # сортируем results на базе порядка ID в original_item_list
-                results.sort(key = lambda item: 
-                    IDs_only.index(item[0]))
-            
-            return results
+        self.srh = ServerRequestHandler(webhook, BITRIX_POOL_SIZE, BITRIX_RPS, verbose)
 
 
     def get_all(self, method: str, params: dict = None) -> list:
@@ -303,7 +356,7 @@ class Bitrix:
         согласно заданным методу и параметрам.
         '''
 
-        return GetAllUserRequest(self, method, params).run()
+        return GetAllUserRequest(self.srh, method, params).run()
 
     def get_by_ID(self, method: str, ID_list: Sequence, ID_field_name: str = 'ID',
         params: dict = None) -> list:
@@ -336,7 +389,7 @@ class Bitrix:
         сущности.
         '''
 
-        return GetByIDUserRequest(self, method, params, ID_list, ID_field_name).run()
+        return GetByIDUserRequest(self.srh, method, params, ID_list, ID_field_name).run()
 
     def call(self, method: str, item_list: Sequence) -> list:
         '''
@@ -349,7 +402,7 @@ class Bitrix:
         Возвращает список ответов сервера для каждого из элементов item_list.
         '''
 
-        return CallUserRequest(self, method, item_list).run()
+        return CallUserRequest(self.srh, method, item_list).run()
         
         
 ##########################################

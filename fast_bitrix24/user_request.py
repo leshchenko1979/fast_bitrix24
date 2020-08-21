@@ -7,8 +7,8 @@ import warnings
 from .utils import _merge_dict
 
 class UserRequestAbstract():
-    def __init__(self, bitrix, method: str, params: dict):
-        self.bitrix = bitrix
+    def __init__(self, srh, method: str, params: dict):
+        self.srh = srh
         self.method = method
         self.params = params
         
@@ -65,13 +65,12 @@ class GetAllUserRequest(UserRequestAbstract):
     async def get_paginated_list(self):
         self.add_order_parameter()
 
-        await self.make_first_request()
-        if self.no_more_results_expected():
-            return self.results
+        async with self.srh:
+            await self.make_first_request()
 
-        await self.make_remaining_requests()
-
-        self.dedup_results()
+            if self.more_results_expected():
+                await self.make_remaining_requests()
+                self.dedup_results()
                 
         return self.results
 
@@ -88,17 +87,16 @@ class GetAllUserRequest(UserRequestAbstract):
 
     
     async def make_first_request(self):
-        async with self.bitrix._sw, aiohttp.ClientSession(raise_for_status=True) as session:
-            self.results, self.total = await self.bitrix._request(session, self.method, self.params)
+        self.results, self.total = await self.srh._request(self.method, self.params)
 
 
-    def no_more_results_expected(self):
-        return not self.total or self.total <= 50 or self.total == len(self.results)
+    def more_results_expected(self):
+        return self.total and self.total > 50 and not self.total == len(self.results)
 
 
     async def make_remaining_requests(self):
         self.results.extend(
-            await self.bitrix._request_list(
+            await self.srh._request_list(
                 method = self.method, 
                 item_list = [
                     _merge_dict({'start': start}, self.params)
@@ -122,8 +120,8 @@ class GetAllUserRequest(UserRequestAbstract):
 
 
 class GetByIDUserRequest(UserRequestAbstract):
-    def __init__(self, bitrix, method: str, params: dict, ID_list, ID_field_name):
-        super().__init__(bitrix, method, params)
+    def __init__(self, srh, method: str, params: dict, ID_list, ID_field_name):
+        super().__init__(srh, method, params)
         self.ID_list = ID_list
         self.ID_field_name = ID_field_name
         
@@ -146,11 +144,9 @@ class GetByIDUserRequest(UserRequestAbstract):
         
         self.prepare_item_list()
         
-        return asyncio.run(self.bitrix._request_list(
-            self.method,
-            self.item_list,
-            preserve_IDs=self.ID_field_name
-        ))
+        results = asyncio.run(self.get_list())
+        
+        return results
 
         
     def list_empty(self):
@@ -170,13 +166,20 @@ class GetByIDUserRequest(UserRequestAbstract):
             ] 
 
 
+    async def get_list(self):
+        async with self.srh:
+            results = await self.srh._request_list(
+                self.method,
+                self.item_list,
+                preserve_IDs=self.ID_field_name
+            )
+        return results 
+
+
 class CallUserRequest(GetByIDUserRequest):
-    def __init__(self, bitrix, method: str, item_list):
-        self.bitrix = bitrix
-        self.method = method
+    def __init__(self, srh, method: str, item_list):
+        super().__init__(srh, method, None, None, '__order')
         self.item_list = item_list
-        self.params = None
-        self.ID_field_name = '__order'
 
         
     def check_special_limitations(self):
