@@ -6,6 +6,13 @@
 
 import urllib
 
+def _url_valid(url):
+    try:
+        result = urllib.parse.urlparse(url)
+        return all([result.scheme, result.netloc, result.path])
+    except:
+        return False
+
 
 def _bitrix_url(data):
     parents = list()

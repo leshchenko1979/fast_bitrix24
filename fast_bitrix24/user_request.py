@@ -1,10 +1,10 @@
 import asyncio
-import aiohttp
 from collections.abc import Sequence
 import pickle
 import warnings
 
 from .utils import _merge_dict
+from .list_request import ListRequestHandler
 
 class UserRequestAbstract():
     def __init__(self, srh, method: str, params: dict):
@@ -96,7 +96,8 @@ class GetAllUserRequest(UserRequestAbstract):
 
     async def make_remaining_requests(self):
         self.results.extend(
-            await self.srh._request_list(
+            await ListRequestHandler(
+                self.srh,
                 method = self.method, 
                 item_list = [
                     _merge_dict({'start': start}, self.params)
@@ -104,7 +105,7 @@ class GetAllUserRequest(UserRequestAbstract):
                 ], 
                 real_len = self.total, 
                 real_start = len(self.results)
-            )
+            ).run()
         )
 
 
@@ -168,11 +169,12 @@ class GetByIDUserRequest(UserRequestAbstract):
 
     async def get_list(self):
         async with self.srh:
-            results = await self.srh._request_list(
+            results = await ListRequestHandler(
+                self.srh,
                 self.method,
                 self.item_list,
                 preserve_IDs=self.ID_field_name
-            )
+            ).run()
         return results 
 
 
