@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 
 from .correct_asyncio import *
-from .user_request import GetAllUserRequest, GetByIDUserRequest, CallUserRequest
+from .user_request import GetAllUserRequest, GetByIDUserRequest, CallUserRequest, BatchUserRequest
 from .srh import ServerRequestHandler, slow
 
 
@@ -104,8 +104,14 @@ class Bitrix:
             raise TypeError(f'call() accepts either a list of params dicts or a single params dict, but got a {type(items)} instead')
     
 
+    def call_batch(self, params: dict) -> dict:
+        '''
+        Вызвать метод `batch`.
 
-        Возвращает список ответов сервера для каждого из элементов item_list.
+        Параметры:
+        - params - список параметров вызываемого метода
+
+        Возвращает ответы сервера.
         '''
 
-        return CallUserRequest(self.srh, method, item_list).run()
+        return BatchUserRequest(self.srh, params).run()
