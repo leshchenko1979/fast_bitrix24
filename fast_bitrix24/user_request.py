@@ -13,6 +13,7 @@ class UserRequestAbstract():
         self.params = params
         
     def check_args(self):
+        self.check_method()
         if self.params:
             self.check_params(self.params)
         self.check_special_limitations()
@@ -47,6 +48,13 @@ class UserRequestAbstract():
     
     def check_special_limitations(self):
         raise NotImplementedError
+    
+    
+    def check_method(self):
+        if not isinstance(self.method, str):
+            raise TypeError('Method should be a str')
+        if self.method.lower().strip() == 'batch':
+            raise ValueError("Method cannot be 'batch'")
     
     
 class GetAllUserRequest(UserRequestAbstract):
@@ -212,3 +220,35 @@ class CallUserRequest(GetByIDUserRequest):
             _merge_dict(item, {self.ID_field_name: 'order' + str(i)}) 
             for i, item in enumerate(self.item_list)
         ]
+
+
+class BatchUserRequest(UserRequestAbstract):
+
+    def __init__(self, srh, params):
+        super().__init__(srh, 'batch', params)
+
+
+    def check_method(self):
+        if self.method != 'batch':
+            raise ValueError("Method should be 'batch'")
+
+
+    def check_special_limitations(self):
+        if {'halt', 'cmd'} != self.params.keys():
+            raise ValueError("Params for a batch call should contain only 'halt' and 'cmd' clauses at the highest level")
+
+        if not isinstance(self.params['cmd'], dict):
+            raise ValueError("'cmd' clause should contain a dict")
+    
+
+    def run(self):
+        self.check_args()
+        return asyncio.run(self.batch_call())
+
+        
+    async def batch_call(self):
+        async with self.srh:
+            results, __ = await self.srh.single_request(self.method, self.params)
+        if results['result_error']:
+            raise RuntimeError(f"The server reply contained an error: {results['result_error']}")
+        return results['result']

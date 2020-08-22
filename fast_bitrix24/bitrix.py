@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 
 from .correct_asyncio import *
-from .user_request import GetAllUserRequest, GetByIDUserRequest, CallUserRequest
+from .user_request import GetAllUserRequest, GetByIDUserRequest, CallUserRequest, BatchUserRequest
 from .srh import ServerRequestHandler, slow
 
 
@@ -83,15 +83,35 @@ class Bitrix:
 
         return GetByIDUserRequest(self.srh, method, params, ID_list, ID_field_name).run()
 
-    def call(self, method: str, item_list: Sequence) -> list:
+    def call(self, method: str, items):
         '''
         Вызвать метод REST API по списку.
 
         Параметры:
         - method - метод REST API
-        - item_list - список параметров вызываемого метода
+        - items - список параметров вызываемого метода 
+            либо dict с параметрами для единичного вызова
 
-        Возвращает список ответов сервера для каждого из элементов item_list.
+        Возвращает список ответов сервера для каждого из элементов items
+        либо просто результат для единичного вызова.
         '''
 
-        return CallUserRequest(self.srh, method, item_list).run()
+        if isinstance(items, Sequence):
+            return CallUserRequest(self.srh, method, items).run()
+        elif isinstance(items, dict):
+            return CallUserRequest(self.srh, method, [items]).run()[0]
+        else:
+            raise TypeError(f'call() accepts either a list of params dicts or a single params dict, but got a {type(items)} instead')
+    
+
+    def call_batch(self, params: dict) -> dict:
+        '''
+        Вызвать метод `batch`.
+
+        Параметры:
+        - params - список параметров вызываемого метода
+
+        Возвращает ответы сервера.
+        '''
+
+        return BatchUserRequest(self.srh, params).run()
