@@ -13,6 +13,7 @@ class UserRequestAbstract():
         self.params = params
         
     def check_args(self):
+        self.check_method()
         if self.params:
             self.check_params(self.params)
         self.check_special_limitations()
@@ -47,6 +48,13 @@ class UserRequestAbstract():
     
     def check_special_limitations(self):
         raise NotImplementedError
+    
+    
+    def check_method(self):
+        if not isinstance(self.method, str):
+            raise TypeError('Method should be a str')
+        if self.method.lower().strip() == 'batch':
+            raise ValueError("Method cannot be 'batch'")
     
     
 class GetAllUserRequest(UserRequestAbstract):
