@@ -84,15 +84,15 @@ class MultipleServerRequestHandler:
         if r['result_error']:
             raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
         if self.method == 'batch':
-            r = self.extract_result_from_batch(r)
+            r = self.extract_result_from_batch_response(r)
         return r
 
 
-    def extract_result_from_batch(self, r):
-        r = list(r['result'].values())
-        if type(r[0]) == list:
-            r = list(itertools.chain(*r))
-        return r
+    def extract_result_from_batch_response(self, batch_response):
+        result_list = list(batch_response['result'].values())
+        if type(result_list[0]) == list:
+            flat_result_list = list(itertools.chain(*result_list))
+        return flat_result_list
 
 
 class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
@@ -113,8 +113,9 @@ class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
         return item[self.ID_field]
     
 
-    def extract_result_from_batch(self, r):
-        return r['result'].items()
+    def extract_result_from_batch_response(self, batch_response):
+        result_dict = batch_response['result'].items()
+        return result_dict
 
 
     def sort_results(self):
