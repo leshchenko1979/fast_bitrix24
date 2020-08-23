@@ -76,7 +76,7 @@ class GetAllUserRequest(UserRequestAbstract):
 
         await self.make_first_request()
 
-        if self.more_results_expected():
+        if self.first_response.more_results_expected():
             await self.make_remaining_requests()
             self.dedup_results()
                 
@@ -96,12 +96,8 @@ class GetAllUserRequest(UserRequestAbstract):
     
     async def make_first_request(self):
         self.srh.add_request_task(self.method, self.params)
-        response = await next(self.srh.get_server_serponses())
-        self.results, self.total = response.result, response.total 
-
-
-    def more_results_expected(self):
-        return self.total and self.total > 50 and not self.total == len(self.results)
+        self.first_response = await next(self.srh.get_server_serponses())
+        self.results, self.total = self.first_response.result, self.first_response.total 
 
 
     async def make_remaining_requests(self):
