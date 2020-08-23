@@ -26,8 +26,7 @@ class ServerRequestHandler():
 
 
     def __init__(self, webhook, verbose):
-        self.webhook = webhook
-        self._correct_webhook()
+        self.webhook = self._standardize_webhook(webhook)
         self._verbose = verbose
 
         self._stopped_time = None
@@ -39,16 +38,20 @@ class ServerRequestHandler():
         self.tasks = []
 
 
-    def _correct_webhook(self):
+    def _standardize_webhook(self, webhook):
 
-        if not isinstance(self.webhook, str):
+        if not isinstance(webhook, str):
             raise TypeError(f'Webhook should be a {str}')
 
-        if not _url_valid(self.webhook):
+        webhook = webhook.lower().strip()
+
+        if not _url_valid(webhook):
             raise ValueError('Webhook is not a valid URL')
 
-        if self.webhook[-1] != '/':
-            self.webhook += '/'
+        if webhook[-1] != '/':
+            webhook += '/'
+            
+        return webhook
 
 
     def run(self, coroutine):
