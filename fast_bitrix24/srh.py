@@ -9,7 +9,7 @@ from .utils import convert_dict_to_bitrix_url, _url_valid
 
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
-BITRIX_URI_MAX_LEN = 5820
+BITRIX_URI_MAX_LEN = 5820 # подобрано опытным путем
 BITRIX_MAX_BATCH_SIZE = 50
 
 
