@@ -8,21 +8,32 @@ from .mult_request import MultipleServerRequestHandler, MultipleServerRequestHan
 from .server_response import ServerResponse
 
 class UserRequestAbstract():
+
     def __init__(self, srh, method: str, params: dict):
         self.srh = srh
-        self.method = method
-        self.params = params
-        
-    def check_args(self):
-        self.check_method()
-        if self.params:
-            self.check_params(self.params)
+        self.method = self.standardized_method(method)
+        self.params = self.standardized_params(params) if params else None
         self.check_special_limitations()
+        
 
-    def check_params(self, p):
+    def standardized_method(self, method):
+        if not isinstance(method, str):
+            raise TypeError('Method should be a str')
+
+        method = method.lower().strip()
+
+        if method.lower().strip() == 'batch':
+            raise ValueError("Method cannot be 'batch'")
+        
+        return method
+    
+    
+    def standardized_params(self, p):
         # check if p is dict
         if not isinstance(p, dict):
             raise TypeError('params agrument should be a dict')
+
+        p = dict([(key.lower().strip(), value) for key, value in p.items()])
 
         clauses = {
             'select': list,
@@ -38,7 +49,7 @@ class UserRequestAbstract():
         # check for allowed types of key values
         for pi in p.items():
             if pi[0] in clauses.keys():
-                t = clauses[pi[0].lower()]
+                t = clauses[pi[0]]
                 if t and not (
                     (isinstance(pi[1], t)) or
                     ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
@@ -46,29 +57,22 @@ class UserRequestAbstract():
                     raise TypeError(f'Clause "{pi[0]}" should be of type {t}, '
                         f'but its type is {type(pi[1])}')
 
-    
+        return p
+
+
     def check_special_limitations(self):
         raise NotImplementedError
     
     
-    def check_method(self):
-        if not isinstance(self.method, str):
-            raise TypeError('Method should be a str')
-        if self.method.lower().strip() == 'batch':
-            raise ValueError("Method cannot be 'batch'")
-    
-    
 class GetAllUserRequest(UserRequestAbstract):
     def run(self):
-        self.check_args()
         return self.srh.run(self.get_paginated_list())
 
 
     def check_special_limitations(self):
         if self.params:
-            for k in self.params.keys():
-                if k.lower() in ['start', 'limit', 'order']:
-                    raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
+            if not set(self.params.keys()).isdisjoint({'start', 'limit', 'order'}):
+                raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
 
     
     async def get_paginated_list(self):
@@ -130,22 +134,19 @@ class GetByIDUserRequest(UserRequestAbstract):
     def __init__(self, srh, method: str, params: dict, ID_list, ID_field_name):
         super().__init__(srh, method, params)
         self.ID_list = ID_list
-        self.ID_field_name = ID_field_name
+        self.ID_field_name = ID_field_name.upper().strip()
         
         
     def check_special_limitations(self):
         if self.params: 
-            for k in self.params.keys():
-                if k.lower() == 'id':
-                    raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
+            if 'id' in self.params.keys():
+                raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
 
         if not(isinstance(self.ID_list, Sequence)):
             raise TypeError("get_by_ID(): 'ID_list' should be a sequence")
 
 
     def run(self):
-        self.check_args()
-
         if self.list_empty():
             return []
         
@@ -183,19 +184,12 @@ class GetByIDUserRequest(UserRequestAbstract):
 class CallUserRequest(GetByIDUserRequest):
     def __init__(self, srh, method: str, item_list):
         super().__init__(srh, method, None, None, '__order')
-        self.item_list = item_list
+        self.item_list = [self.standardized_params(item) for item in item_list]
 
         
     def check_special_limitations(self):
         if not isinstance(self.item_list, Sequence):
             raise TypeError("call(): 'item_list' should be a sequence")
-
-        try:
-            [self.check_params(p) for p in self.item_list]
-        except (TypeError, ValueError) as err:
-            raise ValueError(
-                'item_list contains items with incorrect method params') from err 
-
 
     def run(self):
         results = super().run()
@@ -236,7 +230,6 @@ class BatchUserRequest(UserRequestAbstract):
     
 
     def run(self):
-        self.check_args()
         return self.srh.run(self.batch_call())
 
         
