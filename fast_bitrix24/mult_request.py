@@ -3,7 +3,8 @@ import asyncio
 import itertools
 
 from .utils import convert_dict_to_bitrix_url
-from .srh import _SLOW, BITRIX_MAX_BATCH_SIZE
+from .srh import BITRIX_MAX_BATCH_SIZE
+from .server_response import ServerResponse
 
 class MultipleServerRequestHandler:
 
@@ -11,19 +12,15 @@ class MultipleServerRequestHandler:
         self.srh = srh
         self.method = method
         self.item_list = item_list
-        self.pbar = srh.get_pbar(real_len if real_len else len(item_list), real_start)
+        self.real_len = real_len if real_len else len(item_list)
+        self.real_start = real_start
         self.results = []
-        self.tasks = []            
 
                 
     async def run(self):
-        if self.method != 'batch':
-            self.prepare_batches()
-
+        self.prepare_batches()
         self.prepare_tasks()
-
         await self.get_results()
-
         return self.results
 
 
@@ -55,44 +52,28 @@ class MultipleServerRequestHandler:
         return f'cmd{i}'
 
 
-    # TODO: переработать - prepare_tasks() не должна смотреть на _SLOW,
-    # это должно происходить где-то в недрах ServerRequestHandler
     def prepare_tasks(self):
-        global _SLOW
-        self.tasks = [asyncio.create_task(self.srh.single_request(self.method, i))
-                    for i in self.item_list]
-        if not _SLOW:
-            self.tasks.append(asyncio.create_task(self.srh.release_sem()))
+        for i in self.item_list:
+            self.srh.add_request_task(self.method, i)
 
 
     async def get_results(self):
-        tasks_to_process = len(self.item_list)
+        self.pbar = self.srh.get_pbar(self.real_len, self.real_start)
 
-        for x in asyncio.as_completed(self.tasks):
-            r, __ = await x
-            self.results.extend(self.process_response(r))
-
-            self.pbar.update(len(r))
-            tasks_to_process -= 1
-            if tasks_to_process == 0:
-                break
+        for task in self.srh.get_server_serponses():
+            batch_response = await task
+            unwrapped_result = ServerResponse(batch_response.result).result
+            self.results.extend(self.extract_result_from_batch_response(unwrapped_result))
+            self.pbar.update(len(unwrapped_result))
 
         self.pbar.close()
 
 
-    def process_response(self, r):
-        if r['result_error']:
-            raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
-        if self.method == 'batch':
-            r = self.extract_result_from_batch_response(r)
-        return r
-
-
-    def extract_result_from_batch_response(self, batch_response):
-        result_list = list(batch_response['result'].values())
+    def extract_result_from_batch_response(self, unwrapped_result):
+        result_list = list(unwrapped_result.values())
         if type(result_list[0]) == list:
-            flat_result_list = list(itertools.chain(*result_list))
-        return flat_result_list
+            result_list = list(itertools.chain(*result_list))
+        return result_list
 
 
 class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
@@ -113,9 +94,9 @@ class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
         return item[self.ID_field]
     
 
-    def extract_result_from_batch_response(self, batch_response):
-        result_dict = batch_response['result'].items()
-        return result_dict
+    def extract_result_from_batch_response(self, unwrapped_result):
+        result_list_of_tuples = unwrapped_result.items()
+        return result_list_of_tuples
 
 
     def sort_results(self):

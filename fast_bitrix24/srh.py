@@ -4,6 +4,7 @@ import time
 
 from tqdm import tqdm
 
+from .server_response import ServerResponse
 from .utils import convert_dict_to_bitrix_url, _url_valid
 
 BITRIX_POOL_SIZE = 50
@@ -35,6 +36,7 @@ class ServerRequestHandler():
         self._pool_size = BITRIX_POOL_SIZE
         
         self.session = None
+        self.tasks = []
 
 
     def _correct_webhook(self):
@@ -48,6 +50,43 @@ class ServerRequestHandler():
         if self.webhook[-1] != '/':
             self.webhook += '/'
 
+
+    def run(self, coroutine):
+    
+        async def async_wrapper(coroutine):
+            async with self:
+                result = await coroutine
+                
+            if not _SLOW:
+                self.release_sem_task.cancel()
+
+            return result 
+            
+        return asyncio.run(async_wrapper(coroutine))
+
+        
+    def add_request_task(self, method, params):
+        self.tasks.append(asyncio.create_task(self._single_request(method, params)))
+        
+        
+    def get_server_serponses(self):
+        global _SLOW
+        
+        tasks_to_process = len(self.tasks)
+
+        if not _SLOW:
+            self.release_sem_task = asyncio.create_task(self._release_sem())
+            self.tasks.append(self.release_sem_task)
+
+        for task in asyncio.as_completed(self.tasks):
+            if tasks_to_process == 1:
+                self.tasks = []
+                yield task
+                break
+            else:
+                yield task
+                tasks_to_process -= 1
+    
 
     async def __aenter__(self):
         global _SLOW
@@ -82,7 +121,8 @@ class ServerRequestHandler():
                 self._stopped_time = None
                 self._stopped_value = None
 
-        self.get_session()
+        if not self.session or self.session.closed:
+            self.session = aiohttp.ClientSession(raise_for_status=True)
 
 
     async def __aexit__(self, a1, a2, a3):
@@ -95,10 +135,11 @@ class ServerRequestHandler():
         else:
             self._stopped_value = self._sem._value
 
-        await self.close_session()
+        if self.session and not self.session.closed:
+            await self.session.close()
 
 
-    async def release_sem(self):
+    async def _release_sem(self):
         '''
         Корутина-метод, которая увеличивает счетчик доступных в пуле запросов.
 
@@ -112,7 +153,7 @@ class ServerRequestHandler():
             await asyncio.sleep(1 / self.requests_per_second)
 
 
-    async def acquire(self):
+    async def _acquire(self):
         '''
         Вызов `await acquire()` должен предшествовать любому обращению
         к серверу Битрикс. Он возвращает `True`, когда к серверу
@@ -136,24 +177,12 @@ class ServerRequestHandler():
             return await self._sem.acquire()
 
 
-    async def single_request(self, method, params=None):
-        await self.acquire()
+    async def _single_request(self, method, params=None):
+        await self._acquire()
         url = f'{self.webhook}{method}?{convert_dict_to_bitrix_url(params)}'
         async with self.session.get(url) as response:
             r = await response.json(encoding='utf-8')
-        if 'result_error' in r.keys():
-            raise RuntimeError(f'The server reply contained an error: {r["result_error"]}')
-        return r['result'], (r['total'] if 'total' in r.keys() else None)
-
-
-    def get_session(self):
-        if not self.session or self.session.closed:
-            self.session = aiohttp.ClientSession(raise_for_status=True)
-
-
-    async def close_session(self):
-        if self.session and not self.session.closed:
-            await self.session.close()
+        return ServerResponse(r)
             
 
     def get_pbar(self, real_len, real_start):
@@ -177,7 +206,6 @@ class ServerRequestHandler():
         return URI_len / BITRIX_URI_MAX_LEN
             
 
-        
 ##########################################
 #
 #   slow() context manager

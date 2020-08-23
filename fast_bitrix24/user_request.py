@@ -5,6 +5,7 @@ import warnings
 
 from .utils import _merge_dict
 from .mult_request import MultipleServerRequestHandler, MultipleServerRequestHandlerPreserveIDs
+from .server_response import ServerResponse
 
 class UserRequestAbstract():
     def __init__(self, srh, method: str, params: dict):
@@ -60,7 +61,7 @@ class UserRequestAbstract():
 class GetAllUserRequest(UserRequestAbstract):
     def run(self):
         self.check_args()
-        return asyncio.run(self.get_paginated_list())
+        return self.srh.run(self.get_paginated_list())
 
 
     def check_special_limitations(self):
@@ -73,12 +74,11 @@ class GetAllUserRequest(UserRequestAbstract):
     async def get_paginated_list(self):
         self.add_order_parameter()
 
-        async with self.srh:
-            await self.make_first_request()
+        await self.make_first_request()
 
-            if self.more_results_expected():
-                await self.make_remaining_requests()
-                self.dedup_results()
+        if self.more_results_expected():
+            await self.make_remaining_requests()
+            self.dedup_results()
                 
         return self.results
 
@@ -95,7 +95,9 @@ class GetAllUserRequest(UserRequestAbstract):
 
     
     async def make_first_request(self):
-        self.results, self.total = await self.srh.single_request(self.method, self.params)
+        self.srh.add_request_task(self.method, self.params)
+        response = await next(self.srh.get_server_serponses())
+        self.results, self.total = response.result, response.total 
 
 
     def more_results_expected(self):
@@ -153,7 +155,14 @@ class GetByIDUserRequest(UserRequestAbstract):
         
         self.prepare_item_list()
         
-        results = asyncio.run(self.get_list())
+        results = self.srh.run(
+            MultipleServerRequestHandlerPreserveIDs(
+                self.srh,
+                self.method,
+                self.item_list,
+                ID_field=self.ID_field_name
+            ).run()
+        )
         
         return results
 
@@ -173,17 +182,6 @@ class GetByIDUserRequest(UserRequestAbstract):
                 {self.ID_field_name: ID} 
                 for ID in self.ID_list
             ] 
-
-
-    async def get_list(self):
-        async with self.srh:
-            results = await MultipleServerRequestHandlerPreserveIDs(
-                self.srh,
-                self.method,
-                self.item_list,
-                ID_field=self.ID_field_name
-            ).run()
-        return results 
 
 
 class CallUserRequest(GetByIDUserRequest):
@@ -243,12 +241,10 @@ class BatchUserRequest(UserRequestAbstract):
 
     def run(self):
         self.check_args()
-        return asyncio.run(self.batch_call())
+        return self.srh.run(self.batch_call())
 
         
     async def batch_call(self):
-        async with self.srh:
-            results, __ = await self.srh.single_request(self.method, self.params)
-        if results['result_error']:
-            raise RuntimeError(f"The server reply contained an error: {results['result_error']}")
-        return results['result']
+        self.srh.add_request_task(self.method, self.params)
+        response = await next(self.srh.get_server_serponses())
+        return ServerResponse(response.result).result
