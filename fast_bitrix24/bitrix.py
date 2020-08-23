@@ -48,7 +48,7 @@ class Bitrix:
         согласно заданным методу и параметрам.
         '''
 
-        return GetAllUserRequest(self.srh, method, params).run()
+        return self.srh.run(GetAllUserRequest(self.srh, method, params).run())
 
     def get_by_ID(self, method: str, ID_list: Sequence, ID_field_name: str = 'ID',
         params: dict = None) -> list:
@@ -81,7 +81,7 @@ class Bitrix:
         сущности.
         '''
 
-        return GetByIDUserRequest(self.srh, method, params, ID_list, ID_field_name).run()
+        return self.srh.run(GetByIDUserRequest(self.srh, method, params, ID_list, ID_field_name).run())
 
     def call(self, method: str, items):
         '''
@@ -97,9 +97,9 @@ class Bitrix:
         '''
 
         if isinstance(items, Sequence):
-            return CallUserRequest(self.srh, method, items).run()
+            return self.srh.run(CallUserRequest(self.srh, method, items).run())
         elif isinstance(items, dict):
-            return CallUserRequest(self.srh, method, [items]).run()[0]
+            return self.srh.run(CallUserRequest(self.srh, method, [items]).run())[0]
         else:
             raise TypeError(f'call() accepts either a list of params dicts or a single params dict, but got a {type(items)} instead')
     
@@ -114,4 +114,4 @@ class Bitrix:
         Возвращает ответы сервера.
         '''
 
-        return BatchUserRequest(self.srh, params).run()
+        return self.srh.run(BatchUserRequest(self.srh, params).run())

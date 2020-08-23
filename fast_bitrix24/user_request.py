@@ -7,6 +7,8 @@ from .utils import _merge_dict
 from .mult_request import MultipleServerRequestHandler, MultipleServerRequestHandlerPreserveIDs
 from .server_response import ServerResponse
 
+BITRIX_PAGE_SIZE = 50
+
 class UserRequestAbstract():
 
     def __init__(self, srh, method: str, params: dict):
@@ -23,7 +25,7 @@ class UserRequestAbstract():
         method = method.lower().strip()
 
         if method.lower().strip() == 'batch':
-            raise ValueError("Method cannot be 'batch'")
+            raise ValueError("Method cannot be 'batch'. Use call_batch() instead.")
         
         return method
     
@@ -35,7 +37,7 @@ class UserRequestAbstract():
 
         p = dict([(key.lower().strip(), value) for key, value in p.items()])
 
-        clauses = {
+        expected_clause_types = {
             'select': list,
             'halt': int,
             'cmd': dict,
@@ -47,15 +49,15 @@ class UserRequestAbstract():
         }
 
         # check for allowed types of key values
-        for pi in p.items():
-            if pi[0] in clauses.keys():
-                t = clauses[pi[0]]
-                if t and not (
-                    (isinstance(pi[1], t)) or
-                    ((t == list) and (any([isinstance(pi[1], x) for x in [list, tuple, set]])))
+        for clause_key, clause_value in p.items():
+            if clause_key in expected_clause_types.keys():
+                expected_type = expected_clause_types[clause_key]
+                if expected_type and not (
+                    (isinstance(clause_value, expected_type)) or
+                    ((expected_type == list) and (any([isinstance(clause_value, x) for x in [list, tuple, set]])))
                 ):
-                    raise TypeError(f'Clause "{pi[0]}" should be of type {t}, '
-                        f'but its type is {type(pi[1])}')
+                    raise TypeError(f'Clause "{clause_key}" should be of type {expected_type}, '
+                        f'but its type is {type(clause_value)}')
 
         return p
 
@@ -65,17 +67,13 @@ class UserRequestAbstract():
     
     
 class GetAllUserRequest(UserRequestAbstract):
-    def run(self):
-        return self.srh.run(self.get_paginated_list())
-
-
     def check_special_limitations(self):
         if self.params:
             if not set(self.params.keys()).isdisjoint({'start', 'limit', 'order'}):
                 raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
 
     
-    async def get_paginated_list(self):
+    async def run(self):
         self.add_order_parameter()
 
         await self.make_first_request()
@@ -111,7 +109,7 @@ class GetAllUserRequest(UserRequestAbstract):
                 method = self.method, 
                 item_list = [
                     _merge_dict({'start': start}, self.params)
-                    for start in range(len(self.results), self.total, 50)
+                    for start in range(len(self.results), self.total, BITRIX_PAGE_SIZE)
                 ], 
                 real_len = self.total, 
                 real_start = len(self.results)
@@ -146,20 +144,18 @@ class GetByIDUserRequest(UserRequestAbstract):
             raise TypeError("get_by_ID(): 'ID_list' should be a sequence")
 
 
-    def run(self):
+    async def run(self):
         if self.list_empty():
             return []
         
         self.prepare_item_list()
         
-        results = self.srh.run(
-            MultipleServerRequestHandlerPreserveIDs(
-                self.srh,
-                self.method,
-                self.item_list,
-                ID_field=self.ID_field_name
-            ).run()
-        )
+        results = await MultipleServerRequestHandlerPreserveIDs(
+            self.srh,
+            self.method,
+            self.item_list,
+            ID_field=self.ID_field_name
+        ).run()
         
         return results
 
@@ -183,16 +179,16 @@ class GetByIDUserRequest(UserRequestAbstract):
 
 class CallUserRequest(GetByIDUserRequest):
     def __init__(self, srh, method: str, item_list):
-        super().__init__(srh, method, None, None, '__order')
         self.item_list = [self.standardized_params(item) for item in item_list]
+        super().__init__(srh, method, None, None, '__order')
 
         
     def check_special_limitations(self):
         if not isinstance(self.item_list, Sequence):
             raise TypeError("call(): 'item_list' should be a sequence")
 
-    def run(self):
-        results = super().run()
+    async def run(self):
+        results = await super().run()
         
         # убираем поле с порядковым номером из результатов
         return [item[1] for item in results]
@@ -216,9 +212,8 @@ class BatchUserRequest(UserRequestAbstract):
         super().__init__(srh, 'batch', params)
 
 
-    def check_method(self):
-        if self.method != 'batch':
-            raise ValueError("Method should be 'batch'")
+    def standardized_method(self, method):
+        return 'batch'
 
 
     def check_special_limitations(self):
@@ -229,11 +224,7 @@ class BatchUserRequest(UserRequestAbstract):
             raise ValueError("'cmd' clause should contain a dict")
     
 
-    def run(self):
-        return self.srh.run(self.batch_call())
-
-        
-    async def batch_call(self):
+    async def run(self):
         self.srh.add_request_task(self.method, self.params)
         response = await next(self.srh.get_server_serponses())
         return ServerResponse(response.result).result
