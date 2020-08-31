@@ -63,8 +63,9 @@ class MultipleServerRequestHandler:
         for task in self.srh.get_server_serponses():
             batch_response = await task
             unwrapped_result = ServerResponse(batch_response.result).result
-            self.results.extend(self.extract_result_from_batch_response(unwrapped_result))
-            self.pbar.update(len(unwrapped_result))
+            batch_results = self.extract_result_from_batch_response(unwrapped_result)
+            self.results.extend(batch_results)
+            self.pbar.update(len(batch_results))
 
         self.pbar.close()
 
