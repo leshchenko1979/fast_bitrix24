@@ -130,9 +130,9 @@ class GetAllUserRequest(UserRequestAbstract):
 
 class GetByIDUserRequest(UserRequestAbstract):
     def __init__(self, srh, method: str, params: dict, ID_list, ID_field_name):
-        super().__init__(srh, method, params)
         self.ID_list = ID_list
         self.ID_field_name = ID_field_name.upper().strip()
+        super().__init__(srh, method, params)
         
         
     def check_special_limitations(self):

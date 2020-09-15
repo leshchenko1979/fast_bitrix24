@@ -102,7 +102,7 @@ class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
 
     def sort_results(self):
         # выделяем ID для облегчения дальнейшего поиска
-        IDs_only = [i[self.ID_field] for i in self.original_item_list]
+        IDs_only = [str(i[self.ID_field]) for i in self.original_item_list]
             
         # сортируем results на базе порядка ID в original_item_list
         self.results.sort(key = lambda item: 

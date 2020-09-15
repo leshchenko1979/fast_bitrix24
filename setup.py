@@ -5,10 +5,10 @@ with open("README.md", "r", encoding='utf-8') as fh:
 
 setuptools.setup(
     name="fast_bitrix24",
-    version="0.4.1",
+    version="0.4.2",
     author="Alexey Leshchenko",
     author_email="leshchenko@gmail.com",
-    description="Высокоуровневый API для Python 3.7+ для быстрого получения данных от Битрикс24 через REST API. Параллельные запросы к серверу, упаковка запросов в батчи, контроль скорости запросов.",
+    description="API wrapper для быстрого получения данных от Битрикс24 через REST API. Параллельные запросы к серверу, упаковка запросов в батчи, контроль скорости запросов.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/leshchenko1979/fast_bitrix24",
@@ -25,7 +25,8 @@ setuptools.setup(
     install_requires=[
         'aiohttp',
         'asyncio',
-        'tqdm'
+        'tqdm',
+        'more_itertools'
     ],
     license="MIT"
 )
