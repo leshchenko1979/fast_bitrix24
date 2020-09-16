@@ -182,9 +182,8 @@ class ServerRequestHandler():
 
     async def _single_request(self, method, params=None):
         await self._acquire()
-        async with self.session.request(method = 'get',
-                                        url = self.webhook + method, 
-                                        json = params) as response:
+        async with self.session.post(url = self.webhook + method, 
+                                     json = params) as response:
             r = await response.json(encoding='utf-8')
         return ServerResponse(r)
             
