@@ -14,6 +14,13 @@ def get_test():
     
     
 @pytest.fixture(scope='session')
+def delete_all_leads(get_test):
+    b = get_test
+    leads = b.get_all('crm.lead.list', {'select': ['ID']})
+    b.get_by_ID('crm.lead.delete', [l['ID'] for l in leads])
+    
+    
+@pytest.fixture(scope='session')
 def create_1000_leads(get_test):
     b = get_test
     
@@ -42,8 +49,9 @@ class TestBasic:
         b.get_by_ID('crm.lead.delete', [lead_no])
         
         
-    def test_simple_get_all(self, get_test, create_1000_leads):
+    def test_simple_get_all(self, get_test, delete_all_leads, create_1000_leads):
         b = get_test
+        delete_all_leads
         create_1000_leads
         
         leads = b.get_all('crm.lead.list')
