@@ -128,4 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .pypirc
-tests/**
+tests_private/**
+.vscode/settings.json
