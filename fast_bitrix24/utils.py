@@ -21,7 +21,7 @@ def convert_dict_to_bitrix_url(data):
     def renderKey(parents):
         depth, outStr = 0, ''
         for x in parents:
-            s = "[%s]" if (depth > 0 or isinstance(x, int)) and x!='[]' else "%s"
+            s = "[%s]" if (depth > 0 or isinstance(x, int)) else "%s"
             outStr += s % str(x)
             depth += 1
         return outStr
@@ -30,7 +30,7 @@ def convert_dict_to_bitrix_url(data):
         if any(isinstance(data, t) for t in [list, tuple, set]):
             data = list(data)
             for i in range(len(data)):
-                parents.append('[]')
+                parents.append(f'[{i}]')
                 r_urlencode(data[i])
                 parents.pop()
         elif isinstance(data, dict):
