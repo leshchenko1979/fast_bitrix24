@@ -33,8 +33,12 @@ class UserRequestAbstract():
     def standardized_params(self, p):
         # check if p is dict
         if not isinstance(p, dict):
-            raise TypeError('params agrument should be a dict')
+            raise TypeError('Params agrument should be a dict')
 
+        for key, __ in p.items():
+            if not isinstance(key, str):
+                raise TypeError('Keys in params argument should be strs')
+        
         p = dict([(key.lower().strip(), value) for key, value in p.items()])
 
         expected_clause_types = {
@@ -89,11 +93,13 @@ class GetAllUserRequest(UserRequestAbstract):
         # необходимо установить порядок сортировки, иначе сортировка будет рандомная
         # и сущности будут повторяться на разных страницах
         
+        order_clause = {'order': {'ID': 'ASC'}}
+        
         if self.params:
-            if 'order' not in [x.lower() for x in self.params.keys()]:
-                self.params.update({'order': {'ID': 'ASC'}})
+            if 'order' not in self.params:
+                self.params.update(order_clause)
         else:
-            self.params = {'order': {'ID': 'ASC'}}
+            self.params = order_clause
 
     
     async def make_first_request(self):
