@@ -27,23 +27,16 @@ class MultipleServerRequestHandler:
     def prepare_batches(self):
         batch_size = BITRIX_MAX_BATCH_SIZE
 
-        while True:
-            batches = [{
-                'halt': 0,
-                'cmd': {
-                    self.batch_command_label(i, item): 
-                    f'{self.method}?{convert_dict_to_bitrix_url(item)}'
-                    for i, item in enumerate(next_batch)
-                }}
-                for next_batch in more_itertools.chunked(self.item_list, batch_size)
-            ]
+        batches = [{
+            'halt': 0,
+            'cmd': {
+                self.batch_command_label(i, item): 
+                f'{self.method}?{convert_dict_to_bitrix_url(item)}'
+                for i, item in enumerate(next_batch)
+            }}
+            for next_batch in more_itertools.chunked(self.item_list, batch_size)
+        ]
             
-            URI_len_used = self.srh.URI_len_used('batch', batches[0])
-            if URI_len_used < 1:
-                break
-            else:
-                batch_size = int(batch_size // URI_len_used)
-
         self.method = 'batch'
         self.item_list = batches
 

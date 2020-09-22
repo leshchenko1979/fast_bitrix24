@@ -9,7 +9,6 @@ from .utils import convert_dict_to_bitrix_url, _url_valid
 
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
-BITRIX_URI_MAX_LEN = 5820 # подобрано опытным путем
 BITRIX_MAX_BATCH_SIZE = 50
 
 
@@ -182,8 +181,8 @@ class ServerRequestHandler():
 
     async def _single_request(self, method, params=None):
         await self._acquire()
-        url = f'{self.webhook}{method}?{convert_dict_to_bitrix_url(params)}'
-        async with self.session.get(url) as response:
+        async with self.session.post(url = self.webhook + method, 
+                                     json = params) as response:
             r = await response.json(encoding='utf-8')
         return ServerResponse(r)
             
@@ -202,11 +201,6 @@ class ServerRequestHandler():
             return tqdm(total = real_len, initial = real_start)
         else:
             return MutePBar()
-
-
-    def URI_len_used(self, method, params):
-        URI_len = len(self.webhook + method + convert_dict_to_bitrix_url(params))
-        return URI_len / BITRIX_URI_MAX_LEN
             
 
 ##########################################
