@@ -21,9 +21,10 @@ def delete_all_leads(get_test):
     
     
 @pytest.fixture(scope='session')
-def create_1000_leads(get_test):
+def create_1000_leads(get_test, delete_all_leads):
     b = get_test
     
+    delete_all_leads
     with slow(1.2):
         lead_nos = b.call('crm.lead.add', [{
             'fields': {
@@ -51,12 +52,24 @@ class TestBasic:
         
     def test_simple_get_all(self, get_test, delete_all_leads, create_1000_leads):
         b = get_test
-        delete_all_leads
         create_1000_leads
         
         leads = b.get_all('crm.lead.list')
         
         assert len(leads) == 1000
+        
+        
+    def test_get_all_params(self, get_test, create_1000_leads):
+        b = get_test
+        create_1000_leads
+        
+        fields = ['ID', 'NAME']
+        
+        leads = b.get_all('crm.lead.list', {
+            'select': fields
+        })
+        
+        assert len(fields) == len(leads[0])
         
         
 class TestLongRequests:

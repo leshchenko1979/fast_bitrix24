@@ -5,7 +5,7 @@ import time
 from tqdm import tqdm
 
 from .server_response import ServerResponse
-from .utils import convert_dict_to_bitrix_url, _url_valid
+from .utils import _url_valid
 
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0

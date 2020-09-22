@@ -1,8 +1,7 @@
 import more_itertools
-import asyncio
+import php
 import itertools
 
-from .utils import convert_dict_to_bitrix_url
 from .srh import BITRIX_MAX_BATCH_SIZE
 from .server_response import ServerResponse
 
@@ -26,12 +25,13 @@ class MultipleServerRequestHandler:
 
     def prepare_batches(self):
         batch_size = BITRIX_MAX_BATCH_SIZE
+        builder = php.Php()
 
         batches = [{
             'halt': 0,
             'cmd': {
                 self.batch_command_label(i, item): 
-                f'{self.method}?{convert_dict_to_bitrix_url(item)}'
+                f'{self.method}?{builder.http_build_query(item)}'
                 for i, item in enumerate(next_batch)
             }}
             for next_batch in more_itertools.chunked(self.item_list, batch_size)
