@@ -89,7 +89,8 @@ class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
     
 
     def extract_result_from_batch_response(self, unwrapped_result):
-        return unwrapped_result.items()
+        result_list_of_tuples = unwrapped_result.items()
+        return result_list_of_tuples
 
 
     def sort_results(self):
