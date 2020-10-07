@@ -18,4 +18,4 @@ class ServerResponse():
         
         
     def more_results_expected(self):
-        return self.total and self.total > 50 and not self.total == len(self.result)
+        return self.total and self.total > 50 and self.total != len(self.result)

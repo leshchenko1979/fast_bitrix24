@@ -11,7 +11,7 @@ class MultipleServerRequestHandler:
         self.srh = srh
         self.method = method
         self.item_list = item_list
-        self.real_len = real_len if real_len else len(item_list)
+        self.real_len = real_len or len(item_list)
         self.real_start = real_start
         self.results = []
 
@@ -89,8 +89,7 @@ class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
     
 
     def extract_result_from_batch_response(self, unwrapped_result):
-        result_list_of_tuples = unwrapped_result.items()
-        return result_list_of_tuples
+        return unwrapped_result.items()
 
 
     def sort_results(self):
