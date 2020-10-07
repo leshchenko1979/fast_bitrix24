@@ -11,7 +11,7 @@ class MultipleServerRequestHandler:
         self.srh = srh
         self.method = method
         self.item_list = item_list
-        self.real_len = real_len if real_len else len(item_list)
+        self.real_len = real_len or len(item_list)
         self.real_start = real_start
         self.results = []
 

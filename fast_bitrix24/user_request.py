@@ -38,7 +38,7 @@ class UserRequestAbstract():
         for key, __ in p.items():
             if not isinstance(key, str):
                 raise TypeError('Keys in params argument should be strs')
-        
+
         p = dict([(key.lower().strip(), value) for key, value in p.items()])
 
         expected_clause_types = {
@@ -54,11 +54,14 @@ class UserRequestAbstract():
 
         # check for allowed types of key values
         for clause_key, clause_value in p.items():
-            if clause_key in expected_clause_types.keys():
+            if clause_key in expected_clause_types:
                 expected_type = expected_clause_types[clause_key]
                 if expected_type and not (
-                    (isinstance(clause_value, expected_type)) or
-                    ((expected_type == list) and (any([isinstance(clause_value, x) for x in [list, tuple, set]])))
+                    (isinstance(clause_value, expected_type))
+                    or expected_type == list
+                    and any(
+                        isinstance(clause_value, x) for x in [list, tuple, set]
+                    )
                 ):
                     raise TypeError(f'Clause "{clause_key}" should be of type {expected_type}, '
                         f'but its type is {type(clause_value)}')
@@ -72,9 +75,10 @@ class UserRequestAbstract():
     
 class GetAllUserRequest(UserRequestAbstract):
     def check_special_limitations(self):
-        if self.params:
-            if not set(self.params.keys()).isdisjoint({'start', 'limit', 'order'}):
-                raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
+        if self.params and not set(self.params.keys()).isdisjoint(
+            {'start', 'limit', 'order'}
+        ):
+            raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
 
     
     async def run(self):
@@ -125,8 +129,12 @@ class GetAllUserRequest(UserRequestAbstract):
 
     def dedup_results(self):
         # дедупликация через сериализацию, превращение в set и десериализацию
-        self.results = [pickle.loads(y) for y in set([pickle.dumps(x) for x in self.results])] \
-            if self.results else []
+        self.results = (
+            [pickle.loads(y) for y in {pickle.dumps(x) for x in self.results}]
+            if self.results
+            else []
+        )
+
 
         if len(self.results) != self.total:
             warnings.warn(f"Number of results returned ({len(self.results)}) "
@@ -142,9 +150,8 @@ class GetByIDUserRequest(UserRequestAbstract):
         
         
     def check_special_limitations(self):
-        if self.params: 
-            if 'id' in self.params.keys():
-                raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
+        if self.params and 'id' in self.params.keys():
+            raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
 
         if not(isinstance(self.ID_list, Sequence)):
             raise TypeError("get_by_ID(): 'ID_list' should be a sequence")
