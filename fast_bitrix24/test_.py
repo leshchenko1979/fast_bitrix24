@@ -1,7 +1,8 @@
-from fast_bitrix24.srh import slow
 import os
+
 import pytest
-from fast_bitrix24 import Bitrix
+
+from fast_bitrix24 import Bitrix, slow
 
 
 @pytest.fixture(scope='session')

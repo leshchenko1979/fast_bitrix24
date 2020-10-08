@@ -3,6 +3,9 @@ import setuptools
 with open("README.md", "r", encoding='utf-8') as fh:
     long_description = fh.read()
 
+with open('requirements.txt', 'r', encoding='utf-8') as fh:
+    requirements = fh.read().splitlines()
+
 setuptools.setup(
     name="fast_bitrix24",
     version="0.4.4",
@@ -22,12 +25,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.7',
-    install_requires=[
-        'aiohttp',
-        'asyncio',
-        'tqdm',
-        'more_itertools',
-        'php'
-    ],
+    install_requires=requirements,
     license="MIT"
 )
