@@ -1,6 +1,10 @@
 # fast_bitrix24
 API wrapper для Питона для быстрого получения данных от Битрикс24 через REST API.
 
+![JetBrains ReSharper plugins](https://img.shields.io/pypi/dm/fast-bitrix24.svg)
+[![Sourcery](https://img.shields.io/badge/Sourcery-enabled-brightgreen)](https://sourcery.ai)
+
+
 ## Основная функциональность
 
 ### Высокая скорость обмена данными
