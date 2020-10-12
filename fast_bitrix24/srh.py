@@ -62,13 +62,16 @@ class ServerRequestHandler():
             if not _SLOW:
                 self.release_sem_task.cancel()
 
-            return result 
+            return result
+        
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(async_wrapper(coroutine))
             
-        return asyncio.run(async_wrapper(coroutine))
+        return result
 
         
     def add_request_task(self, method, params):
-        self.tasks.append(asyncio.create_task(self._single_request(method, params)))
+        self.tasks.append(asyncio.ensure_future(self._single_request(method, params)))
         
         
     def get_server_serponses(self):
@@ -77,7 +80,7 @@ class ServerRequestHandler():
         tasks_to_process = len(self.tasks)
 
         if not _SLOW:
-            self.release_sem_task = asyncio.create_task(self._release_sem())
+            self.release_sem_task = asyncio.ensure_future(self._release_sem())
             self.tasks.append(self.release_sem_task)
 
         for task in asyncio.as_completed(self.tasks):
