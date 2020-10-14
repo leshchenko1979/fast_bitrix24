@@ -1,5 +1,5 @@
 import more_itertools
-from multidimensional_urlencode import urlencode
+from .utils import http_build_query
 import itertools
 
 from .srh import BITRIX_MAX_BATCH_SIZE
@@ -30,7 +30,7 @@ class MultipleServerRequestHandler:
             'halt': 0,
             'cmd': {
                 self.batch_command_label(i, item): 
-                f'{self.method}?{urlencode(item)}'
+                f'{self.method}?{http_build_query(item)}'
                 for i, item in enumerate(next_batch)
             }}
             for next_batch in more_itertools.chunked(self.item_list, batch_size)
