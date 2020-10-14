@@ -15,7 +15,7 @@ def get_test():
     
     
 @pytest.fixture(scope='session')
-def create_100_leads(get_test, delete_all_leads):
+def create_100_leads(get_test):
     b = get_test
     
     # Подчистить тестовый аккаунт от лишних сущностей, 
