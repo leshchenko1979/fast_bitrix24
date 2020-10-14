@@ -15,17 +15,6 @@ def get_test():
     
     
 @pytest.fixture(scope='session')
-def delete_all_leads(get_test):
-    '''Стирает все лиды.'''
-    # Вызывает проблемы при параллельном запуске тестов 
-    # в нескольких контейнерах, поэтому лучше использовать
-    # в крайних случаях. 
-    b = get_test
-    leads = b.get_all('crm.lead.list', {'select': ['ID']})
-    b.get_by_ID('crm.lead.delete', [l['ID'] for l in leads])
-    
-    
-@pytest.fixture(scope='session')
 def create_100_leads(get_test, delete_all_leads):
     b = get_test
     
@@ -36,7 +25,8 @@ def create_100_leads(get_test, delete_all_leads):
     # запущенных тестах.
     total_leads = len(b.get_all('crm.lead.list'))
     if total_leads > 500:
-        delete_all_leads
+        leads = b.get_all('crm.lead.list', {'select': ['ID']})
+        b.get_by_ID('crm.lead.delete', [l['ID'] for l in leads])
 
     with slow(1.2):
         lead_nos = b.call('crm.lead.add', [{
