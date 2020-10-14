@@ -1,5 +1,5 @@
 import more_itertools
-import php
+from multidimensional_urlencode import urlencode
 import itertools
 
 from .srh import BITRIX_MAX_BATCH_SIZE
@@ -25,13 +25,12 @@ class MultipleServerRequestHandler:
 
     def prepare_batches(self):
         batch_size = BITRIX_MAX_BATCH_SIZE
-        builder = php.Php()
 
         batches = [{
             'halt': 0,
             'cmd': {
                 self.batch_command_label(i, item): 
-                f'{self.method}?{builder.http_build_query(item)}'
+                f'{self.method}?{urlencode(item)}'
                 for i, item in enumerate(next_batch)
             }}
             for next_batch in more_itertools.chunked(self.item_list, batch_size)

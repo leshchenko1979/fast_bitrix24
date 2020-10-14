@@ -96,7 +96,7 @@ class TestLongRequests:
         b.get_by_ID('crm.lead.delete', [lead_no])
         
         
-class TestEmbeddedListsInParams:
+class TestParamsEncoding:
     
     def test_mobile_phone(self, get_test):
         b = get_test
@@ -115,3 +115,35 @@ class TestEmbeddedListsInParams:
             assert lead['PHONE'][0]['VALUE_TYPE'] == 'MOBILE'
         finally:
             b.get_by_ID('crm.lead.delete', [lead_no])
+            
+
+    def test_filter_not_equal(self, create_100_leads):
+        b = create_100_leads
+
+        result = b.get_all('crm.lead.list', {
+            'FILTER': {
+                '!STATUS_ID': 'NEW'
+            }
+        })
+        assert not result
+            
+        result = b.get_all('crm.lead.list', {
+            'FILTER': {
+                '!STATUS_ID': 'CLOSED'
+            }
+        })
+        assert result
+            
+        result = b.get_all('crm.lead.list', {
+            'FILTER': {
+                '<>STATUS_ID': 'NEW'
+            }
+        })
+        assert result
+        
+        result = b.get_all('crm.lead.list', {
+            'FILTER': {
+                '<>STATUS_ID': 'CLOSED'
+            }
+        })
+        assert result
