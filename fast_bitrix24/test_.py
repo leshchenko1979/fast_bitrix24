@@ -16,7 +16,7 @@ def get_test():
     
     
 @pytest.fixture(scope='session')
-def create_100_leads(get_test):
+def create_100_leads(get_test) -> Bitrix:
     b = get_test
     
     # Подчистить тестовый аккаунт от лишних сущностей, 
@@ -72,6 +72,20 @@ class TestBasic:
         })
         
         assert len(fields) == len(leads[0])
+        
+        
+    def test_call_batch(self, create_100_leads):
+        b = create_100_leads
+
+        with pytest.raises(ValueError):
+            b.call_batch({})
+            
+        assert b.call_batch({
+            'halt': 0,
+            'cmd': {
+                1: 'crm.lead.list'
+            }
+        })
         
         
 class TestLongRequests:
