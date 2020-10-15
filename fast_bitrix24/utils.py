@@ -14,13 +14,6 @@ def _url_valid(url):
         return False
 
 
-def _merge_dict(d1, d2):
-    d3 = d1.copy()
-    if d2:
-        d3.update(d2)
-    return d3
-
-
 def http_build_query(params, convention="%s"):
     if len(params) == 0:
         return ""

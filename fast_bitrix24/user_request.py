@@ -1,10 +1,10 @@
-import asyncio
-from collections.abc import Sequence
 import pickle
 import warnings
+from collections import ChainMap
+from collections.abc import Sequence
 
-from .utils import _merge_dict
-from .mult_request import MultipleServerRequestHandler, MultipleServerRequestHandlerPreserveIDs
+from .mult_request import (MultipleServerRequestHandler,
+                           MultipleServerRequestHandlerPreserveIDs)
 from .server_response import ServerResponse
 
 BITRIX_PAGE_SIZE = 50
@@ -118,7 +118,7 @@ class GetAllUserRequest(UserRequestAbstract):
                 self.srh,
                 method = self.method, 
                 item_list = [
-                    _merge_dict({'start': start}, self.params)
+                    ChainMap({'start': start}, self.params)
                     for start in range(len(self.results), self.total, BITRIX_PAGE_SIZE)
                 ], 
                 real_len = self.total, 
@@ -180,7 +180,7 @@ class GetByIDUserRequest(UserRequestAbstract):
     def prepare_item_list(self):
         if self.params:
             self.item_list = [
-                _merge_dict({self.ID_field_name: ID}, self.params) 
+                ChainMap({self.ID_field_name: ID}, self.params) 
                 for ID in self.ID_list
             ]
         else:
@@ -214,7 +214,7 @@ class CallUserRequest(GetByIDUserRequest):
     def prepare_item_list(self):
         # добавим порядковый номер
         self.item_list = [
-            _merge_dict(item, {self.ID_field_name: 'order' + str(i)}) 
+            ChainMap(item, {self.ID_field_name: 'order' + str(i)}) 
             for i, item in enumerate(self.item_list)
         ]
 
