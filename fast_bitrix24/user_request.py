@@ -31,7 +31,6 @@ class UserRequestAbstract():
     
     
     def standardized_params(self, p):
-        # check if p is dict
         if not isinstance(p, dict):
             raise TypeError('Params agrument should be a dict')
 
@@ -39,9 +38,15 @@ class UserRequestAbstract():
             if not isinstance(key, str):
                 raise TypeError('Keys in params argument should be strs')
 
-        p = dict([(key.lower().strip(), value) for key, value in p.items()])
+        p = {key.lower().strip(): value for key, value in p.items()}
 
-        expected_clause_types = {
+        self.check_expected_clause_types(p)
+
+        return p
+
+
+    def check_expected_clause_types(self, p):
+        EXPECTED_TYPES = {
             'select': list,
             'halt': int,
             'cmd': dict,
@@ -54,19 +59,14 @@ class UserRequestAbstract():
 
         # check for allowed types of key values
         for clause_key, clause_value in p.items():
-            if clause_key in expected_clause_types:
-                expected_type = expected_clause_types[clause_key]
-                if expected_type and not (
-                    (isinstance(clause_value, expected_type))
-                    or expected_type == list
-                    and any(
+            if clause_key in EXPECTED_TYPES:
+                expected_type = EXPECTED_TYPES[clause_key]
+                type_ok = isinstance(clause_value, expected_type)
+                if not type_ok or (expected_type == list and not any(
                         isinstance(clause_value, x) for x in [list, tuple, set]
-                    )
-                ):
+                )):
                     raise TypeError(f'Clause "{clause_key}" should be of type {expected_type}, '
                         f'but its type is {type(clause_value)}')
-
-        return p
 
 
     def check_special_limitations(self):
