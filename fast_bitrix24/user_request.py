@@ -230,6 +230,9 @@ class BatchUserRequest(UserRequestAbstract):
 
 
     def check_special_limitations(self):
+        if not self.params:
+            raise ValueError("Params for a batch call can't be empty")
+        
         if {'halt', 'cmd'} != self.params.keys():
             raise ValueError("Params for a batch call should contain only 'halt' and 'cmd' clauses at the highest level")
 
