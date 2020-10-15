@@ -88,6 +88,26 @@ class TestBasic:
         })
         
         
+    def test_param_errors(self, get_test):
+        b = get_test
+        
+        with pytest.raises(TypeError):
+            b.get_all('')
+            
+        with pytest.raises(TypeError):
+            b.get_all(123)
+            
+        with pytest.raises(TypeError):
+            b.get_all('some_method', {
+                'select': None
+            })
+
+        with pytest.raises(TypeError):
+            b.get_all('some_method', {
+                'filter': 3
+            })
+        
+        
 class TestLongRequests:
 
     def test_long_task_description(self, get_test):
