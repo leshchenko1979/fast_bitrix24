@@ -19,6 +19,9 @@ class UserRequestAbstract():
         
 
     def standardized_method(self, method):
+        if not method:
+            raise TypeError('Method cannot be empty')
+            
         if not isinstance(method, str):
             raise TypeError('Method should be a str')
 
@@ -61,10 +64,16 @@ class UserRequestAbstract():
         for clause_key, clause_value in p.items():
             if clause_key in EXPECTED_TYPES:
                 expected_type = EXPECTED_TYPES[clause_key]
+
                 type_ok = isinstance(clause_value, expected_type)
-                if not type_ok or (expected_type == list and not any(
+                if expected_type == list:
+                    list_error = not any(
                         isinstance(clause_value, x) for x in [list, tuple, set]
-                )):
+                    )
+                else:
+                    list_error = False
+
+                if not type_ok or list_error:
                     raise TypeError(f'Clause "{clause_key}" should be of type {expected_type}, '
                         f'but its type is {type(clause_value)}')
 
