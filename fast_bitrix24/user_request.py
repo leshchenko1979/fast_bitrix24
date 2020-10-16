@@ -122,18 +122,19 @@ class GetAllUserRequest(UserRequestAbstract):
 
 
     async def make_remaining_requests(self):
-        self.results.extend(
-            await MultipleServerRequestHandler(
+        item_list = (
+            ChainMap({'start': start}, self.params)
+            for start in range(len(self.results), self.total, BITRIX_PAGE_SIZE)
+        )
+        remaining_results = await MultipleServerRequestHandler(
                 self.srh,
-                method = self.method, 
-                item_list = [
-                    ChainMap({'start': start}, self.params)
-                    for start in range(len(self.results), self.total, BITRIX_PAGE_SIZE)
-                ], 
+                method = self.method,
+                item_list = item_list,
                 real_len = self.total, 
                 real_start = len(self.results)
             ).run()
-        )
+        
+        self.results.extend(remaining_results)
 
 
     def dedup_results(self):
