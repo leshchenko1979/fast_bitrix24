@@ -284,8 +284,10 @@ leads = b.get_all('crm.lead.list')
 ### А как мне сформировать запрос к Битриксу, чтобы  ...?
 
 1. Поищите в [официальной документации по REST API](https://dev.1c-bitrix.ru/rest_help/).
-2. Если на ваш вопрос там нет ответа - попробуйте задать его в [группе "Партнерский REST API" в Сообществе разработчиков Битрикс24](https://dev.bitrix24.ru/workgroups/group/34/).
-3. Спросите на [русском StackOverflow](https://ru.stackoverflow.com/questions/tagged/битрикс24).
+1. Если на ваш вопрос там нет ответа - попробуйте задать его в [группе "Партнерский REST API" в Сообществе разработчиков Битрикс24](https://dev.bitrix24.ru/workgroups/group/34/).
+1. Спросите в Телеграме в [группе разработчиков Битрикс24](https://t.me/bit24dev).
+1. Спросите в Телеграме в [группе пользователей fast_bitrix24](https://t.me/fast_bitrix24).
+1. Спросите на [русском StackOverflow](https://ru.stackoverflow.com/questions/tagged/битрикс24).
 
 ### Я хочу добавить несколько лидов списком, но получаю ошибку сервера.
 
@@ -322,6 +324,5 @@ deals.sort(key = lambda d: int(d['ID']))
 
 
 ## Как связаться с автором
-- e-mail: leshchenko@gmail.com
-- telegram: https://t.me/leshchenko1979
+- telegram: https://t.me/fast_bitrix24
 - создать новый github issue: https://github.com/leshchenko1979/fast_bitrix24/issues/new
