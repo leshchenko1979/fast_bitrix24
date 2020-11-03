@@ -1,7 +1,7 @@
 # fast_bitrix24
 API wrapper для Питона для быстрого получения данных от Битрикс24 через REST API.
 
-![Статистика тестов](https://github.com/leshchenko1979/fast_bitrix24/workflows/.github/workflows/small-test.yml/badge.svg)
+![Статистика тестов](https://github.com/leshchenko1979/fast_bitrix24/workflows/Tests%20on%20push%20%28Ubuntu%2FPython%203.9%29/badge.svg)
 [![Статистика загрузок](https://img.shields.io/pypi/dm/fast-bitrix24.svg)](https://pypistats.org/packages/fast-bitrix24)
 [![Sourcery](https://img.shields.io/badge/Sourcery-enabled-brightgreen)](https://sourcery.ai)
 
