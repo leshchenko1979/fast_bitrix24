@@ -1,13 +1,10 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Tests
+name: Tests - all OS, all Python versions
 
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+  workflow_dispatch
 
 jobs:
   build:
@@ -15,6 +12,7 @@ jobs:
       matrix:
         python-version: [3.6, 3.7, 3.8, 3.9]
         os: [ubuntu-latest, windows-latest]
+        max-parallel: 4
 
     runs-on: ${{ matrix.os}}
 
