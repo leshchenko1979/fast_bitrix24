@@ -177,14 +177,14 @@ class ServerRequestHandler():
         ```
         '''
         global _SLOW, _SLOW_RPS
-        if _SLOW:
-            # ждать, пока отработают другие запросы, запущенные параллельно,
-            async with self._slow_lock:
-            # потом ждать основное время "остывания"
-                await asyncio.sleep(1 / _SLOW_RPS)
-            return True
-        else:
+        if not _SLOW:
             return await self._sem.acquire()
+
+        # ждать, пока отработают другие запросы, запущенные параллельно,
+        async with self._slow_lock:
+            # потом ждать основное время "остывания"
+            await asyncio.sleep(1 / _SLOW_RPS)
+        return True
 
 
     async def _single_request(self, method, params=None):
