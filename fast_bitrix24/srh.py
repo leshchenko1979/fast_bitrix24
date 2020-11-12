@@ -32,7 +32,7 @@ class ServerRequestHandler():
         self._stopped_value = None
         self.requests_per_second = BITRIX_RPS
         self._pool_size = BITRIX_POOL_SIZE
-        
+
         self.session = None
         self.tasks = []
 
@@ -49,34 +49,39 @@ class ServerRequestHandler():
 
         if webhook[-1] != '/':
             webhook += '/'
-            
+
         return webhook
 
 
     def run(self, coroutine):
-    
+
         async def async_wrapper(coroutine):
             async with self:
                 result = await coroutine
-                
+
             if not _SLOW:
                 self.release_sem_task.cancel()
 
             return result
-        
-        loop = asyncio.get_event_loop()
+
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+            loop = asyncio.get_event_loop()
+
         result = loop.run_until_complete(async_wrapper(coroutine))
-            
+
         return result
 
-        
+
     def add_request_task(self, method, params):
         self.tasks.append(asyncio.ensure_future(self._single_request(method, params)))
-        
-        
+
+
     def get_server_serponses(self):
         global _SLOW
-        
+
         tasks_to_process = len(self.tasks)
 
         if not _SLOW:
@@ -91,7 +96,7 @@ class ServerRequestHandler():
             else:
                 yield task
                 tasks_to_process -= 1
-    
+
 
     async def __aenter__(self):
         global _SLOW
@@ -132,7 +137,7 @@ class ServerRequestHandler():
 
     async def __aexit__(self, a1, a2, a3):
         self._stopped_time = time.monotonic()
-        
+
         if _SLOW:
             # в slow-режиме обнуляем пул запросов, чтобы после выхода
             # не выдать на сервер пачку запросов и не словить отказ
@@ -177,34 +182,34 @@ class ServerRequestHandler():
             async with self._slow_lock:
             # потом ждать основное время "остывания"
                 await asyncio.sleep(1 / _SLOW_RPS)
-            return True 
+            return True
         else:
             return await self._sem.acquire()
 
 
     async def _single_request(self, method, params=None):
         await self._acquire()
-        async with self.session.post(url = self.webhook + method, 
+        async with self.session.post(url = self.webhook + method,
                                      json = params) as response:
             r = await response.json(encoding='utf-8')
         return ServerResponse(r)
-            
+
 
     def get_pbar(self, real_len, real_start):
-        
+
         class MutePBar():
-            
+
             def update(self, i):
                 pass
-            
+
             def close(self):
                 pass
-        
+
         if self._verbose:
             return tqdm(total = real_len, initial = real_start)
         else:
             return MutePBar()
-            
+
 
 ##########################################
 #

@@ -8,7 +8,7 @@ with open('requirements.txt', 'r', encoding='utf-8') as fh:
 
 setuptools.setup(
     name="fast_bitrix24",
-    version="0.4.6",
+    version="0.4.7",
     author="Alexey Leshchenko",
     author_email="leshchenko@gmail.com",
     description="API wrapper для быстрого получения данных от Битрикс24 через REST API. Параллельные запросы к серверу, упаковка запросов в батчи, контроль скорости запросов.",
