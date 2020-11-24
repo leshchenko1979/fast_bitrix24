@@ -88,6 +88,35 @@ class TestBasic:
         })
 
 
+    @pytest.mark.skip
+    def test_batch_issue_85(self, get_test):
+
+        b = get_test
+
+        name = 'Test_user'
+        email = '@3.ru'
+        count = 2352
+
+        payload = {
+            'halt': 0,
+        }
+        result = []
+
+        try:
+            for _ in range(10):
+                payload['cmd']={}
+
+                for _ in range(50):
+                    payload['cmd']['add_user'+str(count)] = f'user.add?NAME={name+str(count)}&EMAIL={str(count)+email}&UF_DEPARTMENT=11&UF_PHONE_INNER={count}'
+                    count += 1
+                result.extend(b.call_batch(payload))
+                del payload['cmd']
+        finally:
+            pass
+            # тут нужно что-то типа
+            # b.call('user.delete', [r for r in result])
+
+
     def test_param_errors(self, get_test):
         b = get_test
 
