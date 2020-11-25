@@ -72,7 +72,7 @@ class ServerRequestHandler():
 
         result = await coroutine
 
-        self.active_requests -= coroutine
+        self.active_requests -= {coroutine}
 
         if not self.active_requests and self.session and not self.session.closed:
             await self.session.close()
@@ -95,11 +95,14 @@ class ServerRequestHandler():
 
         # если пул заполнен, ждать
 
-        if len(self.rr) >= self.pool_size:
-            time_from_last_request = time.monotonic() - self.rr[0]
-            time_to_wait = 1 / self.requests_per_second - time_from_last_request
-            if time_to_wait > 0:
-                await asyncio.sleep(time_to_wait)
+        if _SLOW:
+            await asyncio.sleep(1 / _SLOW_RPS)
+        else:
+            if len(self.rr) >= self.pool_size:
+                time_from_last_request = time.monotonic() - self.rr[0]
+                time_to_wait = 1 / self.requests_per_second - time_from_last_request
+                if time_to_wait > 0:
+                    await asyncio.sleep(time_to_wait)
 
         # зарегистрировать запрос
 

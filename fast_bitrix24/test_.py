@@ -282,6 +282,21 @@ class TestHttpBuildQuery:
 class TestAsync:
 
     @pytest.mark.asyncio
+    async def test_simple_async_calls(self, get_test_async):
+
+        b = get_test_async
+        await b.get_all('crm.lead.list')
+
+
+    @pytest.mark.asyncio
+    async def test_simple_async_calls(self, create_100_leads_async):
+
+        b = create_100_leads_async
+        await gather(b.get_all('crm.lead.list'), b.get_all('crm.lead.list'))
+
+class TestAcquire:
+
+    @pytest.mark.asyncio
     async def test_acquire_sequential(self):
 
         async def assert_time_acquire(pool_size, requests_per_second, acquire_amount, time_expected):
@@ -329,14 +344,21 @@ class TestAsync:
 
 
     @pytest.mark.asyncio
-    async def test_simple_async_calls(self, get_test_async):
+    async def test_acquire_sequential_slow(self):
 
-        b = get_test_async
-        await b.get_all('crm.lead.list')
+        async def assert_time_acquire_slow(pool_size, requests_per_second, acquire_amount, time_expected):
+            srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
 
+            srh.pool_size = pool_size
 
-    @pytest.mark.asyncio
-    async def test_simple_async_calls(self, create_100_leads_async):
+            t1 = monotonic()
 
-        b = create_100_leads_async
-        await gather(b.get_all('crm.lead.list'), b.get_all('crm.lead.list'))
+            with slow(requests_per_second):
+                for _ in range(acquire_amount):
+                    await srh._acquire()
+
+            t2 = monotonic()
+
+            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+
+        await assert_time_acquire_slow(1, 10, 5, 0.5)
