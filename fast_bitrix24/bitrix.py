@@ -160,7 +160,7 @@ class BitrixAsync:
         согласно заданным методу и параметрам.
         '''
 
-        return await self.srh.async_wrapper(GetAllUserRequest(self.srh, method, params).run())
+        return await self.srh.run_async(GetAllUserRequest(self.srh, method, params).run())
 
 
     async def get_by_ID(self, method: str, ID_list: Sequence, ID_field_name: str = 'ID',
@@ -194,7 +194,7 @@ class BitrixAsync:
         сущности.
         '''
 
-        return await self.srh.async_wrapper(GetByIDUserRequest(
+        return await self.srh.run_async(GetByIDUserRequest(
             self.srh, method, params, ID_list, ID_field_name).run())
 
 
@@ -212,9 +212,9 @@ class BitrixAsync:
         '''
 
         if isinstance(items, Sequence):
-            return await self.srh.async_wrapper(CallUserRequest(self.srh, method, items).run())
+            return await self.srh.run_async(CallUserRequest(self.srh, method, items).run())
         elif isinstance(items, dict):
-            return await self.srh.async_wrapper(CallUserRequest(self.srh, method, [items]).run())[0]
+            return await self.srh.run_async(CallUserRequest(self.srh, method, [items]).run())[0]
         else:
             raise TypeError(f'call() accepts either a list of params dicts or a single params dict, but got a {type(items)} instead')
 
@@ -229,4 +229,4 @@ class BitrixAsync:
         Возвращает ответы сервера.
         '''
 
-        return await self.srh.async_wrapper(BatchUserRequest(self.srh, params).run())
+        return await self.srh.run_async(BatchUserRequest(self.srh, params).run())

@@ -1,3 +1,6 @@
+import asyncio
+from time import monotonic
+from .srh import ServerRequestHandler
 import os
 from asyncio import gather
 
@@ -277,6 +280,53 @@ class TestHttpBuildQuery:
 
 
 class TestAsync:
+
+    @pytest.mark.asyncio
+    async def test_acquire_sequential(self):
+
+        async def assert_time_acquire(pool_size, requests_per_second, acquire_amount, time_expected):
+            srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+
+            srh.pool_size = pool_size
+            srh.requests_per_second = requests_per_second
+
+            t1 = monotonic()
+
+            for _ in range(acquire_amount):
+                await srh._acquire()
+
+            t2 = monotonic()
+
+            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+
+        await assert_time_acquire(1, 1, 1, 0)
+        await assert_time_acquire(10, 1, 10, 0)
+        await assert_time_acquire(1, 10, 2, 0.1)
+        await assert_time_acquire(50, 10, 60, 1)
+
+
+    @pytest.mark.asyncio
+    async def test_acquire_intermittent(self):
+
+        srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+
+        srh.pool_size = 10
+        srh.requests_per_second = 10
+
+        async def assert_time_expected(acquire_times, time_expected):
+            t1 = monotonic()
+
+            for _ in range(acquire_times):
+                await srh._acquire()
+
+            t2 = monotonic()
+
+            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+
+        await assert_time_expected(10, 0)
+        await asyncio.sleep(0.3)
+        await assert_time_expected(10, 0.7)
+
 
     @pytest.mark.asyncio
     async def test_simple_async_calls(self, get_test_async):

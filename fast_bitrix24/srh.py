@@ -1,7 +1,8 @@
 import asyncio
-import aiohttp
 import time
+from collections import deque
 
+import aiohttp
 from tqdm import tqdm
 
 from .server_response import ServerResponse
@@ -28,13 +29,13 @@ class ServerRequestHandler():
         self.webhook = self._standardize_webhook(webhook)
         self._verbose = verbose
 
-        self._stopped_time = None
-        self._stopped_value = None
         self.requests_per_second = BITRIX_RPS
-        self._pool_size = BITRIX_POOL_SIZE
+        self.pool_size = BITRIX_POOL_SIZE
 
+        self.active_requests = set()
         self.session = None
-        self.tasks = []
+
+        self.rr = deque() # rr - requests register - список отправленных запросов к серверу
 
 
     def _standardize_webhook(self, webhook):
@@ -60,129 +61,23 @@ class ServerRequestHandler():
             asyncio.set_event_loop(asyncio.new_event_loop())
             loop = asyncio.get_event_loop()
 
-        return loop.run_until_complete(self.async_wrapper(coroutine))
+        return loop.run_until_complete(self.run_async(coroutine))
 
 
-    async def async_wrapper(self, coroutine):
-        async with self:
-            result = await coroutine
-
-        if not _SLOW:
-            self.release_sem_task.cancel()
-
-        return result
-
-
-    def add_request_task(self, method, params):
-        self.tasks.append(asyncio.ensure_future(self._single_request(method, params)))
-
-
-    def get_server_serponses(self):
-        global _SLOW
-
-        tasks_to_process = len(self.tasks)
-
-        if not _SLOW:
-            self.release_sem_task = asyncio.ensure_future(self._release_sem())
-            self.tasks.append(self.release_sem_task)
-
-        for task in asyncio.as_completed(self.tasks):
-            if tasks_to_process == 1:
-                self.tasks = []
-                yield task
-                break
-            else:
-                yield task
-                tasks_to_process -= 1
-
-
-    async def __aenter__(self):
-        global _SLOW
-        self._sem = asyncio.BoundedSemaphore(self._pool_size)
-        if _SLOW:
-            self._slow_lock = asyncio.Lock()
-        else:
-            if self._stopped_time:
-                '''
------v-----------------------------v---------------------
-     ^ - _stopped_time             ^ - current time
-     |-------- time_passed --------|
-     |- step -|- step -|- step |          - add_steps (whole steps to add)
-                               |- step -| - additional 1 step added
-                                   |-aw-| - additional waiting time
-                '''
-                time_passed = time.monotonic() - self._stopped_time
-
-                # сколько шагов должно было пройти
-                add_steps = time_passed / self.requests_per_second // 1
-
-                # сколько шагов могло пройти с учетом ограничений + еще один
-                real_add_steps = min(self._pool_size - self._stopped_value,
-                                    add_steps + 1)
-
-                # добавляем пропущенные шаги
-                self._sem._value += real_add_steps
-
-                # ждем время, излишне списанное при добавлении дополнительного шага
-                await asyncio.sleep((add_steps + 1) / self.requests_per_second - time_passed)
-
-                self._stopped_time = None
-                self._stopped_value = None
-
-        if not self.session or self.session.closed:
+    async def run_async(self, coroutine):
+        if not self.active_requests and (not self.session or self.session.closed):
             self.session = aiohttp.ClientSession(raise_for_status=True)
 
+        self.active_requests.add(coroutine)
 
-    async def __aexit__(self, a1, a2, a3):
-        self._stopped_time = time.monotonic()
+        result = await coroutine
 
-        if _SLOW:
-            # в slow-режиме обнуляем пул запросов, чтобы после выхода
-            # не выдать на сервер пачку запросов и не словить отказ
-            self._stopped_value = 0
-        else:
-            self._stopped_value = self._sem._value
+        self.active_requests -= coroutine
 
-        if self.session and not self.session.closed:
+        if not self.active_requests and self.session and not self.session.closed:
             await self.session.close()
 
-
-    async def _release_sem(self):
-        '''
-        Корутина-метод, которая увеличивает счетчик доступных в пуле запросов.
-
-        Должна запускаться единожды в параллели со всеми другими задачами, кроме случаев
-        выполнения в slow-режиме, когда она запускаться на должна.
-        '''
-
-        while True:
-            if self._sem._value < self._sem._bound_value:
-                self._sem.release()
-            await asyncio.sleep(1 / self.requests_per_second)
-
-
-    async def _acquire(self):
-        '''
-        Вызов `await acquire()` должен предшествовать любому обращению
-        к серверу Битрикс. Он возвращает `True`, когда к серверу
-        можно осуществить запрос.
-
-        Использование:
-        ```
-        await self.aquire()
-        # теперь можно делать запросы
-        ...
-        ```
-        '''
-        global _SLOW, _SLOW_RPS
-        if _SLOW:
-            # ждать, пока отработают другие запросы, запущенные параллельно,
-            async with self._slow_lock:
-            # потом ждать основное время "остывания"
-                await asyncio.sleep(1 / _SLOW_RPS)
-            return True
-        else:
-            return await self._sem.acquire()
+        return result
 
 
     async def _single_request(self, method, params=None):
@@ -191,6 +86,33 @@ class ServerRequestHandler():
                                      json = params) as response:
             r = await response.json(encoding='utf-8')
         return ServerResponse(r)
+
+
+    async def _acquire(self):
+        '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
+
+        global _SLOW, _SLOW_RPS
+
+        # если пул заполнен, ждать
+
+        if len(self.rr) >= self.pool_size:
+            time_from_last_request = time.monotonic() - self.rr[0]
+            time_to_wait = 1 / self.requests_per_second - time_from_last_request
+            if time_to_wait > 0:
+                await asyncio.sleep(time_to_wait)
+
+        # зарегистрировать запрос
+
+        cur_time = time.monotonic()
+        self.rr.appendleft(cur_time)
+
+        # подчистить пул
+
+        trim_time = cur_time - self.pool_size / self.requests_per_second
+        while self.rr and self.rr[len(self.rr) - 1] < trim_time:
+            self.rr.pop()
+
+        return
 
 
     def get_pbar(self, real_len, real_start):
