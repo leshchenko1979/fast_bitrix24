@@ -6,22 +6,23 @@ from collections.abc import Sequence
 from .mult_request import (MultipleServerRequestHandler,
                            MultipleServerRequestHandlerPreserveIDs)
 from .server_response import ServerResponse
+from .srh import ServerRequestHandler
 
 BITRIX_PAGE_SIZE = 50
 
 class UserRequestAbstract():
 
-    def __init__(self, srh, method: str, params: dict):
+    def __init__(self, srh: ServerRequestHandler, method: str, params: dict):
         self.srh = srh
         self.method = self.standardized_method(method)
         self.params = self.standardized_params(params) if params else None
         self.check_special_limitations()
-        
+
 
     def standardized_method(self, method):
         if not method:
             raise TypeError('Method cannot be empty')
-            
+
         if not isinstance(method, str):
             raise TypeError('Method should be a str')
 
@@ -29,10 +30,10 @@ class UserRequestAbstract():
 
         if method.lower().strip() == 'batch':
             raise ValueError("Method cannot be 'batch'. Use call_batch() instead.")
-        
+
         return method
-    
-    
+
+
     def standardized_params(self, p):
         if not isinstance(p, dict):
             raise TypeError('Params agrument should be a dict')
@@ -80,8 +81,8 @@ class UserRequestAbstract():
 
     def check_special_limitations(self):
         raise NotImplementedError
-    
-    
+
+
 class GetAllUserRequest(UserRequestAbstract):
     def check_special_limitations(self):
         if self.params and not set(self.params.keys()).isdisjoint(
@@ -89,7 +90,7 @@ class GetAllUserRequest(UserRequestAbstract):
         ):
             raise ValueError("get_all() doesn't support parameters 'start', 'limit' or 'order'")
 
-    
+
     async def run(self):
         self.add_order_parameter()
 
@@ -98,27 +99,26 @@ class GetAllUserRequest(UserRequestAbstract):
         if self.first_response.more_results_expected():
             await self.make_remaining_requests()
             self.dedup_results()
-                
+
         return self.results
 
 
     def add_order_parameter(self):
         # необходимо установить порядок сортировки, иначе сортировка будет рандомная
         # и сущности будут повторяться на разных страницах
-        
+
         order_clause = {'order': {'ID': 'ASC'}}
-        
+
         if self.params:
             if 'order' not in self.params:
                 self.params.update(order_clause)
         else:
             self.params = order_clause
 
-    
+
     async def make_first_request(self):
-        self.srh.add_request_task(self.method, self.params)
-        self.first_response = await next(self.srh.get_server_serponses())
-        self.results, self.total = self.first_response.result, self.first_response.total 
+        self.first_response = await self.srh.single_request(self.method, self.params)
+        self.results, self.total = self.first_response.result, self.first_response.total
 
 
     async def make_remaining_requests(self):
@@ -130,10 +130,10 @@ class GetAllUserRequest(UserRequestAbstract):
                 self.srh,
                 method = self.method,
                 item_list = item_list,
-                real_len = self.total, 
+                real_len = self.total,
                 real_start = len(self.results)
             ).run()
-        
+
         self.results.extend(remaining_results)
 
 
@@ -157,8 +157,8 @@ class GetByIDUserRequest(UserRequestAbstract):
         self.ID_list = ID_list
         self.ID_field_name = ID_field_name.upper().strip()
         super().__init__(srh, method, params)
-        
-        
+
+
     def check_special_limitations(self):
         if self.params and 'id' in self.params.keys():
             raise ValueError("get_by_ID() doesn't support parameter 'ID' within the 'params' argument")
@@ -170,34 +170,34 @@ class GetByIDUserRequest(UserRequestAbstract):
     async def run(self):
         if self.list_empty():
             return []
-        
+
         self.prepare_item_list()
-        
+
         results = await MultipleServerRequestHandlerPreserveIDs(
             self.srh,
             self.method,
             self.item_list,
             ID_field=self.ID_field_name
         ).run()
-        
+
         return results
 
-        
+
     def list_empty(self):
         return len(self.ID_list) == 0
-    
-    
+
+
     def prepare_item_list(self):
         if self.params:
             self.item_list = [
-                ChainMap({self.ID_field_name: ID}, self.params) 
+                ChainMap({self.ID_field_name: ID}, self.params)
                 for ID in self.ID_list
             ]
         else:
             self.item_list = [
-                {self.ID_field_name: ID} 
+                {self.ID_field_name: ID}
                 for ID in self.ID_list
-            ] 
+            ]
 
 
 class CallUserRequest(GetByIDUserRequest):
@@ -205,14 +205,14 @@ class CallUserRequest(GetByIDUserRequest):
         self.item_list = [self.standardized_params(item) for item in item_list]
         super().__init__(srh, method, None, None, '__order')
 
-        
+
     def check_special_limitations(self):
         if not isinstance(self.item_list, Sequence):
             raise TypeError("call(): 'item_list' should be a sequence")
 
     async def run(self):
         results = await super().run()
-        
+
         # убираем поле с порядковым номером из результатов
         return [item[1] for item in results]
 
@@ -220,11 +220,11 @@ class CallUserRequest(GetByIDUserRequest):
     def list_empty(self):
         return len(self.item_list) == 0
 
-    
+
     def prepare_item_list(self):
         # добавим порядковый номер
         self.item_list = [
-            ChainMap(item, {self.ID_field_name: 'order' + str(i)}) 
+            ChainMap(item, {self.ID_field_name: 'order' + str(i)})
             for i, item in enumerate(self.item_list)
         ]
 
@@ -242,15 +242,14 @@ class BatchUserRequest(UserRequestAbstract):
     def check_special_limitations(self):
         if not self.params:
             raise ValueError("Params for a batch call can't be empty")
-        
+
         if {'halt', 'cmd'} != self.params.keys():
             raise ValueError("Params for a batch call should contain only 'halt' and 'cmd' clauses at the highest level")
 
         if not isinstance(self.params['cmd'], dict):
             raise ValueError("'cmd' clause should contain a dict")
-    
+
 
     async def run(self):
-        self.srh.add_request_task(self.method, self.params)
-        response = await next(self.srh.get_server_serponses())
+        response = await self.srh.single_request(self.method, self.params)
         return ServerResponse(response.result).result
