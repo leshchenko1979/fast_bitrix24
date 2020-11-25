@@ -54,23 +54,21 @@ class ServerRequestHandler():
 
 
     def run(self, coroutine):
-
-        async def async_wrapper(coroutine):
-            async with self:
-                result = await coroutine
-
-            if not _SLOW:
-                self.release_sem_task.cancel()
-
-            return result
-
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             asyncio.set_event_loop(asyncio.new_event_loop())
             loop = asyncio.get_event_loop()
 
-        result = loop.run_until_complete(async_wrapper(coroutine))
+        return loop.run_until_complete(self.async_wrapper(coroutine))
+
+
+    async def async_wrapper(self, coroutine):
+        async with self:
+            result = await coroutine
+
+        if not _SLOW:
+            self.release_sem_task.cancel()
 
         return result
 

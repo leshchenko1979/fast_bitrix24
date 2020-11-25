@@ -1,9 +1,11 @@
-from .utils import http_build_query
 import os
+from asyncio import gather
 
 import pytest
 
-from fast_bitrix24 import Bitrix, slow
+from fast_bitrix24 import Bitrix, BitrixAsync, slow
+
+from .utils import http_build_query
 
 
 @pytest.fixture(scope='session')
@@ -11,6 +13,15 @@ def get_test():
     test_webhook = os.getenv('FAST_BITRIX24_TEST_WEBHOOK')
     if test_webhook:
         return Bitrix(test_webhook)
+    else:
+        raise RuntimeError('Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set to the webhook of your test Bitrix24 account.')
+
+
+@pytest.fixture(scope='session')
+def get_test_async():
+    test_webhook = os.getenv('FAST_BITRIX24_TEST_WEBHOOK')
+    if test_webhook:
+        return BitrixAsync(test_webhook)
     else:
         raise RuntimeError('Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set to the webhook of your test Bitrix24 account.')
 
@@ -39,6 +50,33 @@ def create_100_leads(get_test) -> Bitrix:
     yield b
 
     b.get_by_ID('crm.lead.delete', lead_nos)
+
+
+@pytest.fixture(scope='function')
+@pytest.mark.asyncio
+async def create_100_leads_async(get_test_async) -> BitrixAsync:
+    b = get_test_async
+
+    # Подчистить тестовый аккаунт от лишних сущностей,
+    # созданных при неудачных тестах, чтобы не было блокировки
+    # аккаунта при создании более 1000 сущностей.
+    # Скорее всего, вызовет проблемы в параллельно
+    # запущенных тестах.
+    total_leads = len(await b.get_all('crm.lead.list'))
+    if total_leads > 500:
+        leads = await b.get_all('crm.lead.list', {'select': ['ID']})
+        await b.get_by_ID('crm.lead.delete', [l['ID'] for l in leads])
+
+    with slow(1.2):
+        lead_nos = await b.call('crm.lead.add', [{
+            'fields': {
+                'NAME': f'Customer #{n}',
+            }
+        } for n in range(100)])
+
+    yield b
+
+    await b.get_by_ID('crm.lead.delete', lead_nos)
 
 
 class TestBasic:
@@ -236,3 +274,19 @@ class TestHttpBuildQuery:
 
         test = http_build_query(d)
         assert test == 'FILTER[%21STATUS_ID]=CLOSED&'
+
+
+class TestAsync:
+
+    @pytest.mark.asyncio
+    async def test_simple_async_calls(self, get_test_async):
+
+        b = get_test_async
+        await b.get_all('crm.lead.list')
+
+
+    @pytest.mark.asyncio
+    async def test_simple_async_calls(self, create_100_leads_async):
+
+        b = create_100_leads_async
+        await gather(b.get_all('crm.lead.list'), b.get_all('crm.lead.list'))
