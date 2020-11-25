@@ -325,7 +325,14 @@ class TestAsync:
     async def test_simple_async_calls(self, create_100_leads_async):
 
         b = create_100_leads_async
-        await gather(b.get_all('crm.lead.list'), b.get_all('crm.lead.list'))
+
+        result = await gather(b.get_all('crm.lead.list'),
+                              b.get_all('crm.lead.list'),
+                              b.get_all('crm.lead.list'))
+
+        assert len(result) == 3
+        assert result[0] == result[1] == result[2]
+        assert all(len(r) >= 100 for r in result)
 
 
 def get_custom_srh(pool_size, requests_per_second):
