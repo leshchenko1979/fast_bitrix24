@@ -121,15 +121,17 @@ class TestBasic:
         with pytest.raises(ValueError):
             b.call_batch({})
 
-        assert b.call_batch({
+        result = b.call_batch({
             'halt': 0,
             'cmd': {
                 1: 'crm.lead.list'
             }
         })
 
+        assert len(result) == 1
+        assert len(result['1']) == 50
 
-    @pytest.mark.skip
+
     def test_batch_issue_85(self, get_test):
 
         b = get_test
@@ -148,14 +150,16 @@ class TestBasic:
                 payload['cmd']={}
 
                 for _ in range(50):
-                    payload['cmd']['add_user'+str(count)] = f'user.add?NAME={name+str(count)}&EMAIL={str(count)+email}&UF_DEPARTMENT=11&UF_PHONE_INNER={count}'
+                    payload['cmd']['add_user'+str(count)] = f'crm.lead.add?NAME={name+str(count)}&EMAIL={str(count)+email}&UF_DEPARTMENT=11&UF_PHONE_INNER={count}'
                     count += 1
-                result.extend(b.call_batch(payload))
+
+                r = b.call_batch(payload)
+                result.extend(r.values())
                 del payload['cmd']
         finally:
-            pass
-            # тут нужно что-то типа
-            # b.call('user.delete', [r for r in result])
+            assert len(result) == 500
+            assert len(result) == len(set(result)) # все ID уникальные
+            b.call('crm.lead.delete', [{'ID': r} for r in result])
 
 
     def test_param_errors(self, get_test):
