@@ -1,13 +1,13 @@
 import asyncio
-from time import monotonic
-from .srh import ServerRequestHandler
 import os
 from asyncio import gather
+from time import monotonic
 
 import pytest
 
 from fast_bitrix24 import Bitrix, BitrixAsync, slow
 
+from .srh import ServerRequestHandler
 from .utils import http_build_query
 
 
@@ -293,6 +293,7 @@ class TestAsync:
 
         b = create_100_leads_async
         await gather(b.get_all('crm.lead.list'), b.get_all('crm.lead.list'))
+
 
 class TestAcquire:
 

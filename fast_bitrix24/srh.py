@@ -80,7 +80,7 @@ class ServerRequestHandler():
         return result
 
 
-    async def _single_request(self, method, params=None):
+    async def single_request(self, method, params=None):
         await self._acquire()
         async with self.session.post(url = self.webhook + method,
                                      json = params) as response:
@@ -134,14 +134,9 @@ class ServerRequestHandler():
             return MutePBar()
 
 
-##########################################
-#
-#   slow() context manager
-#
-##########################################
-
 _SLOW = False
 _SLOW_RPS = 0
+
 
 class slow:
     def __init__(self, requests_per_second = 0.5):

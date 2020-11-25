@@ -4,13 +4,13 @@ from asyncio import ensure_future, as_completed
 import more_itertools
 
 from .server_response import ServerResponse
-from .srh import BITRIX_MAX_BATCH_SIZE
+from .srh import ServerRequestHandler, BITRIX_MAX_BATCH_SIZE
 from .utils import http_build_query
 
 
 class MultipleServerRequestHandler:
 
-    def __init__(self, srh, method, item_list, real_len=None, real_start=0):
+    def __init__(self, srh: ServerRequestHandler, method, item_list, real_len=None, real_start=0):
         self.srh = srh
         self.method = method
         self.item_list = item_list
@@ -50,13 +50,13 @@ class MultipleServerRequestHandler:
     def prepare_tasks(self):
         self.tasks = []
         for item in self.item_list:
-            self.tasks.append(ensure_future(self.srh._single_request(self.method, item)))
+            self.tasks.append(ensure_future(self.srh.single_request(self.method, item)))
 
 
     async def get_results(self):
         self.pbar = self.srh.get_pbar(self.real_len, self.real_start)
 
-        for task in self.get_server_serponses():
+        for task in as_completed(self.tasks):
             batch_response = await task
             unwrapped_result = ServerResponse(batch_response.result).result
             batch_results = self.extract_result_from_batch_response(unwrapped_result)
@@ -64,25 +64,6 @@ class MultipleServerRequestHandler:
             self.pbar.update(len(batch_results))
 
         self.pbar.close()
-
-
-    def get_server_serponses(self):
-        global _SLOW
-
-        tasks_to_process = len(self.tasks)
-
-        if not _SLOW:
-            self.srh.release_sem_task = ensure_future(self.srh._release_sem())
-            self.tasks.append(self.srh.release_sem_task)
-
-        for task in as_completed(self.tasks):
-            if tasks_to_process == 1:
-                self.tasks = []
-                yield task
-                break
-            else:
-                yield task
-                tasks_to_process -= 1
 
 
     def extract_result_from_batch_response(self, unwrapped_result):

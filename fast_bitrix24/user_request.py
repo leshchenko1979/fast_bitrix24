@@ -6,12 +6,13 @@ from collections.abc import Sequence
 from .mult_request import (MultipleServerRequestHandler,
                            MultipleServerRequestHandlerPreserveIDs)
 from .server_response import ServerResponse
+from .srh import ServerRequestHandler
 
 BITRIX_PAGE_SIZE = 50
 
 class UserRequestAbstract():
 
-    def __init__(self, srh, method: str, params: dict):
+    def __init__(self, srh: ServerRequestHandler, method: str, params: dict):
         self.srh = srh
         self.method = self.standardized_method(method)
         self.params = self.standardized_params(params) if params else None
@@ -116,7 +117,7 @@ class GetAllUserRequest(UserRequestAbstract):
 
 
     async def make_first_request(self):
-        self.first_response = await self.srh._single_request(self.method, self.params)
+        self.first_response = await self.srh.single_request(self.method, self.params)
         self.results, self.total = self.first_response.result, self.first_response.total
 
 
@@ -250,6 +251,5 @@ class BatchUserRequest(UserRequestAbstract):
 
 
     async def run(self):
-        self.srh.add_request_task(self.method, self.params)
-        response = await next(self.srh.get_server_serponses())
+        response = await self.srh.single_request(self.method, self.params)
         return ServerResponse(response.result).result
