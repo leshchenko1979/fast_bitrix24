@@ -1,9 +1,14 @@
-from .utils import http_build_query
+import asyncio
 import os
+from asyncio import gather
+from time import monotonic
 
 import pytest
 
-from fast_bitrix24 import Bitrix, slow
+from fast_bitrix24 import Bitrix, BitrixAsync, slow
+
+from .srh import ServerRequestHandler
+from .utils import http_build_query
 
 
 @pytest.fixture(scope='session')
@@ -11,6 +16,15 @@ def get_test():
     test_webhook = os.getenv('FAST_BITRIX24_TEST_WEBHOOK')
     if test_webhook:
         return Bitrix(test_webhook)
+    else:
+        raise RuntimeError('Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set to the webhook of your test Bitrix24 account.')
+
+
+@pytest.fixture(scope='session')
+def get_test_async():
+    test_webhook = os.getenv('FAST_BITRIX24_TEST_WEBHOOK')
+    if test_webhook:
+        return BitrixAsync(test_webhook)
     else:
         raise RuntimeError('Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set to the webhook of your test Bitrix24 account.')
 
@@ -39,6 +53,33 @@ def create_100_leads(get_test) -> Bitrix:
     yield b
 
     b.get_by_ID('crm.lead.delete', lead_nos)
+
+
+@pytest.fixture(scope='function')
+@pytest.mark.asyncio
+async def create_100_leads_async(get_test_async) -> BitrixAsync:
+    b = get_test_async
+
+    # Подчистить тестовый аккаунт от лишних сущностей,
+    # созданных при неудачных тестах, чтобы не было блокировки
+    # аккаунта при создании более 1000 сущностей.
+    # Скорее всего, вызовет проблемы в параллельно
+    # запущенных тестах.
+    total_leads = len(await b.get_all('crm.lead.list'))
+    if total_leads > 500:
+        leads = await b.get_all('crm.lead.list', {'select': ['ID']})
+        await b.get_by_ID('crm.lead.delete', [l['ID'] for l in leads])
+
+    with slow(1.2):
+        lead_nos = await b.call('crm.lead.add', [{
+            'fields': {
+                'NAME': f'Customer #{n}',
+            }
+        } for n in range(100)])
+
+    yield b
+
+    await b.get_by_ID('crm.lead.delete', lead_nos)
 
 
 class TestBasic:
@@ -265,3 +306,89 @@ class TestHttpBuildQuery:
 
         test = http_build_query(d)
         assert test == 'FILTER[%21STATUS_ID]=CLOSED&'
+
+
+class TestAsync:
+
+    @pytest.mark.asyncio
+    async def test_simple_async_calls(self, get_test_async):
+
+        b = get_test_async
+        await b.get_all('crm.lead.list')
+
+
+    @pytest.mark.asyncio
+    async def test_simple_async_calls(self, create_100_leads_async):
+
+        b = create_100_leads_async
+        await gather(b.get_all('crm.lead.list'), b.get_all('crm.lead.list'))
+
+
+class TestAcquire:
+
+    @pytest.mark.asyncio
+    async def test_acquire_sequential(self):
+
+        async def assert_time_acquire(pool_size, requests_per_second, acquire_amount, time_expected):
+            srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+
+            srh.pool_size = pool_size
+            srh.requests_per_second = requests_per_second
+
+            t1 = monotonic()
+
+            for _ in range(acquire_amount):
+                await srh._acquire()
+
+            t2 = monotonic()
+
+            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+
+        await assert_time_acquire(1, 1, 1, 0)
+        await assert_time_acquire(10, 1, 10, 0)
+        await assert_time_acquire(1, 10, 2, 0.1)
+        await assert_time_acquire(50, 10, 60, 1)
+
+
+    @pytest.mark.asyncio
+    async def test_acquire_intermittent(self):
+
+        srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+
+        srh.pool_size = 10
+        srh.requests_per_second = 10
+
+        async def assert_time_expected(acquire_times, time_expected):
+            t1 = monotonic()
+
+            for _ in range(acquire_times):
+                await srh._acquire()
+
+            t2 = monotonic()
+
+            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+
+        await assert_time_expected(10, 0)
+        await asyncio.sleep(0.3)
+        await assert_time_expected(10, 0.7)
+
+
+    @pytest.mark.asyncio
+    async def test_acquire_sequential_slow(self):
+
+        async def assert_time_acquire_slow(pool_size, requests_per_second, acquire_amount, time_expected):
+            srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+
+            srh.pool_size = pool_size
+
+            t1 = monotonic()
+
+            with slow(requests_per_second):
+                for _ in range(acquire_amount):
+                    await srh._acquire()
+
+            t2 = monotonic()
+
+            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+
+        await assert_time_acquire_slow(1, 10, 5, 0.5)
