@@ -11,7 +11,7 @@ setuptools.setup(
     version="0.5.0",
     author="Alexey Leshchenko",
     author_email="leshchenko@gmail.com",
-    description="API wrapper для быстрого получения данных от Битрикс24 через REST API. Параллельные запросы к серверу, упаковка запросов в батчи, контроль скорости запросов.",
+    description="API wrapper для быстрого получения данных от Битрикс24 через REST API. Параллельные запросы к серверу, упаковка запросов в батчи, контроль скорости запросов, есть синхронный и асинхронный клиенты.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/leshchenko1979/fast_bitrix24",

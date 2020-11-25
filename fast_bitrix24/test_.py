@@ -328,71 +328,63 @@ class TestAsync:
         await gather(b.get_all('crm.lead.list'), b.get_all('crm.lead.list'))
 
 
+def get_custom_srh(pool_size, requests_per_second):
+    srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+
+    srh.pool_size = pool_size
+    srh.requests_per_second = requests_per_second
+
+    return srh
+
+
+async def assert_time_acquire(srh, acquire_amount, time_expected):
+    t1 = monotonic()
+
+    for _ in range(acquire_amount):
+        await srh._acquire()
+
+    t2 = monotonic()
+
+    assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+
+
 class TestAcquire:
 
     @pytest.mark.asyncio
     async def test_acquire_sequential(self):
 
-        async def assert_time_acquire(pool_size, requests_per_second, acquire_amount, time_expected):
-            srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
-
-            srh.pool_size = pool_size
-            srh.requests_per_second = requests_per_second
-
-            t1 = monotonic()
-
-            for _ in range(acquire_amount):
-                await srh._acquire()
-
-            t2 = monotonic()
-
-            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
-
-        await assert_time_acquire(1, 1, 1, 0)
-        await assert_time_acquire(10, 1, 10, 0)
-        await assert_time_acquire(1, 10, 2, 0.1)
-        await assert_time_acquire(50, 10, 60, 1)
+        await assert_time_acquire(get_custom_srh(1, 1), 1, 0)
+        await assert_time_acquire(get_custom_srh(10, 1), 10, 0)
+        await assert_time_acquire(get_custom_srh(1, 10), 2, 0.1)
+        await assert_time_acquire(get_custom_srh(50, 10), 60, 1)
 
 
     @pytest.mark.asyncio
     async def test_acquire_intermittent(self):
 
-        srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+        srh = get_custom_srh(10, 10)
 
-        srh.pool_size = 10
-        srh.requests_per_second = 10
-
-        async def assert_time_expected(acquire_times, time_expected):
-            t1 = monotonic()
-
-            for _ in range(acquire_times):
-                await srh._acquire()
-
-            t2 = monotonic()
-
-            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
-
-        await assert_time_expected(10, 0)
+        await assert_time_acquire(srh, 10, 0)
         await asyncio.sleep(0.3)
-        await assert_time_expected(10, 0.7)
+        await assert_time_acquire(srh, 10, 0.7)
 
 
     @pytest.mark.asyncio
-    async def test_acquire_sequential_slow(self):
+    async def test_acquire_slow(self):
 
-        async def assert_time_acquire_slow(pool_size, requests_per_second, acquire_amount, time_expected):
-            srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+        with slow(10):
+            await assert_time_acquire(get_custom_srh(100, 100), 5, 0.5)
 
-            srh.pool_size = pool_size
 
-            t1 = monotonic()
+    @pytest.mark.asyncio
+    async def test_acquire_slow_and_then_fast_and_then_slow_again(self):
 
-            with slow(requests_per_second):
-                for _ in range(acquire_amount):
-                    await srh._acquire()
+        srh = get_custom_srh(10, 10)
 
-            t2 = monotonic()
+        with slow(10):
+            await assert_time_acquire(srh, 5, 0.5)
 
-            assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+        await assert_time_acquire(srh, 15, 1)
 
-        await assert_time_acquire_slow(1, 10, 5, 0.5)
+        with slow(10):
+            await assert_time_acquire(srh, 5, 0.5)
