@@ -1,7 +1,8 @@
 import pytest
 
 from ..utils import http_build_query
-from . import fixtures
+from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
+                       get_test, get_test_async)
 
 
 class TestBasic:
