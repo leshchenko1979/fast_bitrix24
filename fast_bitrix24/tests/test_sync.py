@@ -1,8 +1,7 @@
 import pytest
 
 from ..utils import http_build_query
-from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
-                       get_test, get_test_async)
+from . import fixtures
 
 
 class TestBasic:
@@ -17,14 +16,12 @@ class TestBasic:
         })
         b.get_by_ID('crm.lead.delete', [lead_no])
 
-
     def test_simple_get_all(self, create_100_leads):
         b = create_100_leads
 
         resulting = len(b.get_all('crm.lead.list'))
 
         assert resulting >= 100
-
 
     def test_get_all_params(self, create_100_leads):
         b = create_100_leads
@@ -36,7 +33,6 @@ class TestBasic:
         })
 
         assert len(fields) == len(leads[0])
-
 
     def test_call_batch(self, create_100_leads):
         b = create_100_leads
@@ -54,40 +50,49 @@ class TestBasic:
         assert len(result) == 1
         assert len(result['1']) == 50
 
-
     @pytest.mark.skip
     def test_batch_issue_85(self, get_test):
 
         b = get_test
 
-        name = 'Test_user'
-        email = '@3.ru'
         count = 2352
-
-        payload = {
-            'halt': 0,
-        }
         result = []
+
+        def prepare_batch():
+
+            nonlocal count
+
+            name = 'Test_user'
+            email = '@3.ru'
+
+            payload = {
+                'halt': 0,
+                'cmd': {}
+            }
+
+            for _ in range(50):
+                command = 'crm.lead.add?'
+                command += f'NAME={name+str(count)}'
+                command += f'&EMAIL={str(count)+email}'
+                command += '&UF_DEPARTMENT=11'
+                command += f'&UF_PHONE_INNER={count}'
+
+                payload['cmd']['add_user'+str(count)] = command
+
+                count += 1
+
+            return payload
 
         try:
             for _ in range(10):
-                payload['cmd'] = {}
-
-                for _ in range(50):
-                    payload['cmd']['add_user'+str(count)] = \
-                        f'crm.lead.add?NAME={name+str(count)}' + \
-                        f'&EMAIL={str(count)+email}&UF_DEPARTMENT=11&' + \
-                        f'UF_PHONE_INNER={count}'
-                    count += 1
-
+                payload = prepare_batch()
                 r = b.call_batch(payload)
                 result.extend(r.values())
-                del payload['cmd']
+
         finally:
             assert len(result) == 500
             assert len(result) == len(set(result))  # все ID уникальные
             b.call('crm.lead.delete', [{'ID': r} for r in result])
-
 
     def test_param_errors(self, get_test):
         b = get_test
@@ -142,7 +147,6 @@ class TestParamsEncoding:
         finally:
             b.get_by_ID('crm.lead.delete', [lead_no])
 
-
     def test_filter_not_equal(self, create_100_leads):
         b = create_100_leads
 
@@ -173,7 +177,6 @@ class TestParamsEncoding:
             }
         })
         assert result
-
 
     def test_product_rows(self, create_a_lead):
         b, lead_no = create_a_lead
@@ -217,7 +220,6 @@ class TestHttpBuildQuery:
         assert "golf[2]=november" in test
         assert "golf[3]=oscar" in test
 
-
     def test_new(self):
         d = {
             'FILTER': {
@@ -236,4 +238,3 @@ class TestHttpBuildQuery:
 
         test = http_build_query(d)
         assert test == 'FILTER[%21STATUS_ID]=CLOSED&'
-

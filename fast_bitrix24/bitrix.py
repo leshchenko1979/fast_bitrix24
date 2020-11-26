@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from .correct_asyncio import *
+from . import correct_asyncio
 from .srh import ServerRequestHandler, slow
 from .user_request import (BatchUserRequest, CallUserRequest,
                            GetAllUserRequest, GetByIDUserRequest)
@@ -25,7 +25,6 @@ class Bitrix:
 
         self.srh = ServerRequestHandler(webhook, verbose)
 
-
     def get_all(self, method: str, params: dict = None) -> list:
         '''
         Получить полный список сущностей по запросу `method`.
@@ -45,7 +44,6 @@ class Bitrix:
         '''
 
         return self.srh.run(GetAllUserRequest(self.srh, method, params).run())
-
 
     def get_by_ID(self, method: str, ID_list: Sequence,
                   ID_field_name: str = 'ID', params: dict = None) -> list:
@@ -82,7 +80,6 @@ class Bitrix:
         return self.srh.run(GetByIDUserRequest(
             self.srh, method, params, ID_list, ID_field_name).run())
 
-
     def call(self, method: str, items):
         '''
         Вызвать метод REST API по списку элементов.
@@ -96,18 +93,21 @@ class Bitrix:
         либо просто результат для единичного вызова.
         '''
 
-        if isinstance(items, Sequence):
-            func = CallUserRequest(self.srh, method, items).run()
-            return self.srh.run(func)
-        elif isinstance(items, dict):
-            func = CallUserRequest(self.srh, method, [items]).run()
-            result = self.srh.run(func)
-            return result[0]
-        else:
+        type_valid = any(isinstance(items, valid_type)
+                         for valid_type in [Sequence, dict])
+
+        if not type_valid:
             raise TypeError(
                 f'call() accepts either a list of params dicts or '
                 f'a single params dict, but got a {type(items)} instead')
 
+        is_single_item = isinstance(items, dict)
+        item_list = [items] if is_single_item else items
+
+        request = CallUserRequest(self.srh, method, item_list)
+        result = self.srh.run(request.run())
+
+        return result[0] if is_single_item else result
 
     def call_batch(self, params: dict) -> dict:
         '''
@@ -140,7 +140,6 @@ class BitrixAsync:
 
         self.srh = ServerRequestHandler(webhook, verbose)
 
-
     async def get_all(self, method: str, params: dict = None) -> list:
         '''
         Получить полный список сущностей по запросу `method`.
@@ -162,7 +161,6 @@ class BitrixAsync:
 
         return await self.srh.run_async(
             GetAllUserRequest(self.srh, method, params).run())
-
 
     async def get_by_ID(self, method: str, ID_list: Sequence,
                         ID_field_name: str = 'ID',
@@ -199,7 +197,6 @@ class BitrixAsync:
         return await self.srh.run_async(GetByIDUserRequest(
             self.srh, method, params, ID_list, ID_field_name).run())
 
-
     async def call(self, method: str, items):
         '''
         Вызвать метод REST API по списку элементов.
@@ -213,20 +210,21 @@ class BitrixAsync:
         либо просто результат для единичного вызова.
         '''
 
-        if isinstance(items, Sequence):
-            func = CallUserRequest(self.srh, method, items).run()
-            return await self.srh.run_async(func)
+        type_valid = any(isinstance(items, valid_type)
+                         for valid_type in [Sequence, dict])
 
-        elif isinstance(items, dict):
-            func = CallUserRequest(self.srh, method, [items]).run()
-            result = await self.srh.run_async(func)
-            return result[0]
-
-        else:
+        if not type_valid:
             raise TypeError(
-                'call() accepts either a list of params dicts or '
+                f'call() accepts either a list of params dicts or '
                 f'a single params dict, but got a {type(items)} instead')
 
+        is_single_item = isinstance(items, dict)
+        item_list = [items] if is_single_item else items
+
+        request = CallUserRequest(self.srh, method, item_list)
+        result = await self.srh.run_async(request.run())
+
+        return result[0] if is_single_item else result
 
     async def call_batch(self, params: dict) -> dict:
         '''
