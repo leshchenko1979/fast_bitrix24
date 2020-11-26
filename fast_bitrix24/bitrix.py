@@ -85,7 +85,7 @@ class Bitrix:
 
     def call(self, method: str, items):
         '''
-        Вызвать метод REST API по списку.
+        Вызвать метод REST API по списку элементов.
 
         Параметры:
         - `method` - метод REST API
@@ -97,10 +97,12 @@ class Bitrix:
         '''
 
         if isinstance(items, Sequence):
-            return self.srh.run(CallUserRequest(self.srh, method, items).run())
+            func = CallUserRequest(self.srh, method, items).run()
+            return self.srh.run(func)
         elif isinstance(items, dict):
-            return self.srh.run(
-                CallUserRequest(self.srh, method, [items]).run())[0]
+            func = CallUserRequest(self.srh, method, [items]).run()
+            result = self.srh.run(func)
+            return result[0]
         else:
             raise TypeError(
                 f'call() accepts either a list of params dicts or '
@@ -200,7 +202,7 @@ class BitrixAsync:
 
     async def call(self, method: str, items):
         '''
-        Вызвать метод REST API по списку.
+        Вызвать метод REST API по списку элементов.
 
         Параметры:
         - `method` - метод REST API
@@ -212,12 +214,12 @@ class BitrixAsync:
         '''
 
         if isinstance(items, Sequence):
-            return await self.srh.run_async(
-                CallUserRequest(self.srh, method, items).run())
+            func = CallUserRequest(self.srh, method, items).run()
+            return await self.srh.run_async(func)
 
         elif isinstance(items, dict):
-            result = await self.srh.run_async(
-                CallUserRequest(self.srh, method, [items]).run())
+            func = CallUserRequest(self.srh, method, [items]).run()
+            result = await self.srh.run_async(func)
             return result[0]
 
         else:
