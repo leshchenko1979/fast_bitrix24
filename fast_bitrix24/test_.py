@@ -17,7 +17,9 @@ def get_test():
     if test_webhook:
         return Bitrix(test_webhook)
     else:
-        raise RuntimeError('Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set to the webhook of your test Bitrix24 account.')
+        raise RuntimeError(
+            'Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set '
+            'to the webhook of your test Bitrix24 account.')
 
 
 @pytest.fixture(scope='session')
@@ -26,7 +28,9 @@ def get_test_async():
     if test_webhook:
         return BitrixAsync(test_webhook)
     else:
-        raise RuntimeError('Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set to the webhook of your test Bitrix24 account.')
+        raise RuntimeError(
+            'Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set '
+            'to the webhook of your test Bitrix24 account.')
 
 
 @pytest.fixture(scope='session')
@@ -41,7 +45,7 @@ def create_100_leads(get_test) -> Bitrix:
     total_leads = len(b.get_all('crm.lead.list'))
     if total_leads > 500:
         leads = b.get_all('crm.lead.list', {'select': ['ID']})
-        b.get_by_ID('crm.lead.delete', [l['ID'] for l in leads])
+        b.get_by_ID('crm.lead.delete', [lead['ID'] for lead in leads])
 
     with slow(1.2):
         lead_nos = b.call('crm.lead.add', [{
@@ -53,6 +57,20 @@ def create_100_leads(get_test) -> Bitrix:
     yield b
 
     b.get_by_ID('crm.lead.delete', lead_nos)
+
+
+@pytest.fixture(scope='function')
+def create_a_lead(get_test) -> tuple:
+    b = get_test
+    lead_no = b.call('crm.lead.add', {
+        'fields': {
+            'NAME': 'Bob',
+        }
+    })
+
+    yield b, lead_no
+
+    b.get_by_ID('crm.lead.delete', [lead_no])
 
 
 @pytest.fixture(scope='function')
@@ -68,7 +86,7 @@ async def create_100_leads_async(get_test_async) -> BitrixAsync:
     total_leads = len(await b.get_all('crm.lead.list'))
     if total_leads > 500:
         leads = await b.get_all('crm.lead.list', {'select': ['ID']})
-        await b.get_by_ID('crm.lead.delete', [l['ID'] for l in leads])
+        await b.get_by_ID('crm.lead.delete', [lead['ID'] for lead in leads])
 
     with slow(1.2):
         lead_nos = await b.call('crm.lead.add', [{
@@ -132,6 +150,7 @@ class TestBasic:
         assert len(result['1']) == 50
 
 
+    @pytest.mark.skip
     def test_batch_issue_85(self, get_test):
 
         b = get_test
@@ -147,10 +166,13 @@ class TestBasic:
 
         try:
             for _ in range(10):
-                payload['cmd']={}
+                payload['cmd'] = {}
 
                 for _ in range(50):
-                    payload['cmd']['add_user'+str(count)] = f'crm.lead.add?NAME={name+str(count)}&EMAIL={str(count)+email}&UF_DEPARTMENT=11&UF_PHONE_INNER={count}'
+                    payload['cmd']['add_user'+str(count)] = \
+                        f'crm.lead.add?NAME={name+str(count)}' + \
+                        f'&EMAIL={str(count)+email}&UF_DEPARTMENT=11&' + \
+                        f'UF_PHONE_INNER={count}'
                     count += 1
 
                 r = b.call_batch(payload)
@@ -158,7 +180,7 @@ class TestBasic:
                 del payload['cmd']
         finally:
             assert len(result) == 500
-            assert len(result) == len(set(result)) # все ID уникальные
+            assert len(result) == len(set(result))  # все ID уникальные
             b.call('crm.lead.delete', [{'ID': r} for r in result])
 
 
@@ -248,10 +270,9 @@ class TestParamsEncoding:
         assert result
 
 
-    def test_product_rows(self, create_100_leads):
-        b = create_100_leads
+    def test_product_rows(self, create_a_lead):
+        b, lead_no = create_a_lead
 
-        lead = b.get_all('crm.lead.list')[0]
         product_rows = [
             {"PRODUCT_NAME": 'ssssdsd', "PRICE": 5555,
              "QUANTITY": 2, "CURRENCY": 'USD'},
@@ -259,10 +280,10 @@ class TestParamsEncoding:
         ]
 
         b.call('crm.lead.productrows.set',
-               {'ID': lead['ID'], 'rows': product_rows})
+               {'ID': lead_no, 'rows': product_rows})
 
         result_rows = b.call('crm.lead.productrows.get',
-                             {'ID': lead['ID']})
+                             {'ID': lead_no})
 
         assert len(product_rows) == len(result_rows)
 
@@ -270,7 +291,7 @@ class TestParamsEncoding:
 class TestHttpBuildQuery:
 
     def test_original(self):
-        assert http_build_query ({"alpha": "bravo"}) == "alpha=bravo&"
+        assert http_build_query({"alpha": "bravo"}) == "alpha=bravo&"
 
         test = http_build_query({"charlie": ["delta", "echo", "foxtrot"]})
         assert "charlie[0]=delta" in test
@@ -315,14 +336,23 @@ class TestHttpBuildQuery:
 class TestAsync:
 
     @pytest.mark.asyncio
-    async def test_simple_async_calls(self, get_test_async):
+    async def test_simple_async_calls(self, create_100_leads_async):
 
-        b = get_test_async
-        await b.get_all('crm.lead.list')
+        b = create_100_leads_async
+
+        leads = await b.get_all('crm.lead.list')
+        await b.get_by_ID('crm.lead.list', [lead['ID'] for lead in leads])
+        await b.call('crm.lead.get', {'ID': leads[0]['ID']})
+        await b.call_batch({
+            'halt': 0,
+            'cmd': {
+                0: 'crm.lead.list'
+            }
+        })
 
 
     @pytest.mark.asyncio
-    async def test_simple_async_calls(self, create_100_leads_async):
+    async def test_simultaneous_calls(self, create_100_leads_async):
 
         b = create_100_leads_async
 
