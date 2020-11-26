@@ -60,6 +60,20 @@ def create_100_leads(get_test) -> Bitrix:
 
 
 @pytest.fixture(scope='function')
+def create_a_lead(get_test) -> tuple:
+    b = get_test
+    lead_no = b.call('crm.lead.add', {
+        'fields': {
+            'NAME': 'Bob',
+        }
+    })
+
+    yield b, lead_no
+
+    b.get_by_ID('crm.lead.delete', [lead_no])
+
+
+@pytest.fixture(scope='function')
 @pytest.mark.asyncio
 async def create_100_leads_async(get_test_async) -> BitrixAsync:
     b = get_test_async
@@ -256,10 +270,9 @@ class TestParamsEncoding:
         assert result
 
 
-    def test_product_rows(self, create_100_leads):
-        b = create_100_leads
+    def test_product_rows(self, create_a_lead):
+        b, lead_no = create_a_lead
 
-        lead = b.get_all('crm.lead.list')[0]
         product_rows = [
             {"PRODUCT_NAME": 'ssssdsd', "PRICE": 5555,
              "QUANTITY": 2, "CURRENCY": 'USD'},
@@ -267,10 +280,10 @@ class TestParamsEncoding:
         ]
 
         b.call('crm.lead.productrows.set',
-               {'ID': lead['ID'], 'rows': product_rows})
+               {'ID': lead_no, 'rows': product_rows})
 
         result_rows = b.call('crm.lead.productrows.get',
-                             {'ID': lead['ID']})
+                             {'ID': lead_no})
 
         assert len(product_rows) == len(result_rows)
 
