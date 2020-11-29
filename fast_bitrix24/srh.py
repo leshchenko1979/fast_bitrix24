@@ -24,7 +24,6 @@ class ServerRequestHandler():
     последовательных запросов к серверу.
     '''
 
-
     def __init__(self, webhook, verbose):
         self.webhook = self._standardize_webhook(webhook)
         self._verbose = verbose
@@ -35,8 +34,8 @@ class ServerRequestHandler():
         self.active_requests = set()
         self.session = None
 
-        self.rr = deque() # rr - requests register - список отправленных запросов к серверу
-
+        # rr - requests register - список отправленных запросов к серверу
+        self.rr = deque()
 
     def _standardize_webhook(self, webhook):
 
@@ -53,7 +52,6 @@ class ServerRequestHandler():
 
         return webhook
 
-
     def run(self, coroutine):
         try:
             loop = asyncio.get_event_loop()
@@ -63,30 +61,31 @@ class ServerRequestHandler():
 
         return loop.run_until_complete(self.run_async(coroutine))
 
-
     async def run_async(self, coroutine):
-        if not self.active_requests and (not self.session or self.session.closed):
+        if not self.active_requests and (not self.session or
+                                         self.session.closed):
             self.session = aiohttp.ClientSession(raise_for_status=True)
 
         self.active_requests.add(coroutine)
 
-        result = await coroutine
+        try:
+            result = await coroutine
 
-        self.active_requests -= {coroutine}
+        finally:
+            self.active_requests -= {coroutine}
 
-        if not self.active_requests and self.session and not self.session.closed:
-            await self.session.close()
+            if not self.active_requests and self.session and \
+                    not self.session.closed:
+                await self.session.close()
 
         return result
 
-
     async def single_request(self, method, params=None):
         await self._acquire()
-        async with self.session.post(url = self.webhook + method,
-                                     json = params) as response:
+        async with self.session.post(url=self.webhook + method,
+                                     json=params) as response:
             r = await response.json(encoding='utf-8')
         return ServerResponse(r)
-
 
     async def _acquire(self):
         '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
@@ -100,7 +99,8 @@ class ServerRequestHandler():
         else:
             if len(self.rr) >= self.pool_size:
                 time_from_last_request = time.monotonic() - self.rr[0]
-                time_to_wait = 1 / self.requests_per_second - time_from_last_request
+                time_to_wait = 1 / self.requests_per_second - \
+                    time_from_last_request
                 if time_to_wait > 0:
                     await asyncio.sleep(time_to_wait)
 
@@ -117,7 +117,6 @@ class ServerRequestHandler():
 
         return
 
-
     def get_pbar(self, real_len, real_start):
 
         class MutePBar():
@@ -129,7 +128,7 @@ class ServerRequestHandler():
                 pass
 
         if self._verbose:
-            return tqdm(total = real_len, initial = real_start)
+            return tqdm(total=real_len, initial=real_start)
         else:
             return MutePBar()
 
@@ -139,7 +138,7 @@ _SLOW_RPS = 0
 
 
 class slow:
-    def __init__(self, requests_per_second = 0.5):
+    def __init__(self, requests_per_second=0.5):
         global _SLOW_RPS
         _SLOW_RPS = requests_per_second
 

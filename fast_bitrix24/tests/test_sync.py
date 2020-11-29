@@ -2,7 +2,7 @@ import pytest
 
 from ..utils import http_build_query
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
-                       get_test, get_test_async)
+                       get_test, get_test_async, create_a_deal)
 
 
 class TestBasic:
@@ -239,3 +239,14 @@ class TestHttpBuildQuery:
 
         test = http_build_query(d)
         assert test == 'FILTER[%21STATUS_ID]=CLOSED&'
+
+
+@pytest.mark.skip
+def test_issue_93(create_a_deal):
+    b, deal_no = create_a_deal
+    b.get_all('crm.documentgenerator.document.list', params={
+        'filter': {
+            'entityId': deal_no,
+            'entityTypeId': 2
+        }
+    })
