@@ -92,3 +92,17 @@ async def create_100_leads_async(get_test_async) -> BitrixAsync:
     yield b
 
     await b.get_by_ID('crm.lead.delete', lead_nos)
+
+@pytest.fixture(scope='session')
+def create_a_deal(get_test):
+
+    b = get_test
+    deal_no = b.call('crm.deal.add', {
+        'fields': {
+            'NAME': 'Bob',
+        }
+    })
+
+    yield b, deal_no
+
+    b.get_by_ID('crm.deal.delete', [deal_no])
