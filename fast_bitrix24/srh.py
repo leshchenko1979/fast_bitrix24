@@ -68,13 +68,15 @@ class ServerRequestHandler():
 
         self.active_requests.add(coroutine)
 
-        result = await coroutine
+        try:
+            result = await coroutine
 
-        self.active_requests -= {coroutine}
+        finally:
+            self.active_requests -= {coroutine}
 
-        if not self.active_requests and self.session and \
-                not self.session.closed:
-            await self.session.close()
+            if not self.active_requests and self.session and \
+                    not self.session.closed:
+                await self.session.close()
 
         return result
 
