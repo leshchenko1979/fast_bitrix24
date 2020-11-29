@@ -239,3 +239,13 @@ class TestHttpBuildQuery:
 
         test = http_build_query(d)
         assert test == 'FILTER[%21STATUS_ID]=CLOSED&'
+
+
+def test_issue_93(create_a_lead):
+    b, _ = create_a_lead
+    b.get_all('crm.documentgenerator.document.list', params={
+        'filter': {
+            'entityID': 1,
+            'entityTypeID': 2
+        }
+    })
