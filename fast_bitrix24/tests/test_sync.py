@@ -35,6 +35,24 @@ class TestBasic:
 
         assert len(fields) == len(leads[0])
 
+    def test_issue_96(self, get_test):
+        from datetime import datetime
+        b = get_test
+        b.call(
+            'telephony.externalcall.register',
+            {
+                # 'USER_PHONE_INNER': 'OLD_LINE',
+                'USER_ID': 1,
+                'PHONE_NUMBER': '+79163345641',
+                'CALL_START_DATE': f'{datetime.now()}',
+                'CRM_CREATE': 0,
+                'CRM_ENTITY_TYPE': 'LEAD',
+                'CRM_ENTITY_ID': 43707,
+                'SHOW': 0,
+                'TYPE': 1
+            }
+        )
+
     def test_call_batch(self, create_100_leads):
         b = create_100_leads
 

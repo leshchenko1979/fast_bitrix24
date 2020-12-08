@@ -28,7 +28,7 @@ class UserRequestAbstract():
 
         method = method.lower().strip()
 
-        if method.lower().strip() == 'batch':
+        if method == 'batch':
             raise ValueError("Method cannot be 'batch'. Use call_batch() instead.")
 
         return method
@@ -42,7 +42,7 @@ class UserRequestAbstract():
             if not isinstance(key, str):
                 raise TypeError('Keys in params argument should be strs')
 
-        p = {key.lower().strip(): value for key, value in p.items()}
+        p = {key.upper().strip(): value for key, value in p.items()}
 
         self.check_expected_clause_types(p)
 
@@ -51,14 +51,14 @@ class UserRequestAbstract():
 
     def check_expected_clause_types(self, p):
         EXPECTED_TYPES = {
-            'select': list,
-            'halt': int,
-            'cmd': dict,
-            'limit': int,
-            'order': dict,
-            'filter': dict,
-            'start': int,
-            'fields': dict
+            'SELECT': list,
+            'HELT': int,
+            'CMD': dict,
+            'LIMIT': int,
+            'ORDER': dict,
+            'FILTER': dict,
+            'START': int,
+            'FIELDS': dict
         }
 
         # check for allowed types of key values
@@ -243,10 +243,10 @@ class BatchUserRequest(UserRequestAbstract):
         if not self.params:
             raise ValueError("Params for a batch call can't be empty")
 
-        if {'halt', 'cmd'} != self.params.keys():
+        if {'HALT', 'CMD'} != self.params.keys():
             raise ValueError("Params for a batch call should contain only 'halt' and 'cmd' clauses at the highest level")
 
-        if not isinstance(self.params['cmd'], dict):
+        if not isinstance(self.params['CMD'], dict):
             raise ValueError("'cmd' clause should contain a dict")
 
 

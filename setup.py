@@ -8,10 +8,12 @@ with open('requirements.txt', 'r', encoding='utf-8') as fh:
 
 setuptools.setup(
     name="fast_bitrix24",
-    version="0.5.1",
+    version="0.5.2",
     author="Alexey Leshchenko",
     author_email="leshchenko@gmail.com",
-    description="API wrapper для быстрого получения данных от Битрикс24 через REST API. Параллельные запросы к серверу, упаковка запросов в батчи, контроль скорости запросов, есть синхронный и асинхронный клиенты.",
+    description='API wrapper для быстрого получения данных от Битрикс24 через '
+        'REST API. Параллельные запросы к серверу, упаковка запросов в батчи, '
+        'контроль скорости запросов, есть синхронный и асинхронный клиенты.',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/leshchenko1979/fast_bitrix24",
