@@ -13,10 +13,12 @@ BITRIX_PAGE_SIZE = 50
 
 class UserRequestAbstract():
 
-    def __init__(self, srh: ServerRequestHandler, method: str, params: dict):
+    def __init__(self, srh: ServerRequestHandler, method: str, params: dict = None):
         self.srh = srh
-        self.method = self.standardized_method(method)
-        self.params = self.standardized_params(params) if params else None
+        self.method = method
+        self.st_method = self.standardized_method(method)
+        self.params = params
+        self.st_params = self.standardized_params(params)
         self.check_special_limitations()
 
     def standardized_method(self, method):
@@ -35,6 +37,9 @@ class UserRequestAbstract():
         return method
 
     def standardized_params(self, p):
+        if p is None:
+            return None
+
         if not isinstance(p, dict):
             raise TypeError('Params agrument should be a dict')
 
@@ -86,8 +91,8 @@ class UserRequestAbstract():
 class GetAllUserRequest(UserRequestAbstract):
 
     def check_special_limitations(self):
-        if self.params and not set(self.params.keys()).isdisjoint(
-            {'start', 'limit', 'order'}
+        if self.st_params and not set(self.st_params.keys()).isdisjoint(
+            {'START', 'LIMIT', 'ORDER'}
         ):
             raise ValueError("get_all() doesn't support parameters "
                              "'start', 'limit' or 'order'")
@@ -110,7 +115,7 @@ class GetAllUserRequest(UserRequestAbstract):
         order_clause = {'order': {'ID': 'ASC'}}
 
         if self.params:
-            if 'order' not in self.params:
+            if 'ORDER' not in self.st_params:
                 self.params.update(order_clause)
         else:
             self.params = order_clause
@@ -159,7 +164,7 @@ class GetByIDUserRequest(UserRequestAbstract):
         super().__init__(srh, method, params)
 
     def check_special_limitations(self):
-        if self.params and 'id' in self.params.keys():
+        if self.st_params and 'ID' in self.st_params.keys():
             raise ValueError("get_by_ID() doesn't support parameter 'ID' "
                              "within the 'params' argument")
 
@@ -200,7 +205,7 @@ class GetByIDUserRequest(UserRequestAbstract):
 class CallUserRequest(GetByIDUserRequest):
 
     def __init__(self, srh, method: str, item_list):
-        self.item_list = [self.standardized_params(item) for item in item_list]
+        self.item_list = item_list
         super().__init__(srh, method, None, None, '__order')
 
     def check_special_limitations(self):
@@ -233,15 +238,15 @@ class BatchUserRequest(UserRequestAbstract):
         return 'batch'
 
     def check_special_limitations(self):
-        if not self.params:
+        if not self.st_params:
             raise ValueError("Params for a batch call can't be empty")
 
-        if {'HALT', 'CMD'} != self.params.keys():
+        if {'HALT', 'CMD'} != self.st_params.keys():
             raise ValueError(
                 "Params for a batch call should contain only 'halt' and 'cmd' "
                 "clauses at the highest level")
 
-        if not isinstance(self.params['CMD'], dict):
+        if not isinstance(self.st_params['CMD'], dict):
             raise ValueError("'cmd' clause should contain a dict")
 
     async def run(self):

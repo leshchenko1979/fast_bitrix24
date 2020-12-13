@@ -133,6 +133,35 @@ class TestBasic:
                 'filter': 3
             })
 
+    @pytest.mark.asyncio
+    async def test_slow(self, get_test):
+        b = get_test
+
+        t1 = monotonic()
+        with slow(10):
+            for _ in range(5):
+                await b.srh._acquire()
+        t2 = monotonic()
+
+        assert 0.5 < t2 - t1 < 0.6
+
+    def test_case(self, get_test):
+        b = get_test
+
+        with pytest.raises(RuntimeError,
+                           match='Could not find value for parameter'):
+            b.call(
+                'disk.file.get',
+                [{'ID': 1}]
+            )
+
+        with pytest.raises(RuntimeError,
+                           match='Could not find entity with id'):
+            b.call(
+                'disk.file.get',
+                [{'id': 1}]
+            )
+
 
 class TestLongRequests:
 
@@ -214,18 +243,6 @@ class TestParamsEncoding:
                              {'ID': lead_no})
 
         assert len(product_rows) == len(result_rows)
-
-    @pytest.mark.asyncio
-    async def test_slow(self, get_test):
-        b = get_test
-
-        t1 = monotonic()
-        with slow(10):
-            for _ in range(5):
-                await b.srh._acquire()
-        t2 = monotonic()
-
-        assert 0.5 < t2 - t1 < 0.6
 
 class TestHttpBuildQuery:
 
