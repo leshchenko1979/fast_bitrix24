@@ -59,7 +59,7 @@ async def assert_time_acquire(srh, acquire_amount, time_expected):
 
     t2 = monotonic()
 
-    assert time_expected - 0.1 < t2 - t1 < time_expected + 0.1
+    assert time_expected <= t2 - t1 < time_expected + 0.2
 
 
 class TestAcquire:
