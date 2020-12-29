@@ -11,6 +11,7 @@ from .utils import _url_valid
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
 BITRIX_MAX_BATCH_SIZE = 50
+BITRIX_MAX_CONCURRENT_REQUESTS = 20
 
 
 class ServerRequestHandler():
@@ -18,7 +19,7 @@ class ServerRequestHandler():
     Используется для контроля скорости доступа к серверам Битрикс.
 
     Основная цель - вести учет количества запросов, которые можно передать
-    серверу Битрикс без получения ошибки `503`.
+    серверу Битрикс без получения ошибки `5XX`.
 
     Используется как контекстный менеджер, оборачивающий несколько
     последовательных запросов к серверу.
@@ -31,13 +32,17 @@ class ServerRequestHandler():
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
 
-        self.active_requests = set()
+        self.active_runs = set()
         self.session = None
 
         # rr - requests register - список отправленных запросов к серверу
         self.rr = deque()
 
+        self.concurrent_requests_sem = asyncio.Semaphore(
+            BITRIX_MAX_CONCURRENT_REQUESTS)
+
     def _standardize_webhook(self, webhook):
+        '''Приводит `webhook` к стандартному виду.'''
 
         if not isinstance(webhook, str):
             raise TypeError(f'Webhook should be a {str}')
@@ -53,6 +58,8 @@ class ServerRequestHandler():
         return webhook
 
     def run(self, coroutine):
+        '''Запускает `coroutine`, оборачивая его в `run_async()`.'''
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -62,29 +69,35 @@ class ServerRequestHandler():
         return loop.run_until_complete(self.run_async(coroutine))
 
     async def run_async(self, coroutine):
-        if not self.active_requests and (not self.session or
-                                         self.session.closed):
+        '''Запускает `coroutine`, создавая и прекращая сессию при необходимости.'''
+
+        if not self.active_runs and (not self.session or
+                                     self.session.closed):
             self.session = aiohttp.ClientSession(raise_for_status=True)
 
-        self.active_requests.add(coroutine)
+        self.active_runs.add(coroutine)
 
         try:
             result = await coroutine
 
         finally:
-            self.active_requests -= {coroutine}
+            self.active_runs -= {coroutine}
 
-            if not self.active_requests and self.session and \
+            if not self.active_runs and self.session and \
                     not self.session.closed:
                 await self.session.close()
 
         return result
 
     async def single_request(self, method, params=None):
+        '''Делает единичный запрос к серверу, ожидая при необходимости.'''
+
         await self._acquire()
-        async with self.session.post(url=self.webhook + method,
-                                     json=params) as response:
+
+        async with self.concurrent_requests_sem, self.session.post(
+                url=self.webhook + method, json=params) as response:
             r = await response.json(encoding='utf-8')
+
         return ServerResponse(r)
 
     async def _acquire(self):
@@ -104,7 +117,7 @@ class ServerRequestHandler():
                 if time_to_wait > 0:
                     await asyncio.sleep(time_to_wait)
 
-        # зарегистрировать запрос
+        # зарегистрировать запрос в очереди
 
         cur_time = time.monotonic()
         self.rr.appendleft(cur_time)
@@ -118,6 +131,7 @@ class ServerRequestHandler():
         return
 
     def get_pbar(self, real_len, real_start):
+        '''Возвращает прогресс бар `tqdm()` или пустышку, если `self.verbose is False`.'''
 
         class MutePBar():
 
