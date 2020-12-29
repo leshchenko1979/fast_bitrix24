@@ -165,8 +165,12 @@ class TestBasic:
     def test_ID_list(self, get_test):
         b = get_test
 
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match='should be iterable'):
             b.get_by_ID('_', 123)
+
+        with pytest.raises(TypeError,
+                           match='should contain only ints or strs'):
+            b.get_by_ID('_', [['a']])
 
 class TestLongRequests:
 

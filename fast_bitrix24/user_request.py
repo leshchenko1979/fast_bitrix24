@@ -176,6 +176,11 @@ class GetByIDUserRequest(UserRequestAbstract):
         except TypeError:
             raise TypeError("get_by_ID(): 'ID_list' should be iterable")
 
+        for ID in self.ID_list:
+            if not isinstance(ID, (str, int)):
+                raise TypeError(
+                    "get_by_ID(): 'ID_list' should contain only ints or strs")
+
     async def run(self):
         if self.list_empty():
             return []
