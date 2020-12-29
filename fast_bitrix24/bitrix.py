@@ -1,6 +1,7 @@
 '''Высокоуровневый API для доступа к Битрикс24'''
 
 from collections.abc import Sequence
+from typing import Iterable, Union
 
 from . import correct_asyncio
 from .srh import ServerRequestHandler, slow
@@ -25,7 +26,7 @@ class Bitrix:
 
         self.srh = ServerRequestHandler(webhook, verbose)
 
-    def get_all(self, method: str, params: dict = None) -> list:
+    def get_all(self, method: str, params: dict = None) -> Union[list, dict]:
         '''
         Получить полный список сущностей по запросу `method`.
 
@@ -45,7 +46,7 @@ class Bitrix:
 
         return self.srh.run(GetAllUserRequest(self.srh, method, params).run())
 
-    def get_by_ID(self, method: str, ID_list: Sequence,
+    def get_by_ID(self, method: str, ID_list: Iterable,
                   ID_field_name: str = 'ID', params: dict = None) -> list:
         '''
         Получить список сущностей по запросу method и списку ID.
@@ -80,7 +81,7 @@ class Bitrix:
         return self.srh.run(GetByIDUserRequest(
             self.srh, method, params, ID_list, ID_field_name).run())
 
-    def call(self, method: str, items):
+    def call(self, method: str, items: Union[dict, Iterable]):
         '''
         Вызвать метод REST API по списку элементов.
 
@@ -140,7 +141,7 @@ class BitrixAsync:
 
         self.srh = ServerRequestHandler(webhook, verbose)
 
-    async def get_all(self, method: str, params: dict = None) -> list:
+    async def get_all(self, method: str, params: dict = None) -> Union[list, dict]:
         '''
         Получить полный список сущностей по запросу `method`.
 
@@ -162,7 +163,7 @@ class BitrixAsync:
         return await self.srh.run_async(
             GetAllUserRequest(self.srh, method, params).run())
 
-    async def get_by_ID(self, method: str, ID_list: Sequence,
+    async def get_by_ID(self, method: str, ID_list: Iterable,
                         ID_field_name: str = 'ID',
                         params: dict = None) -> list:
         '''
@@ -197,7 +198,7 @@ class BitrixAsync:
         return await self.srh.run_async(GetByIDUserRequest(
             self.srh, method, params, ID_list, ID_field_name).run())
 
-    async def call(self, method: str, items):
+    async def call(self, method: str, items: Union[dict, Iterable]):
         '''
         Вызвать метод REST API по списку элементов.
 

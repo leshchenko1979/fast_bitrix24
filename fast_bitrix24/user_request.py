@@ -1,4 +1,5 @@
 import pickle
+from typing import Iterable
 import warnings
 from collections import ChainMap
 from collections.abc import Sequence
@@ -13,7 +14,8 @@ BITRIX_PAGE_SIZE = 50
 
 class UserRequestAbstract():
 
-    def __init__(self, srh: ServerRequestHandler, method: str, params: dict = None):
+    def __init__(self, srh: ServerRequestHandler, method: str,
+                 params: dict = None):
         self.srh = srh
         self.method = method
         self.st_method = self.standardized_method(method)
@@ -158,9 +160,10 @@ class GetAllUserRequest(UserRequestAbstract):
 
 class GetByIDUserRequest(UserRequestAbstract):
 
-    def __init__(self, srh, method: str, params: dict, ID_list, ID_field_name):
+    def __init__(self, srh: ServerRequestHandler, method: str, params: dict,
+                 ID_list: Iterable, ID_field_name: str):
         self.ID_list = ID_list
-        self.ID_field_name = ID_field_name.upper().strip()
+        self.ID_field_name = ID_field_name.strip()
         super().__init__(srh, method, params)
 
     def check_special_limitations(self):
@@ -168,8 +171,10 @@ class GetByIDUserRequest(UserRequestAbstract):
             raise ValueError("get_by_ID() doesn't support parameter 'ID' "
                              "within the 'params' argument")
 
-        if not(isinstance(self.ID_list, Sequence)):
-            raise TypeError("get_by_ID(): 'ID_list' should be a sequence")
+        try:
+            iter(self.ID_list)
+        except TypeError:
+            raise TypeError("get_by_ID(): 'ID_list' should be iterable")
 
     async def run(self):
         if self.list_empty():
@@ -204,13 +209,16 @@ class GetByIDUserRequest(UserRequestAbstract):
 
 class CallUserRequest(GetByIDUserRequest):
 
-    def __init__(self, srh, method: str, item_list):
+    def __init__(self, srh: ServerRequestHandler, method: str,
+                 item_list: Iterable):
         self.item_list = item_list
         super().__init__(srh, method, None, None, '__order')
 
     def check_special_limitations(self):
-        if not isinstance(self.item_list, Sequence):
-            raise TypeError("call(): 'item_list' should be a sequence")
+        try:
+            iter(self.item_list)
+        except TypeError:
+            raise TypeError("call(): 'item_list' should be iterable")
 
     async def run(self):
         results = await super().run()

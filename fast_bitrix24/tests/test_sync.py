@@ -162,6 +162,11 @@ class TestBasic:
                 [{'id': 1}]
             )
 
+    def test_ID_list(self, get_test):
+        b = get_test
+
+        with pytest.raises(TypeError):
+            b.get_by_ID('_', 123)
 
 class TestLongRequests:
 
