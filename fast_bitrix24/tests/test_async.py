@@ -69,7 +69,7 @@ class TestAcquire:
 
         await assert_time_acquire(get_custom_srh(1, 1), 1, 0)
         await assert_time_acquire(get_custom_srh(10, 1), 10, 0)
-        await assert_time_acquire(get_custom_srh(1, 10), 2, 0.1)
+        await assert_time_acquire(get_custom_srh(1, 10), 3, 0.2)
         await assert_time_acquire(get_custom_srh(50, 10), 60, 1)
 
 

@@ -1,6 +1,7 @@
 import asyncio
 import time
 from collections import deque
+from contextlib import contextmanager, asynccontextmanager
 
 import aiohttp
 from tqdm import tqdm
@@ -32,7 +33,7 @@ class ServerRequestHandler():
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
 
-        self.active_runs = set()
+        self.active_runs = 0
         self.session = None
 
         # rr - requests register - список отправленных запросов к серверу
@@ -69,25 +70,26 @@ class ServerRequestHandler():
         return loop.run_until_complete(self.run_async(coroutine))
 
     async def run_async(self, coroutine):
-        '''Запускает `coroutine`, создавая и прекращая сессию при необходимости.'''
+        '''Запускает `coroutine`, создавая и прекращая сессию
+        при необходимости.'''
 
-        if not self.active_runs and (not self.session or
-                                     self.session.closed):
+        async with self.handle_sessions():
+            return await coroutine
+
+    @asynccontextmanager
+    async def handle_sessions(self):
+        '''Открывает и закрывает сессию в зависимости от наличия
+        активных запросов.'''
+
+        if not self.active_runs and (not self.session or self.session.closed):
             self.session = aiohttp.ClientSession(raise_for_status=True)
+        self.active_runs += 1
 
-        self.active_runs.add(coroutine)
+        yield True
 
-        try:
-            result = await coroutine
-
-        finally:
-            self.active_runs -= {coroutine}
-
-            if not self.active_runs and self.session and \
-                    not self.session.closed:
-                await self.session.close()
-
-        return result
+        self.active_runs -= 1
+        if not self.active_runs and self.session and not self.session.closed:
+            await self.session.close()
 
     async def single_request(self, method, params=None):
         '''Делает единичный запрос к серверу, ожидая при необходимости.'''
@@ -109,13 +111,12 @@ class ServerRequestHandler():
 
         if _SLOW:
             await asyncio.sleep(1 / _SLOW_RPS)
-        else:
-            if len(self.rr) >= self.pool_size:
-                time_from_last_request = time.monotonic() - self.rr[0]
-                time_to_wait = 1 / self.requests_per_second - \
-                    time_from_last_request
-                if time_to_wait > 0:
-                    await asyncio.sleep(time_to_wait)
+        elif len(self.rr) >= self.pool_size:
+            time_from_last_request = time.monotonic() - self.rr[0]
+            time_to_wait = 1 / self.requests_per_second - \
+                time_from_last_request
+            if time_to_wait > 0:
+                await asyncio.sleep(time_to_wait)
 
         # зарегистрировать запрос в очереди
 
@@ -131,7 +132,8 @@ class ServerRequestHandler():
         return
 
     def get_pbar(self, real_len, real_start):
-        '''Возвращает прогресс бар `tqdm()` или пустышку, если `self.verbose is False`.'''
+        '''Возвращает прогресс бар `tqdm()` или пустышку,
+        если `self.verbose is False`.'''
 
         class MutePBar():
 
@@ -151,16 +153,9 @@ _SLOW = False
 _SLOW_RPS = 0
 
 
-class slow:
-    def __init__(self, requests_per_second=0.5):
-        global _SLOW_RPS
-        _SLOW_RPS = requests_per_second
-
-    def __enter__(self):
-        global _SLOW
-        _SLOW = True
-
-    def __exit__(self, a1, a2, a3):
-        global _SLOW, _SLOW_RPS
-        _SLOW = False
-        _SLOW_RPS = 0
+@contextmanager
+def slow(requests_per_second=0.5):
+    global _SLOW_RPS, _SLOW
+    _SLOW_RPS, _SLOW = requests_per_second, True
+    yield True
+    _SLOW_RPS, _SLOW = 0, False
