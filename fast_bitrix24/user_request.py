@@ -229,7 +229,7 @@ class CallUserRequest(GetByIDUserRequest):
         results = await super().run()
 
         # убираем поле с порядковым номером из результатов
-        return [item[1] for item in results]
+        return tuple(results.values())
 
     def list_empty(self):
         return len(self.item_list) == 0
