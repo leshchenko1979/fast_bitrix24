@@ -4,8 +4,7 @@ from time import monotonic
 
 import pytest
 
-from ..bitrix import slow
-from ..srh import ServerRequestHandler
+from ..bitrix import BitrixAsync
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
                        get_test, get_test_async)
 
@@ -27,10 +26,8 @@ class TestAsync:
             }
         })
 
-
     @pytest.mark.asyncio
     async def test_simultaneous_calls(self, create_100_leads_async):
-
         b = create_100_leads_async
 
         result = await gather(b.get_all('crm.lead.list'),
@@ -42,20 +39,20 @@ class TestAsync:
         assert all(len(r) >= 100 for r in result)
 
 
-def get_custom_srh(pool_size, requests_per_second):
-    srh = ServerRequestHandler('http://www.bitrix24.ru/path', False)
+def get_custom_bitrix(pool_size, requests_per_second):
+    bitrix = BitrixAsync('http://www.bitrix24.ru/path')
 
-    srh.pool_size = pool_size
-    srh.requests_per_second = requests_per_second
+    bitrix.srh.pool_size = pool_size
+    bitrix.srh.requests_per_second = requests_per_second
 
-    return srh
+    return bitrix
 
 
-async def assert_time_acquire(srh, acquire_amount, time_expected):
+async def assert_time_acquire(bitrix, acquire_amount, time_expected):
     t1 = monotonic()
 
     for _ in range(acquire_amount):
-        await srh._acquire()
+        await bitrix.srh._acquire()
 
     t2 = monotonic()
 
@@ -67,38 +64,29 @@ class TestAcquire:
     @pytest.mark.asyncio
     async def test_acquire_sequential(self):
 
-        await assert_time_acquire(get_custom_srh(1, 1), 1, 0)
-        await assert_time_acquire(get_custom_srh(10, 1), 10, 0)
-        await assert_time_acquire(get_custom_srh(1, 10), 3, 0.2)
-        await assert_time_acquire(get_custom_srh(50, 10), 60, 1)
+        await assert_time_acquire(get_custom_bitrix(1, 1), 1, 0)
+        await assert_time_acquire(get_custom_bitrix(10, 1), 10, 0)
+        await assert_time_acquire(get_custom_bitrix(1, 10), 3, 0.2)
+        await assert_time_acquire(get_custom_bitrix(50, 10), 60, 1)
 
 
     @pytest.mark.asyncio
     async def test_acquire_intermittent(self):
 
-        srh = get_custom_srh(10, 10)
+        bitrix = get_custom_bitrix(10, 10)
 
-        await assert_time_acquire(srh, 10, 0)
+        await assert_time_acquire(bitrix, 10, 0)
         await asyncio.sleep(0.3)
-        await assert_time_acquire(srh, 10, 0.7)
-
-
-    @pytest.mark.asyncio
-    async def test_acquire_slow(self):
-
-        with slow(10):
-            await assert_time_acquire(get_custom_srh(100, 100), 5, 0.5)
-
+        await assert_time_acquire(bitrix, 10, 0.7)
 
     @pytest.mark.asyncio
     async def test_acquire_slow_and_then_fast_and_then_slow_again(self):
+        bitrix = get_custom_bitrix(10, 10)
 
-        srh = get_custom_srh(10, 10)
+        async with bitrix.slow(10):
+            await assert_time_acquire(bitrix, 5, 0.5)
 
-        with slow(10):
-            await assert_time_acquire(srh, 5, 0.5)
+        await assert_time_acquire(bitrix, 15, 1)
 
-        await assert_time_acquire(srh, 15, 1)
-
-        with slow(10):
-            await assert_time_acquire(srh, 5, 0.5)
+        async with bitrix.slow(10):
+            await assert_time_acquire(bitrix, 5, 0.5)

@@ -3,7 +3,7 @@ from time import monotonic
 
 from ..utils import http_build_query
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
-                       get_test, get_test_async, create_a_deal, slow)
+                       get_test, get_test_async, create_a_deal)
 
 
 class TestBasic:
@@ -138,7 +138,7 @@ class TestBasic:
         b = get_test
 
         t1 = monotonic()
-        with slow(10):
+        with b.slow(10):
             for _ in range(5):
                 await b.srh._acquire()
         t2 = monotonic()

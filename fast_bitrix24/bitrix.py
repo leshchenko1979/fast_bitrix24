@@ -1,10 +1,10 @@
 '''Высокоуровневый API для доступа к Битрикс24'''
 
-from collections.abc import Sequence
+from contextlib import contextmanager, asynccontextmanager
 from typing import Iterable, Union
 
 from . import correct_asyncio
-from .srh import ServerRequestHandler, slow
+from .srh import ServerRequestHandler
 from .user_request import (BatchUserRequest, CallUserRequest,
                            GetAllUserRequest, GetByIDUserRequest)
 
@@ -94,13 +94,14 @@ class Bitrix:
         либо просто результат для единичного вызова.
         '''
 
-        type_valid = any(isinstance(items, valid_type)
-                         for valid_type in [Sequence, dict])
-
-        if not type_valid:
+        try:
+            if not (isinstance(items, dict) or
+                    all(isinstance(item, dict) for item in items)):
+                raise TypeError
+        except TypeError:
             raise TypeError(
-                f'call() accepts either a list of params dicts or '
-                f'a single params dict, but got a {type(items)} instead')
+                f'call() accepts either an iterable of params dicts or '
+                f'a single params dict')
 
         is_single_item = isinstance(items, dict)
         item_list = [items] if is_single_item else items
@@ -122,6 +123,13 @@ class Bitrix:
         '''
 
         return self.srh.run(BatchUserRequest(self.srh, params).run())
+
+    @contextmanager
+    def slow(self, requests_per_second=0.5):
+        rps_backup = self.srh.requests_per_second
+        self.srh.requests_per_second, self.srh.slow = requests_per_second, True
+        yield True
+        self.srh.requests_per_second, self.srh.slow = rps_backup, False
 
 
 class BitrixAsync:
@@ -211,13 +219,14 @@ class BitrixAsync:
         либо просто результат для единичного вызова.
         '''
 
-        type_valid = any(isinstance(items, valid_type)
-                         for valid_type in [Sequence, dict])
-
-        if not type_valid:
+        try:
+            if not (isinstance(items, dict) or
+                    all(isinstance(item, dict) for item in items)):
+                raise TypeError
+        except TypeError:
             raise TypeError(
-                f'call() accepts either a list of params dicts or '
-                f'a single params dict, but got a {type(items)} instead')
+                f'call() accepts either an iterable of params dicts or '
+                f'a single params dict')
 
         is_single_item = isinstance(items, dict)
         item_list = [items] if is_single_item else items
@@ -240,3 +249,10 @@ class BitrixAsync:
 
         return await self.srh.run_async(
             BatchUserRequest(self.srh, params).run())
+
+    @asynccontextmanager
+    async def slow(self, requests_per_second=0.5):
+        rps_backup = self.srh.requests_per_second
+        self.srh.requests_per_second, self.srh.slow = requests_per_second, True
+        yield True
+        self.srh.requests_per_second, self.srh.slow = rps_backup, False

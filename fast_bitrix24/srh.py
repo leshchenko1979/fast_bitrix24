@@ -1,7 +1,7 @@
 import asyncio
 import time
 from collections import deque
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager
 
 import aiohttp
 from tqdm import tqdm
@@ -32,6 +32,7 @@ class ServerRequestHandler():
 
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
+        self.slow = False
 
         self.active_runs = 0
         self.session = None
@@ -105,12 +106,10 @@ class ServerRequestHandler():
     async def _acquire(self):
         '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
 
-        global _SLOW, _SLOW_RPS
+        if self.slow:
+            await asyncio.sleep(1 / self.requests_per_second)
 
         # если пул заполнен, ждать
-
-        if _SLOW:
-            await asyncio.sleep(1 / _SLOW_RPS)
         elif len(self.rr) >= self.pool_size:
             time_from_last_request = time.monotonic() - self.rr[0]
             time_to_wait = 1 / self.requests_per_second - \
@@ -147,15 +146,3 @@ class ServerRequestHandler():
             return tqdm(total=real_len, initial=real_start)
         else:
             return MutePBar()
-
-
-_SLOW = False
-_SLOW_RPS = 0
-
-
-@contextmanager
-def slow(requests_per_second=0.5):
-    global _SLOW_RPS, _SLOW
-    _SLOW_RPS, _SLOW = requests_per_second, True
-    yield True
-    _SLOW_RPS, _SLOW = 0, False
