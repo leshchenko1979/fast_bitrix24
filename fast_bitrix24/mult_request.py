@@ -57,18 +57,20 @@ class MultipleServerRequestHandler:
         for task in as_completed(self.tasks):
             batch_response = await task
             unwrapped_result = ServerResponse(batch_response.result).result
-            batch_results = self.extract_result_from_batch_response(
+            extracted = self.extract_result_from_batch_response(
                 unwrapped_result)
-            self.results.extend(batch_results)
-            self.pbar.update(len(batch_results))
+            self.pbar.update(extracted)
 
         self.pbar.close()
 
     def extract_result_from_batch_response(self, unwrapped_result):
+        '''Добавляет `unwrapped_result` в `self.results` и возвращает
+        длину добавленного списка результатов'''
         result_list = list(unwrapped_result.values())
         if type(result_list[0]) == list:
             result_list = list(itertools.chain(*result_list))
-        return result_list
+        self.results.extend(result_list)
+        return len(result_list)
 
 
 class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
@@ -76,23 +78,11 @@ class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
     def __init__(self, srh, method, item_list, ID_field):
         super().__init__(srh, method, item_list)
         self.ID_field = ID_field
-        self.original_item_list = item_list.copy()
-
-    async def run(self):
-        await super().run()
-        self.sort_results()
-        return self.results
+        self.results = {}
 
     def batch_command_label(self, i, item):
         return item[self.ID_field]
 
     def extract_result_from_batch_response(self, unwrapped_result):
-        result_list_of_tuples = unwrapped_result.items()
-        return result_list_of_tuples
-
-    def sort_results(self):
-        # выделяем ID для облегчения дальнейшего поиска
-        IDs_only = [str(i[self.ID_field]) for i in self.original_item_list]
-
-        # сортируем results на базе порядка ID в original_item_list
-        self.results.sort(key=lambda item: IDs_only.index(item[0]))
+        self.results.update(unwrapped_result)
+        return len(unwrapped_result)

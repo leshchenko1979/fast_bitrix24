@@ -162,7 +162,7 @@ class TestBasic:
                 [{'id': 1}]
             )
 
-    def test_ID_list(self, get_test):
+    def test_get_by_ID_params(self, get_test):
         b = get_test
 
         with pytest.raises(TypeError, match='should be iterable'):
@@ -171,6 +171,16 @@ class TestBasic:
         with pytest.raises(TypeError,
                            match='should contain only ints or strs'):
             b.get_by_ID('_', [['a']])
+
+    def test_get_by_ID_results(self, create_100_leads):
+        b = create_100_leads
+
+        leads = b.get_all('crm.lead.list')
+        lead_IDs = [lead['ID'] for lead in leads[:10]]
+
+        leads = b.get_by_ID('crm.lead.get', lead_IDs)
+        assert isinstance(leads, dict)
+
 
 class TestLongRequests:
 
@@ -198,7 +208,7 @@ class TestParamsEncoding:
                 }]
             }
         })
-        __, lead = b.get_by_ID('crm.lead.get', [lead_no])[0]
+        lead = b.get_by_ID('crm.lead.get', [lead_no])[str(lead_no)]
 
         try:
             assert lead['PHONE'][0]['VALUE_TYPE'] == 'MOBILE'
