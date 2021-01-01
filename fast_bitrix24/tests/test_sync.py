@@ -181,6 +181,19 @@ class TestBasic:
         leads = b.get_by_ID('crm.lead.get', lead_IDs)
         assert isinstance(leads, dict)
 
+    def test_call(self, get_test):
+        b = get_test
+
+        delete_ID = b.call('crm.lead.add', {'fields': {'NAME': 'Bob'}})
+        b.call('crm.lead.delete', {'ID': delete_ID})
+
+        delete_IDs = b.call('crm.lead.add', [
+            {'fields': {'NAME': 'Bob'}},
+            {'fields': {'NAME': 'Jake'}},
+        ])
+        b.call('crm.lead.delete', [{'ID': ID} for ID in delete_IDs])
+
+        b.call('crm.lead.delete', [])
 
 class TestLongRequests:
 
