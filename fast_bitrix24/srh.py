@@ -32,7 +32,6 @@ class ServerRequestHandler():
 
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
-        self.slow = False
 
         self.active_runs = 0
         self.session = None
@@ -106,11 +105,8 @@ class ServerRequestHandler():
     async def _acquire(self):
         '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
 
-        if self.slow:
-            await asyncio.sleep(1 / self.requests_per_second)
-
         # если пул заполнен, ждать
-        elif len(self.rr) >= self.pool_size:
+        if len(self.rr) >= self.pool_size:
             time_from_last_request = time.monotonic() - self.rr[0]
             time_to_wait = 1 / self.requests_per_second - \
                 time_from_last_request

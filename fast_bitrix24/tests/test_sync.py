@@ -1,5 +1,4 @@
 import pytest
-from time import monotonic
 
 from ..utils import http_build_query
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
@@ -88,18 +87,6 @@ class TestBasic:
             b.get_all('some_method', {
                 'filter': 3
             })
-
-    @pytest.mark.asyncio
-    async def test_slow(self, get_test):
-        b = get_test
-
-        t1 = monotonic()
-        with b.slow(10):
-            for _ in range(5):
-                await b.srh._acquire()
-        t2 = monotonic()
-
-        assert 0.5 < t2 - t1 < 0.6
 
     def test_case(self, get_test):
         b = get_test
