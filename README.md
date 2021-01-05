@@ -37,7 +37,7 @@ pip install fast_bitrix24
 Далее в python:
 
 ```python
-from fast_bitrix24 import *
+from fast_bitrix24 import Bitrix
 
 # замените на ваш вебхук для доступа к Bitrix24
 webhook = "https://your_domain.bitrix24.ru/rest/1/your_code/"
@@ -63,9 +63,11 @@ users = b.get_all('user.get')
 
 ```python
 # список сделок в работе, включая пользовательские поля
-deals = b.get_all('crm.deal.list', params={
-    'select': ['*', 'UF_*'],
-    'filter': {'CLOSED': 'N'}
+deals = b.get_all(
+    'crm.deal.list',
+    params={
+        'select': ['*', 'UF_*'],
+        'filter': {'CLOSED': 'N'}
 })
 ```
 
@@ -83,7 +85,8 @@ deals = b.get_all('crm.deal.list', params={
 }
 '''
 
-contacts = b.get_by_ID('crm.deal.contact.items.get',
+contacts = b.get_by_ID(
+    'crm.deal.contact.items.get',
     [d['ID'] for d in deals])
 ```
 Метод `get_by_ID()` возвращает словарь с элементами вида `ID: result`, где `result` - ответ сервера относительно этого `ID`.
@@ -150,7 +153,7 @@ leads = await b.get_all('crm.lead.list')
 ### Как Битрикс24 ограничивает скорость запросов
 1. Существует пул из 50 запросов, которые можно направить без ожидания.
 2. Пул пополняется со скоростью 2 запроса в секунду.
-3. При исчерпании пула и несоблюдении режима ожидания сервер выдаёт ответ `403 Too Many Requests`.
+3. При исчерпании пула и несоблюдении режима ожидания сервер выдаёт ответ `429 Too Many Requests`.
 
 ## Подробный справочник по классу `Bitrix`
 Объект класса `Bitrix` создаётся, чтобы через него выполнять все запросы к серверу Битрикс24.
@@ -185,11 +188,12 @@ leads = await b.get_all('crm.lead.list')
 Например, чтобы получить все контакты, привязанные к сделкам в работе, нужно выполнить следующий код:
 
 ```python
-deals = b.get_all('crm.deal.list', params={
-    'filter': {'CLOSED': 'N'}
-})
+deals = b.get_all(
+    'crm.deal.list',
+    params={'filter': {'CLOSED': 'N'}})
 
-contacts = b.get_by_ID('crm.deal.contact.item.get',
+contacts = b.get_by_ID(
+    'crm.deal.contact.item.get',
     [d['ID'] for d in deals])
 ```
 
@@ -241,7 +245,7 @@ contacts = b.get_by_ID('crm.deal.contact.item.get',
 Поддерживается примение результатов выполнения одной команды в следующей при помощи ключевого слова `$result`:
 
 ```python
-results = b.call_batch ({
+results = b.call_batch({
     'halt': 0,
     'cmd': {
         'deals': 'crm.deal.list', # берем список сделок
@@ -309,9 +313,7 @@ with b.slow():
 
 ```python
 method = 'crm.lead.add'
-params = {'fields': {
-    'TITLE': 'Чпок'
-}}
+params = {'fields': {'TITLE': 'Чпок'}}
 b.call(method, params)
 ```
 Результатом будет ответ сервера по этому одному элементу.
