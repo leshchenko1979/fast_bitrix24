@@ -78,15 +78,3 @@ class TestAcquire:
         await assert_time_acquire(bitrix, 10, 0)
         await asyncio.sleep(0.3)
         await assert_time_acquire(bitrix, 10, 0.7)
-
-    @pytest.mark.asyncio
-    async def test_acquire_slow_and_then_fast_and_then_slow_again(self):
-        bitrix = get_custom_bitrix(10, 10)
-
-        async with bitrix.slow(10):
-            await assert_time_acquire(bitrix, 5, 0.5)
-
-        await assert_time_acquire(bitrix, 15, 1)
-
-        async with bitrix.slow(10):
-            await assert_time_acquire(bitrix, 5, 0.5)

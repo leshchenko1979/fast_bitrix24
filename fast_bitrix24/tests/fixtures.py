@@ -41,7 +41,7 @@ def create_100_leads(get_test) -> Bitrix:
         leads = b.get_all('crm.lead.list', {'select': ['ID']})
         b.get_by_ID('crm.lead.delete', [lead['ID'] for lead in leads])
 
-    with b.slow(1.2):
+    with b.slow(5):
         lead_nos = b.call('crm.lead.add', [{
             'fields': {
                 'NAME': f'Customer #{n}',
@@ -82,7 +82,7 @@ async def create_100_leads_async(get_test_async) -> BitrixAsync:
         leads = await b.get_all('crm.lead.list', {'select': ['ID']})
         await b.get_by_ID('crm.lead.delete', [lead['ID'] for lead in leads])
 
-    async with b.slow(1.2):
+    async with b.slow(5):
         lead_nos = await b.call('crm.lead.add', [{
             'fields': {
                 'NAME': f'Customer #{n}',
