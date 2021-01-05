@@ -1,5 +1,4 @@
 import pytest
-from time import monotonic
 
 from ..utils import http_build_query
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
@@ -70,50 +69,6 @@ class TestBasic:
         assert len(result) == 1
         assert len(result['1']) == 50
 
-    @pytest.mark.skip
-    def test_batch_issue_85(self, get_test):
-
-        b = get_test
-
-        count = 2352
-        result = []
-
-        def prepare_batch():
-
-            nonlocal count
-
-            name = 'Test_user'
-            email = '@3.ru'
-
-            payload = {
-                'halt': 0,
-                'cmd': {}
-            }
-
-            for _ in range(50):
-                command = 'crm.lead.add?'
-                command += f'NAME={name+str(count)}'
-                command += f'&EMAIL={str(count)+email}'
-                command += '&UF_DEPARTMENT=11'
-                command += f'&UF_PHONE_INNER={count}'
-
-                payload['cmd']['add_user'+str(count)] = command
-
-                count += 1
-
-            return payload
-
-        try:
-            for _ in range(10):
-                payload = prepare_batch()
-                r = b.call_batch(payload)
-                result.extend(r.values())
-
-        finally:
-            assert len(result) == 500
-            assert len(result) == len(set(result))  # все ID уникальные
-            b.call('crm.lead.delete', [{'ID': r} for r in result])
-
     def test_param_errors(self, get_test):
         b = get_test
 
@@ -132,18 +87,6 @@ class TestBasic:
             b.get_all('some_method', {
                 'filter': 3
             })
-
-    @pytest.mark.asyncio
-    async def test_slow(self, get_test):
-        b = get_test
-
-        t1 = monotonic()
-        with b.slow(10):
-            for _ in range(5):
-                await b.srh._acquire()
-        t2 = monotonic()
-
-        assert 0.5 < t2 - t1 < 0.6
 
     def test_case(self, get_test):
         b = get_test
@@ -194,6 +137,7 @@ class TestBasic:
         b.call('crm.lead.delete', [{'ID': ID} for ID in delete_IDs])
 
         b.call('crm.lead.delete', [])
+
 
 class TestLongRequests:
 
@@ -276,6 +220,7 @@ class TestParamsEncoding:
 
         assert len(product_rows) == len(result_rows)
 
+
 class TestHttpBuildQuery:
 
     def test_original(self):
@@ -318,14 +263,3 @@ class TestHttpBuildQuery:
 
         test = http_build_query(d)
         assert test == 'FILTER[%21STATUS_ID]=CLOSED&'
-
-
-@pytest.mark.skip
-def test_issue_93(create_a_deal):
-    b, deal_no = create_a_deal
-    b.get_all('crm.documentgenerator.document.list', params={
-        'filter': {
-            'entityId': deal_no,
-            'entityTypeId': 2
-        }
-    })

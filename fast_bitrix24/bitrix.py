@@ -1,5 +1,6 @@
 '''Высокоуровневый API для доступа к Битрикс24'''
 
+from asyncio import Semaphore
 from contextlib import contextmanager, asynccontextmanager
 from typing import Iterable, Union
 
@@ -100,8 +101,8 @@ class Bitrix:
                 raise TypeError
         except TypeError:
             raise TypeError(
-                f'call() accepts either an iterable of params dicts or '
-                f'a single params dict')
+                'call() accepts either an iterable of params dicts or '
+                'a single params dict')
 
         is_single_item = isinstance(items, dict)
         item_list = [items] if is_single_item else items
@@ -125,11 +126,19 @@ class Bitrix:
         return self.srh.run(BatchUserRequest(self.srh, params).run())
 
     @contextmanager
-    def slow(self, requests_per_second=0.5):
-        rps_backup = self.srh.requests_per_second
-        self.srh.requests_per_second, self.srh.slow = requests_per_second, True
+    def slow(self, max_concurrent_requests: int = 1):
+        '''Временно ограничивает количество одновременно выполняемых запросов
+        к Битрикс24.'''
+
+        if not isinstance(max_concurrent_requests, int):
+            raise 'slow() argument should be only int'
+        if max_concurrent_requests < 1:
+            raise 'slow() argument should be >= 1'
+
+        sem_backup = self.srh.concurrent_requests_sem
+        self.srh.concurrent_requests_sem = Semaphore(max_concurrent_requests)
         yield True
-        self.srh.requests_per_second, self.srh.slow = rps_backup, False
+        self.srh.concurrent_requests_sem = sem_backup
 
 
 class BitrixAsync:
@@ -149,7 +158,8 @@ class BitrixAsync:
 
         self.srh = ServerRequestHandler(webhook, verbose)
 
-    async def get_all(self, method: str, params: dict = None) -> Union[list, dict]:
+    async def get_all(self, method: str, params: dict = None) -> \
+            Union[list, dict]:
         '''
         Получить полный список сущностей по запросу `method`.
 
@@ -225,8 +235,8 @@ class BitrixAsync:
                 raise TypeError
         except TypeError:
             raise TypeError(
-                f'call() accepts either an iterable of params dicts or '
-                f'a single params dict')
+                'call() accepts either an iterable of params dicts or '
+                'a single params dict')
 
         is_single_item = isinstance(items, dict)
         item_list = [items] if is_single_item else items
@@ -251,8 +261,16 @@ class BitrixAsync:
             BatchUserRequest(self.srh, params).run())
 
     @asynccontextmanager
-    async def slow(self, requests_per_second=0.5):
-        rps_backup = self.srh.requests_per_second
-        self.srh.requests_per_second, self.srh.slow = requests_per_second, True
+    async def slow(self, max_concurrent_requests: int = 1):
+        '''Временно ограничивает количество одновременно выполняемых запросов
+        к Битрикс24.'''
+
+        if not isinstance(max_concurrent_requests, int):
+            raise 'slow() argument should be only int'
+        if max_concurrent_requests < 1:
+            raise 'slow() argument should be >= 1'
+
+        sem_backup = self.srh.concurrent_requests_sem
+        self.srh.concurrent_requests_sem = Semaphore(max_concurrent_requests)
         yield True
-        self.srh.requests_per_second, self.srh.slow = rps_backup, False
+        self.srh.concurrent_requests_sem = sem_backup
