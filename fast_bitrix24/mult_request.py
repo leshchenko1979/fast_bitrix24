@@ -53,8 +53,8 @@ class MultipleServerRequestHandler:
                 break
 
     def generate_a_task(self):
-        '''По одной создаем и возвращаем задачи asyncio с запросами к серверу
-        для каждого элемента item_list.'''
+        '''Объединяем элементы item_list в батчи и по одной создаем и
+        возвращаем задачи asyncio с запросами к серверу для каждого батча.'''
 
         batches = [{
             'halt': 0,
