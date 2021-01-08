@@ -1,10 +1,10 @@
-import itertools
-from asyncio import ensure_future, as_completed
+from asyncio import ensure_future, wait
+from itertools import chain
 
-import more_itertools
+from more_itertools import chunked
 
 from .server_response import ServerResponse
-from .srh import ServerRequestHandler, BITRIX_MAX_BATCH_SIZE
+from .srh import BITRIX_MAX_BATCH_SIZE, ServerRequestHandler
 from .utils import http_build_query
 
 
@@ -20,13 +20,41 @@ class MultipleServerRequestHandler:
         self.results = []
 
     async def run(self):
-        self.prepare_batches()
-        self.prepare_tasks()
-        await self.get_results()
+        self.pbar = self.srh.get_pbar(self.real_len, self.real_start)
+
+        self.task_iterator = self.generate_a_task()
+        self.tasks = set()
+        self.top_up_tasks()
+
+        while self.tasks:
+            done, _ = await wait(self.tasks)
+
+            for done_task in done:
+                batch_response = done_task.result()
+                unwrapped_result = ServerResponse(batch_response.result).result
+                extracted_len = self.extract_result_from_batch_response(
+                    unwrapped_result)
+                self.pbar.update(extracted_len)
+
+            self.tasks -= done
+            self.top_up_tasks()
+
+        self.pbar.close()
         return self.results
 
-    def prepare_batches(self):
-        batch_size = BITRIX_MAX_BATCH_SIZE
+    def top_up_tasks(self):
+        '''Добавляем в self.tasks столько задач, сколько свободных слотов для
+        запросов есть сейчас в self.srh.'''
+
+        while len(self.tasks) < self.srh.concurrent_requests_sem._value:
+            try:
+                self.tasks.add(next(self.task_iterator))
+            except StopIteration:
+                break
+
+    def generate_a_task(self):
+        '''По одной создаем и возвращаем задачи asyncio с запросами к серверу
+        для каждого элемента item_list.'''
 
         batches = [{
             'halt': 0,
@@ -35,40 +63,20 @@ class MultipleServerRequestHandler:
                 f'{self.method}?{http_build_query(item)}'
                 for i, item in enumerate(next_batch)
             }}
-            for next_batch in more_itertools.chunked(self.item_list,
-                                                     batch_size)
-        ]
+            for next_batch in chunked(self.item_list, BITRIX_MAX_BATCH_SIZE)]
 
-        self.method = 'batch'
-        self.item_list = batches
+        for batch in batches:
+            yield ensure_future(self.srh.single_request('batch', batch))
 
     def batch_command_label(self, i, item):
         return f'cmd{i}'
-
-    def prepare_tasks(self):
-        self.tasks = []
-        for item in self.item_list:
-            self.tasks.append(ensure_future(
-                self.srh.single_request(self.method, item)))
-
-    async def get_results(self):
-        self.pbar = self.srh.get_pbar(self.real_len, self.real_start)
-
-        for task in as_completed(self.tasks):
-            batch_response = await task
-            unwrapped_result = ServerResponse(batch_response.result).result
-            extracted = self.extract_result_from_batch_response(
-                unwrapped_result)
-            self.pbar.update(extracted)
-
-        self.pbar.close()
 
     def extract_result_from_batch_response(self, unwrapped_result):
         '''Добавляет `unwrapped_result` в `self.results` и возвращает
         длину добавленного списка результатов'''
         result_list = list(unwrapped_result.values())
         if type(result_list[0]) == list:
-            result_list = list(itertools.chain(*result_list))
+            result_list = list(chain(*result_list))
         self.results.extend(result_list)
         return len(result_list)
 
