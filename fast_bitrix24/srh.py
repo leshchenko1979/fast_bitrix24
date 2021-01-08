@@ -4,15 +4,22 @@ from collections import deque
 from contextlib import asynccontextmanager
 
 import aiohttp
+from aiohttp.client_exceptions import (ClientPayloadError, ClientResponseError,
+                                       ServerDisconnectedError)
 from tqdm import tqdm
 
 from .server_response import ServerResponse
-from .utils import _url_valid
+from .utils import _url_valid, retry
+
 
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
 BITRIX_MAX_BATCH_SIZE = 50
 BITRIX_MAX_CONCURRENT_REQUESTS = 20
+
+
+class ServerError(Exception):
+    pass
 
 
 class ServerRequestHandler():
@@ -91,18 +98,24 @@ class ServerRequestHandler():
         if not self.active_runs and self.session and not self.session.closed:
             await self.session.close()
 
+    @retry(exceptions=[ClientPayloadError, ServerDisconnectedError,
+                       ServerError])
     async def single_request(self, method, params=None):
         '''Делает единичный запрос к серверу, ожидая при необходимости.'''
 
-        await self._acquire()
+        try:
+            async with self.concurrent_requests_sem, self.acquire(), \
+                    self.session.post(url=self.webhook + method, json=params) \
+                    as response:
+                return ServerResponse(await response.json(encoding='utf-8'))
+        except ClientResponseError as error:
+            if error.status // 100 == 5:  # ошибки вида 5XX
+                raise ServerError('The server returned an error') from error
+            else:
+                raise
 
-        async with self.concurrent_requests_sem, self.session.post(
-                url=self.webhook + method, json=params) as response:
-            r = await response.json(encoding='utf-8')
-
-        return ServerResponse(r)
-
-    async def _acquire(self):
+    @asynccontextmanager
+    async def acquire(self):
         '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
 
         # если пул заполнен, ждать
@@ -114,17 +127,16 @@ class ServerRequestHandler():
                 await asyncio.sleep(time_to_wait)
 
         # зарегистрировать запрос в очереди
-
         cur_time = time.monotonic()
         self.rr.appendleft(cur_time)
 
-        # подчистить пул
+        # отдать управление
+        yield
 
+        # подчистить пул
         trim_time = cur_time - self.pool_size / self.requests_per_second
         while self.rr and self.rr[len(self.rr) - 1] < trim_time:
             self.rr.pop()
-
-        return
 
     def get_pbar(self, real_len, real_start):
         '''Возвращает прогресс бар `tqdm()` или пустышку,
