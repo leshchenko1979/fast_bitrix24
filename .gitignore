@@ -130,3 +130,4 @@ dmypy.json
 .pypirc
 tests_private/**
 .vscode/settings.json
+fast_bitrix24/tests/strategies.py
