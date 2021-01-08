@@ -52,7 +52,7 @@ async def assert_time_acquire(bitrix, acquire_amount, time_expected):
     t1 = monotonic()
 
     for _ in range(acquire_amount):
-        with bitrix.srh.acquire():
+        async with bitrix.srh.acquire():
             pass
 
     t2 = monotonic()
