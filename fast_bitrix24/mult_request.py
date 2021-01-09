@@ -1,4 +1,4 @@
-from asyncio import ensure_future, wait
+from asyncio import FIRST_COMPLETED, ensure_future, wait
 from itertools import chain
 
 from more_itertools import chunked
@@ -27,7 +27,7 @@ class MultipleServerRequestHandler:
         self.top_up_tasks()
 
         while self.tasks:
-            done, _ = await wait(self.tasks)
+            done, _ = await wait(self.tasks, return_when=FIRST_COMPLETED)
 
             for done_task in done:
                 batch_response = done_task.result()
@@ -39,6 +39,11 @@ class MultipleServerRequestHandler:
             self.tasks -= done
             self.top_up_tasks()
 
+#            self.pbar.set_postfix({
+#                'max. requests': self.srh.mcr_cur_limit,
+#                'requests': self.srh.concurrent_requests,
+#                'tasks': len(self.tasks)})
+
         self.pbar.close()
         return self.results
 
@@ -46,7 +51,8 @@ class MultipleServerRequestHandler:
         '''Добавляем в self.tasks столько задач, сколько свободных слотов для
         запросов есть сейчас в self.srh.'''
 
-        while len(self.tasks) < self.srh.concurrent_requests_sem._value:
+        to_add = max(self.srh.mcr_cur_limit - self.srh.concurrent_requests, 0)
+        for _ in range(to_add):
             try:
                 self.tasks.add(next(self.task_iterator))
             except StopIteration:

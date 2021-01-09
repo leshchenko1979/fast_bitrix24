@@ -171,10 +171,12 @@ class Bitrix:
         if max_concurrent_requests < 1:
             raise 'slow() argument should be >= 1'
 
-        sem_backup = self.srh.concurrent_requests_sem
-        self.srh.concurrent_requests_sem = Semaphore(max_concurrent_requests)
+        mcr_max_backup, self.srh.mcr_max = \
+            self.srh.mcr_max, max_concurrent_requests
+
         yield True
-        self.srh.concurrent_requests_sem = sem_backup
+
+        self.srh.mcr_max = mcr_max_backup
 
 
 class BitrixAsync:
@@ -344,7 +346,9 @@ class BitrixAsync:
         if max_concurrent_requests < 1:
             raise 'slow() argument should be >= 1'
 
-        sem_backup = self.srh.concurrent_requests_sem
-        self.srh.concurrent_requests_sem = Semaphore(max_concurrent_requests)
+        mcr_max_backup, self.srh.mcr_max = \
+            self.srh.mcr_max, max_concurrent_requests
+
         yield True
-        self.srh.concurrent_requests_sem = sem_backup
+
+        self.srh.mcr_max = mcr_max_backup
