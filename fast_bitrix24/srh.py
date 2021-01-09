@@ -104,9 +104,8 @@ class ServerRequestHandler():
         '''Делает единичный запрос к серверу, ожидая при необходимости.'''
 
         try:
-            async with self.concurrent_requests_sem, self.acquire(), \
-                    self.session.post(url=self.webhook + method, json=params) \
-                    as response:
+            async with self.acquire(), self.session.post(
+                    url=self.webhook + method, json=params) as response:
                 return ServerResponse(await response.json(encoding='utf-8'))
         except ClientResponseError as error:
             if error.status // 100 == 5:  # ошибки вида 5XX
@@ -118,6 +117,7 @@ class ServerRequestHandler():
     async def acquire(self):
         '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
 
+        with self.concurrent_requests_sem:
         # если пул заполнен, ждать
         if len(self.rr) >= self.pool_size:
             time_from_last_request = time.monotonic() - self.rr[0]
