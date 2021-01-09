@@ -150,46 +150,50 @@ class ServerRequestHandler():
                 time_to_wait = 1 / self.requests_per_second - \
                     time_from_last_request
                 if time_to_wait > 0:
-                    await asyncio.sleep(time_to_wait)
+                    await sleep(time_to_wait)
 
             # зарегистрировать запрос в очереди
             cur_time = time.monotonic()
             self.rr.appendleft(cur_time)
 
             # отдать управление
-            yield
+            try:
+                yield
 
             # подчистить пул
-            trim_time = cur_time - self.pool_size / self.requests_per_second
-            while self.rr and self.rr[len(self.rr) - 1] < trim_time:
-                self.rr.pop()
+            finally:
+                trim_time = cur_time - \
+                    self.pool_size / self.requests_per_second
+                while self.rr and self.rr[len(self.rr) - 1] < trim_time:
+                    self.rr.pop()
 
     def autothrottle(self):
         '''Если было несколько неудач, уменьшай скорость и количество
         одновременных запросов, и наоборот.'''
 
         if self.successive_results > 0:
-            self.mcr_cur_limit = min(int(self.mcr_cur_limit * 1.5),
-                                     self.mcr_max)
+            self.mcr_cur_limit = max(2, min(int(self.mcr_cur_limit * 1.5),
+                                            self.mcr_max))
         elif self.successive_results < 0:
-            self.mcr_cur_limit = max(self.mcr_cur_limit // 1.5, 1)
+            self.mcr_cur_limit = max(int(self.mcr_cur_limit // 1.5), 1)
 
     @asynccontextmanager
     async def limit_concurrent_requests(self):
         '''Не позволяет оновременно выполнять
         более `self.mcr_cur_limit` запросов.'''
 
-        self.request_complete.clear()
-
         while self.concurrent_requests > self.mcr_cur_limit:
+            self.request_complete.clear()
             await self.request_complete.wait()
 
         self.concurrent_requests += 1
 
-        yield
+        try:
+            yield
 
-        self.concurrent_requests -= 1
-        self.request_complete.set()
+        finally:
+            self.concurrent_requests -= 1
+            self.request_complete.set()
 
     def get_pbar(self, real_len, real_start):
         '''Возвращает прогресс бар `tqdm()` или пустышку,
