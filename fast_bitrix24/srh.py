@@ -17,6 +17,10 @@ BITRIX_RPS = 2.0
 BITRIX_MAX_BATCH_SIZE = 50
 BITRIX_MAX_CONCURRENT_REQUESTS = 20
 
+RETRIES = 3
+INITIAL_TIMEOUT = 1
+BACKOFF = 3
+
 
 class ServerError(Exception):
     pass
@@ -99,9 +103,13 @@ class ServerRequestHandler():
             await self.session.close()
 
     @retry(exceptions=[ClientPayloadError, ServerDisconnectedError,
-                       ServerError])
+                       ServerError],
+           total_tries=RETRIES,
+           initial_wait=INITIAL_TIMEOUT,
+           backoff_factor=BACKOFF)
     async def single_request(self, method, params=None):
-        '''Делает единичный запрос к серверу, ожидая при необходимости.'''
+        '''Делает единичный запрос к серверу, ожидая и повторяя
+        при необходимости.'''
 
         try:
             async with self.acquire(), self.session.post(
@@ -118,25 +126,25 @@ class ServerRequestHandler():
         '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
 
         with self.concurrent_requests_sem:
-        # если пул заполнен, ждать
-        if len(self.rr) >= self.pool_size:
-            time_from_last_request = time.monotonic() - self.rr[0]
-            time_to_wait = 1 / self.requests_per_second - \
-                time_from_last_request
-            if time_to_wait > 0:
-                await asyncio.sleep(time_to_wait)
+            # если пул заполнен, ждать
+            if len(self.rr) >= self.pool_size:
+                time_from_last_request = time.monotonic() - self.rr[0]
+                time_to_wait = 1 / self.requests_per_second - \
+                    time_from_last_request
+                if time_to_wait > 0:
+                    await asyncio.sleep(time_to_wait)
 
-        # зарегистрировать запрос в очереди
-        cur_time = time.monotonic()
-        self.rr.appendleft(cur_time)
+            # зарегистрировать запрос в очереди
+            cur_time = time.monotonic()
+            self.rr.appendleft(cur_time)
 
-        # отдать управление
-        yield
+            # отдать управление
+            yield
 
-        # подчистить пул
-        trim_time = cur_time - self.pool_size / self.requests_per_second
-        while self.rr and self.rr[len(self.rr) - 1] < trim_time:
-            self.rr.pop()
+            # подчистить пул
+            trim_time = cur_time - self.pool_size / self.requests_per_second
+            while self.rr and self.rr[len(self.rr) - 1] < trim_time:
+                self.rr.pop()
 
     def get_pbar(self, real_len, real_start):
         '''Возвращает прогресс бар `tqdm()` или пустышку,
