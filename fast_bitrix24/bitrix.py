@@ -8,7 +8,8 @@ from typing import Iterable, Union
 from . import correct_asyncio
 from .srh import ServerRequestHandler
 from .user_request import (BatchUserRequest, CallUserRequest,
-                           GetAllUserRequest, GetByIDUserRequest)
+                           GetAllUserRequest, GetByIDUserRequest,
+                           ListAndGetUserRequest)
 
 
 class Bitrix:
@@ -107,16 +108,7 @@ class Bitrix:
         ```
         '''
 
-        if not isinstance(method_branch, str):
-            raise TypeError('"method_branch" should be a str')
-
-        if re.search(r'(\.list|\.get)$', method_branch.strip().lower()):
-            raise ValueError(
-                '"method_branch" should not end in ".list" or ".get"')
-
-        IDs = self.get_all(method_branch + '.list', params={'select': ['ID']})
-
-        return self.get_by_ID(method_branch + '.get', [x['ID'] for x in IDs])
+        return self.srh.run(ListAndGetUserRequest(self.srh, method_branch).run())
 
     def call(self, method: str, items: Union[dict, Iterable]):
         '''
@@ -279,18 +271,7 @@ class BitrixAsync:
         ```
         '''
 
-        if not isinstance(method_branch, str):
-            raise TypeError('"method_branch" should be a str')
-
-        if re.search(r'(\.list|\.get)$', method_branch.strip().lower()):
-            raise ValueError(
-                '"method_branch" should not end in ".list" or ".get"')
-
-        IDs = await self.get_all(
-            method_branch + '.list', params={'select': ['ID']})
-
-        return await self.get_by_ID(
-            method_branch + '.get', [x['ID'] for x in IDs])
+        return await ListAndGetUserRequest(self.srh, method_branch).run()
 
     async def call(self, method: str, items: Union[dict, Iterable]):
         '''

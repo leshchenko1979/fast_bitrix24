@@ -197,7 +197,7 @@ class ServerRequestHandler():
 
     def get_pbar(self, real_len, real_start):
         '''Возвращает прогресс бар `tqdm()` или пустышку,
-        если `self.verbose is False`.'''
+        если `self._verbose is False`.'''
 
         class MutePBar():
 
@@ -211,3 +211,11 @@ class ServerRequestHandler():
             return tqdm(total=real_len, initial=real_start)
         else:
             return MutePBar()
+
+    @asynccontextmanager
+    async def no_pbar(self):
+        verbose_backup, self._verbose = self._verbose, False
+        try:
+            yield
+        finally:
+            self._verbose = verbose_backup

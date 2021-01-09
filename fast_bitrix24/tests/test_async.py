@@ -18,6 +18,7 @@ class TestAsync:
 
         leads = await b.get_all('crm.lead.list')
         await b.get_by_ID('crm.lead.list', [lead['ID'] for lead in leads])
+        await b.list_and_get('crm.lead')
         await b.call('crm.lead.get', {'ID': leads[0]['ID']})
         await b.call_batch({
             'halt': 0,

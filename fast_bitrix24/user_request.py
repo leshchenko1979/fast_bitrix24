@@ -1,8 +1,8 @@
 import pickle
-from typing import Iterable
+import re
 import warnings
 from collections import ChainMap
-from collections.abc import Sequence
+from typing import Iterable
 
 from .mult_request import (MultipleServerRequestHandler,
                            MultipleServerRequestHandlerPreserveIDs)
@@ -12,7 +12,7 @@ from .srh import ServerRequestHandler
 BITRIX_PAGE_SIZE = 50
 
 
-class UserRequestAbstract():
+class UserRequestAbstract(object):
 
     def __init__(self, srh: ServerRequestHandler, method: str,
                  params: dict = None):
@@ -265,3 +265,31 @@ class BatchUserRequest(UserRequestAbstract):
     async def run(self):
         response = await self.srh.single_request(self.method, self.params)
         return ServerResponse(response.result).result
+
+
+class ListAndGetUserRequest(object):
+
+    def __init__(self, srh: ServerRequestHandler, method_branch):
+        self.srh = srh
+        self.method_branch = method_branch
+
+    async def run(self):
+        if not isinstance(self.method_branch, str):
+            raise TypeError('"method_branch" should be a str')
+
+        if re.search(r'(\.list|\.get)$', self.method_branch.strip().lower()):
+            raise ValueError(
+                '"method_branch" should not end in ".list" or ".get"')
+
+        async with self.srh.no_pbar():
+            IDs = await self.srh.run_async(GetAllUserRequest(
+                self.srh,
+                self.method_branch + '.list',
+                params={'select': ['ID']}).run())
+
+        return await self.srh.run_async(GetByIDUserRequest(
+            srh=self.srh,
+            method=self.method_branch + '.get',
+            params=None,
+            ID_field_name='ID',
+            ID_list=[x['ID'] for x in IDs]).run())
