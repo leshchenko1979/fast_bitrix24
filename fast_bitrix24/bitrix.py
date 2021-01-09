@@ -1,7 +1,8 @@
 '''Высокоуровневый API для доступа к Битрикс24'''
 
+import re
 from asyncio import Semaphore
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from typing import Iterable, Union
 
 from . import correct_asyncio
@@ -73,7 +74,7 @@ class Bitrix:
         }
         ```
 
-        Значемнием элемента словаря будет результат выполнения запроса
+        Значением элемента словаря будет результат выполнения запроса
         относительно этого ID. Это может быть, например, список связанных
         сущностей или пустой список, если не найдено ни одной привязанной
         сущности.
@@ -81,6 +82,41 @@ class Bitrix:
 
         return self.srh.run(GetByIDUserRequest(
             self.srh, method, params, ID_list, ID_field_name).run())
+
+    def list_and_get(self, method_branch: str) -> dict:
+        '''
+        Скачать список всех ID при помощи метода *.list,
+        а затем все элементы при помощи метода *.get.
+
+        Подобный подход показывает на порядок большую скорость
+        получения данных, чем `get_all()`
+        с параметром `'select': ['*', 'UF_*']`.
+
+        Параметры:
+        * `method_branch: str` - группа методов к использованию, например,
+        `crm.lead` или `tasks.task`
+
+        Возвращает полное содержимое всех элементов в виде, используемом
+        функцией `get_by_ID()` - словарь следующего вида:
+        ```
+        {
+            ID_1: <словарь полей сущности с ID_1>,
+            ID_2: <словарь полей сущности с ID_2>,
+            ...
+        }
+        ```
+        '''
+
+        if not isinstance(method_branch, str):
+            raise TypeError('"method_branch" should be a str')
+
+        if re.search(r'(\.list|\.get)$', method_branch.strip().lower()):
+            raise ValueError(
+                '"method_branch" should not end in ".list" or ".get"')
+
+        IDs = self.get_all(method_branch + '.list', params={'select': ['ID']})
+
+        return self.get_by_ID(method_branch + '.get', [x['ID'] for x in IDs])
 
     def call(self, method: str, items: Union[dict, Iterable]):
         '''
@@ -135,10 +171,12 @@ class Bitrix:
         if max_concurrent_requests < 1:
             raise 'slow() argument should be >= 1'
 
-        sem_backup = self.srh.concurrent_requests_sem
-        self.srh.concurrent_requests_sem = Semaphore(max_concurrent_requests)
+        mcr_max_backup, self.srh.mcr_max = \
+            self.srh.mcr_max, max_concurrent_requests
+
         yield True
-        self.srh.concurrent_requests_sem = sem_backup
+
+        self.srh.mcr_max = mcr_max_backup
 
 
 class BitrixAsync:
@@ -199,15 +237,16 @@ class BitrixAsync:
         - `params` - параметры для передачи методу. Используется именно тот
             формат, который указан в документации к REST API Битрикс24
 
-        Возвращает список кортежей вида:
+        Возвращает словарь вида:
         ```
-            [
-                (ID, <результат запроса>),
-                (ID, <результат запроса>),
-                ...
-            ]
+        {
+            ID_1: <результат запроса 1>,
+            ID_2: <результат запроса 2>,
+            ...
+        }
         ```
-        Вторым элементом каждого кортежа будет результат выполнения запроса
+
+        Значением элемента словаря будет результат выполнения запроса
         относительно этого ID. Это может быть, например, список связанных
         сущностей или пустой список, если не найдено ни одной привязанной
         сущности.
@@ -215,6 +254,43 @@ class BitrixAsync:
 
         return await self.srh.run_async(GetByIDUserRequest(
             self.srh, method, params, ID_list, ID_field_name).run())
+
+    async def list_and_get(self, method_branch: str) -> dict:
+        '''
+        Скачать список всех ID при помощи метода *.list,
+        а затем все элементы при помощи метода *.get.
+
+        Подобный подход показывает на порядок большую скорость
+        получения данных, чем `get_all()`
+        с параметром `'select': ['*', 'UF_*']`.
+
+        Параметры:
+        * `method_branch: str` - группа методов к использованию, например,
+        `crm.lead` или `tasks.task`
+
+        Возвращает полное содержимое всех элементов в виде, используемом
+        функцией `get_by_ID()` - словарь следующего вида:
+        ```
+        {
+            ID_1: <словарь полей сущности с ID_1>,
+            ID_2: <словарь полей сущности с ID_2>,
+            ...
+        }
+        ```
+        '''
+
+        if not isinstance(method_branch, str):
+            raise TypeError('"method_branch" should be a str')
+
+        if re.search(r'(\.list|\.get)$', method_branch.strip().lower()):
+            raise ValueError(
+                '"method_branch" should not end in ".list" or ".get"')
+
+        IDs = await self.get_all(
+            method_branch + '.list', params={'select': ['ID']})
+
+        return await self.get_by_ID(
+            method_branch + '.get', [x['ID'] for x in IDs])
 
     async def call(self, method: str, items: Union[dict, Iterable]):
         '''
@@ -270,7 +346,9 @@ class BitrixAsync:
         if max_concurrent_requests < 1:
             raise 'slow() argument should be >= 1'
 
-        sem_backup = self.srh.concurrent_requests_sem
-        self.srh.concurrent_requests_sem = Semaphore(max_concurrent_requests)
+        mcr_max_backup, self.srh.mcr_max = \
+            self.srh.mcr_max, max_concurrent_requests
+
         yield True
-        self.srh.concurrent_requests_sem = sem_backup
+
+        self.srh.mcr_max = mcr_max_backup
