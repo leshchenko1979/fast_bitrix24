@@ -224,11 +224,16 @@ class ServerRequestHandler():
         если `self._verbose is False`.'''
 
         class MutePBar():
+            def __enter__(self):
+                return self
 
-            def update(self, i):
+            def __exit__(*args):
                 pass
 
-            def close(self):
+            def update(*args):
+                pass
+
+            def close(*args):
                 pass
 
         if self._verbose:
