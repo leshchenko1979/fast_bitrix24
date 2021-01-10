@@ -16,14 +16,14 @@ from .utils import _url_valid
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
 BITRIX_MAX_BATCH_SIZE = 50
-BITRIX_MAX_CONCURRENT_REQUESTS = 100
+BITRIX_MAX_CONCURRENT_REQUESTS = 50
 
 MAX_RETRIES = 10
 
 RESTORE_CONNECTIONS_FACTOR = 1.3  # скорость восстановления количества запросов
 DECREASE_CONNECTIONS_FACTOR = 3  # скорость уменьшения количества запросов
 INITIAL_TIMEOUT = 0.5  # начальный таймаут в секундах
-BACKOFF_FACTOR = 2  # основа расчета таймаута
+BACKOFF_FACTOR = 1.5  # основа расчета таймаута
 # количество ошибок, до достижения котрого таймауты не делаются
 NUM_FAILURES_NO_TIMEOUT = 3
 
