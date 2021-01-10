@@ -71,7 +71,8 @@ class ServerRequestHandler():
         # если отрицательное - количество последовательно полученных ошибок
         self.successive_results = 0
 
-    def _standardize_webhook(self, webhook):
+    @staticmethod
+    def _standardize_webhook(webhook):
         '''Приводит `webhook` к стандартному виду.'''
 
         if not isinstance(webhook, str):
