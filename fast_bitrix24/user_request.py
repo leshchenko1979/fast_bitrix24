@@ -298,9 +298,15 @@ class ListAndGetUserRequest(object):
                 self.method_branch + '.list',
                 params={'select': ['ID']}).run())
 
+        try:
+            ID_list = [x['ID'] for x in IDs]
+        except TypeError:
+            raise ValueError('Seems like list_and_get() cannot be used '
+                             f'with method branch "{self.method_branch}"')
+
         return await self.srh.run_async(GetByIDUserRequest(
             srh=self.srh,
             method=self.method_branch + '.get',
             params=None,
             ID_field_name='ID',
-            ID_list=[x['ID'] for x in IDs]).run())
+            ID_list=ID_list).run())

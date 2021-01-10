@@ -114,11 +114,14 @@ class ServerRequestHandler():
             self.session = aiohttp.ClientSession(raise_for_status=True)
         self.active_runs += 1
 
-        yield True
+        try:
+            yield True
 
-        self.active_runs -= 1
-        if not self.active_runs and self.session and not self.session.closed:
-            await self.session.close()
+        finally:
+            self.active_runs -= 1
+            if not self.active_runs and self.session and \
+                    not self.session.closed:
+                await self.session.close()
 
     async def single_request(self, method, params=None):
         '''Делает единичный запрос к серверу, повторяя при необходимости.'''
