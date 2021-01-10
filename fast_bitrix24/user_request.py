@@ -181,7 +181,7 @@ class GetByIDUserRequest(UserRequestAbstract):
                 raise TypeError(
                     "get_by_ID(): 'ID_list' should contain only ints or strs")
 
-    async def run(self):
+    async def run(self) -> dict:
         if self.list_empty():
             return []
 
@@ -221,15 +221,26 @@ class CallUserRequest(GetByIDUserRequest):
 
     def check_special_limitations(self):
         try:
-            iter(self.item_list)
+            if not (isinstance(self.item_list, dict) or
+                    all(isinstance(item, dict) for item in self.item_list)):
+                raise TypeError
         except TypeError:
-            raise TypeError("call(): 'item_list' should be iterable")
+            raise TypeError(
+                'call() accepts either an iterable of params dicts or '
+                'a single params dict')
 
     async def run(self):
-        results = await super().run()
 
-        # убираем поле с порядковым номером из результатов
-        return tuple() if self.list_empty() else tuple(results.values())
+        if self.list_empty():
+            return tuple()
+
+        is_single_item = isinstance(self.item_list, dict)
+        if is_single_item:
+            self.item_list = [self.item_list]
+
+        results = tuple((await super().run()).values())
+
+        return results[0] if is_single_item else results
 
     def list_empty(self):
         return len(self.item_list) == 0

@@ -1,7 +1,5 @@
 '''Высокоуровневый API для доступа к Битрикс24'''
 
-import re
-from asyncio import Semaphore
 from contextlib import asynccontextmanager, contextmanager
 from typing import Iterable, Union
 
@@ -61,7 +59,7 @@ class Bitrix:
         Параметры:
         - `method` - метод REST API для запроса к серверу
         - `ID_list` - список ID
-        - `ID_list_name` - название поля, которе будет подаваться в запрос для
+        - `ID_list_name` - название поля, которое будет подаваться в запрос для
             каждого элемента ID_list
         - `params` - параметры для передачи методу. Используется именно тот
             формат, который указан в документации к REST API Битрикс24
@@ -123,22 +121,7 @@ class Bitrix:
         либо просто результат для единичного вызова.
         '''
 
-        try:
-            if not (isinstance(items, dict) or
-                    all(isinstance(item, dict) for item in items)):
-                raise TypeError
-        except TypeError:
-            raise TypeError(
-                'call() accepts either an iterable of params dicts or '
-                'a single params dict')
-
-        is_single_item = isinstance(items, dict)
-        item_list = [items] if is_single_item else items
-
-        request = CallUserRequest(self.srh, method, item_list)
-        result = self.srh.run(request.run())
-
-        return result[0] if is_single_item else result
+        return self.srh.run(CallUserRequest(self.srh, method, items).run())
 
     def call_batch(self, params: dict) -> dict:
         '''
@@ -226,7 +209,7 @@ class BitrixAsync:
         Параметры:
         - `method` - метод REST API для запроса к серверу
         - `ID_list` - список ID
-        - `ID_list_name` - название поля, которе будет подаваться в запрос для
+        - `ID_list_name` - название поля, которое будет подаваться в запрос для
             каждого элемента ID_list
         - `params` - параметры для передачи методу. Используется именно тот
             формат, который указан в документации к REST API Битрикс24
@@ -288,22 +271,8 @@ class BitrixAsync:
         либо просто результат для единичного вызова.
         '''
 
-        try:
-            if not (isinstance(items, dict) or
-                    all(isinstance(item, dict) for item in items)):
-                raise TypeError
-        except TypeError:
-            raise TypeError(
-                'call() accepts either an iterable of params dicts or '
-                'a single params dict')
-
-        is_single_item = isinstance(items, dict)
-        item_list = [items] if is_single_item else items
-
-        request = CallUserRequest(self.srh, method, item_list)
-        result = await self.srh.run_async(request.run())
-
-        return result[0] if is_single_item else result
+        return await self.srh.run_async(
+            CallUserRequest(self.srh, method, items).run())
 
     async def call_batch(self, params: dict) -> dict:
         '''
