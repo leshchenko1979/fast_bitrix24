@@ -51,7 +51,8 @@ class MultipleServerRequestHandler:
         '''Добавляем в self.tasks столько задач, сколько свободных слотов для
         запросов есть сейчас в self.srh.'''
 
-        to_add = max(self.srh.mcr_cur_limit - self.srh.concurrent_requests, 0)
+        to_add = max(
+            int(self.srh.mcr_cur_limit) - self.srh.concurrent_requests, 0)
         for _ in range(to_add):
             try:
                 self.tasks.add(next(self.task_iterator))
