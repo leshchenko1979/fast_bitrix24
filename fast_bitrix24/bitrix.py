@@ -3,6 +3,8 @@
 from contextlib import asynccontextmanager, contextmanager
 from typing import Iterable, Union
 
+from tqdm import tqdm
+
 from . import correct_asyncio
 from .srh import ServerRequestHandler
 from .user_request import (BatchUserRequest, CallUserRequest,
@@ -10,22 +12,52 @@ from .user_request import (BatchUserRequest, CallUserRequest,
                            ListAndGetUserRequest)
 
 
-class Bitrix:
-    '''Клиент для запросов к серверу Битрикс24.'''
-
-    '''
-    Параметры:
-    - `webhook: str` - URL вебхука, полученного от сервера Битрикс
-    - `verbose: bool = True` - показывать ли прогрессбар при выполнении запроса
-    '''
+class BitrixAbstract(object):
 
     def __init__(self, webhook: str, verbose: bool = True):
         '''
         Создает объект класса Bitrix.
 
+        Параметры:
+        - `webhook: str` - URL вебхука, полученного от сервера Битрикс
+        - `verbose: bool = True` - показывать ли прогрессбар при выполнении
+        запроса
         '''
 
-        self.srh = ServerRequestHandler(webhook, verbose)
+        self.srh = ServerRequestHandler(webhook)
+        self.verbose = verbose
+
+    def get_pbar(self, real_len, real_start):
+        '''Возвращает прогресс бар `tqdm()` или пустышку,
+        если `self._verbose is False`.'''
+
+        if self.verbose:
+            return tqdm(total=real_len, initial=real_start)
+        else:
+            return MutePBar()
+
+    @asynccontextmanager
+    async def no_pbar(self):
+        verbose_backup, self.verbose = self.verbose, False
+        try:
+            yield
+        finally:
+            self.verbose = verbose_backup
+
+
+class MutePBar():
+    def __enter__(self):
+        return self
+
+    def __exit__(*args):
+        pass
+
+    def update(*args):
+        pass
+
+
+class Bitrix(BitrixAbstract):
+    '''Клиент для запросов к серверу Битрикс24.'''
 
     def get_all(self, method: str, params: dict = None) -> Union[list, dict]:
         '''
@@ -45,7 +77,7 @@ class Bitrix:
         согласно заданным методу и параметрам.
         '''
 
-        return self.srh.run(GetAllUserRequest(self.srh, method, params).run())
+        return self.srh.run(GetAllUserRequest(self, method, params).run())
 
     def get_by_ID(self, method: str, ID_list: Iterable,
                   ID_field_name: str = 'ID', params: dict = None) -> dict:
@@ -80,7 +112,7 @@ class Bitrix:
         '''
 
         return self.srh.run(GetByIDUserRequest(
-            self.srh, method, params, ID_list, ID_field_name).run())
+            self, method, params, ID_list, ID_field_name).run())
 
     def list_and_get(self, method_branch: str) -> dict:
         '''
@@ -106,7 +138,7 @@ class Bitrix:
         ```
         '''
 
-        return self.srh.run(ListAndGetUserRequest(self.srh, method_branch).run())
+        return self.srh.run(ListAndGetUserRequest(self, method_branch).run())
 
     def call(self, method: str, items: Union[dict, Iterable]):
         '''
@@ -121,7 +153,7 @@ class Bitrix:
         либо просто результат для единичного вызова.
         '''
 
-        return self.srh.run(CallUserRequest(self.srh, method, items).run())
+        return self.srh.run(CallUserRequest(self, method, items).run())
 
     def call_batch(self, params: dict) -> dict:
         '''
@@ -134,7 +166,7 @@ class Bitrix:
         команды, а значение - ответ сервера по этой команде.
         '''
 
-        return self.srh.run(BatchUserRequest(self.srh, params).run())
+        return self.srh.run(BatchUserRequest(self, params).run())
 
     @contextmanager
     def slow(self, max_concurrent_requests: int = 1):
@@ -156,22 +188,8 @@ class Bitrix:
         self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
 
 
-class BitrixAsync:
-    '''
-    Класс, повторяющий интерфейс класса `Bitrix`, но с асинхронными методами.
-
-    Параметры:
-    - `webhook: str` - URL вебхука, полученного от сервера Битрикс
-    - `verbose: bool = True` - показывать ли прогрессбар при выполнении запроса
-    '''
-
-    def __init__(self, webhook: str, verbose: bool = True):
-        '''
-        Создает объект класса Bitrix.
-
-        '''
-
-        self.srh = ServerRequestHandler(webhook, verbose)
+class BitrixAsync(BitrixAbstract):
+    '''Класс, повторяющий интерфейс класса `Bitrix`, но с асинхронными методами.'''
 
     async def get_all(self, method: str, params: dict = None) -> \
             Union[list, dict]:
@@ -194,7 +212,7 @@ class BitrixAsync:
         '''
 
         return await self.srh.run_async(
-            GetAllUserRequest(self.srh, method, params).run())
+            GetAllUserRequest(self, method, params).run())
 
     async def get_by_ID(self, method: str, ID_list: Iterable,
                         ID_field_name: str = 'ID',
@@ -230,7 +248,7 @@ class BitrixAsync:
         '''
 
         return await self.srh.run_async(GetByIDUserRequest(
-            self.srh, method, params, ID_list, ID_field_name).run())
+            self, method, params, ID_list, ID_field_name).run())
 
     async def list_and_get(self, method_branch: str) -> dict:
         '''
@@ -256,7 +274,7 @@ class BitrixAsync:
         ```
         '''
 
-        return await ListAndGetUserRequest(self.srh, method_branch).run()
+        return await ListAndGetUserRequest(self, method_branch).run()
 
     async def call(self, method: str, items: Union[dict, Iterable]):
         '''
@@ -272,7 +290,7 @@ class BitrixAsync:
         '''
 
         return await self.srh.run_async(
-            CallUserRequest(self.srh, method, items).run())
+            CallUserRequest(self, method, items).run())
 
     async def call_batch(self, params: dict) -> dict:
         '''
@@ -286,7 +304,7 @@ class BitrixAsync:
         '''
 
         return await self.srh.run_async(
-            BatchUserRequest(self.srh, params).run())
+            BatchUserRequest(self, params).run())
 
     @asynccontextmanager
     async def slow(self, max_concurrent_requests: int = 1):

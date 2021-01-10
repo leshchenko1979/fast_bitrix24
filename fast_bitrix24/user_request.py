@@ -14,9 +14,10 @@ BITRIX_PAGE_SIZE = 50
 
 class UserRequestAbstract(object):
 
-    def __init__(self, srh: ServerRequestHandler, method: str,
+    def __init__(self, bitrix, method: str,
                  params: dict = None):
-        self.srh = srh
+        self.bitrix = bitrix
+        self.srh: ServerRequestHandler = bitrix.srh
         self.method = method
         self.st_method = self.standardized_method(method)
         self.params = params
@@ -134,7 +135,7 @@ class GetAllUserRequest(UserRequestAbstract):
             for start in range(len(self.results), self.total, BITRIX_PAGE_SIZE)
         )
         remaining_results = await MultipleServerRequestHandler(
-                self.srh,
+                self.bitrix,
                 method=self.method,
                 item_list=item_list,
                 real_len=self.total,
@@ -160,11 +161,11 @@ class GetAllUserRequest(UserRequestAbstract):
 
 class GetByIDUserRequest(UserRequestAbstract):
 
-    def __init__(self, srh: ServerRequestHandler, method: str, params: dict,
+    def __init__(self, bitrix, method: str, params: dict,
                  ID_list: Iterable, ID_field_name: str):
         self.ID_list = ID_list
         self.ID_field_name = ID_field_name.strip()
-        super().__init__(srh, method, params)
+        super().__init__(bitrix, method, params)
 
     def check_special_limitations(self):
         if self.st_params and 'ID' in self.st_params.keys():
@@ -188,7 +189,7 @@ class GetByIDUserRequest(UserRequestAbstract):
         self.prepare_item_list()
 
         results = await MultipleServerRequestHandlerPreserveIDs(
-            self.srh,
+            self.bitrix,
             self.method,
             self.item_list,
             ID_field=self.ID_field_name
@@ -214,10 +215,10 @@ class GetByIDUserRequest(UserRequestAbstract):
 
 class CallUserRequest(GetByIDUserRequest):
 
-    def __init__(self, srh: ServerRequestHandler, method: str,
+    def __init__(self, bitrix, method: str,
                  item_list: Iterable):
         self.item_list = item_list
-        super().__init__(srh, method, None, None, '__order')
+        super().__init__(bitrix, method, None, None, '__order')
 
     def check_special_limitations(self):
         try:
@@ -255,8 +256,8 @@ class CallUserRequest(GetByIDUserRequest):
 
 class BatchUserRequest(UserRequestAbstract):
 
-    def __init__(self, srh, params):
-        super().__init__(srh, 'batch', params)
+    def __init__(self, bitrix, params):
+        super().__init__(bitrix, 'batch', params)
 
     def standardized_method(self, method):
         return 'batch'
@@ -280,8 +281,9 @@ class BatchUserRequest(UserRequestAbstract):
 
 class ListAndGetUserRequest(object):
 
-    def __init__(self, srh: ServerRequestHandler, method_branch):
-        self.srh = srh
+    def __init__(self, bitrix, method_branch):
+        self.bitrix = bitrix
+        self.srh: ServerRequestHandler = bitrix.srh
         self.method_branch = method_branch
 
     async def run(self):
@@ -292,9 +294,9 @@ class ListAndGetUserRequest(object):
             raise ValueError(
                 '"method_branch" should not end in ".list" or ".get"')
 
-        async with self.srh.no_pbar():
+        async with self.bitrix.no_pbar():
             IDs = await self.srh.run_async(GetAllUserRequest(
-                self.srh,
+                self.bitrix,
                 self.method_branch + '.list',
                 params={'select': ['ID']}).run())
 
@@ -305,7 +307,7 @@ class ListAndGetUserRequest(object):
                              f'with method branch "{self.method_branch}"')
 
         return await self.srh.run_async(GetByIDUserRequest(
-            srh=self.srh,
+            bitrix=self.bitrix,
             method=self.method_branch + '.get',
             params=None,
             ID_field_name='ID',

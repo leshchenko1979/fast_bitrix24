@@ -10,9 +10,10 @@ from .utils import http_build_query
 
 class MultipleServerRequestHandler:
 
-    def __init__(self, srh: ServerRequestHandler, method, item_list,
+    def __init__(self, bitrix, method, item_list,
                  real_len=None, real_start=0):
-        self.srh = srh
+        self.bitrix = bitrix
+        self.srh: ServerRequestHandler = bitrix.srh
         self.method = method
         self.item_list = item_list
         self.real_len = real_len or len(item_list)
@@ -43,7 +44,7 @@ class MultipleServerRequestHandler:
     async def run(self):
         self.top_up_tasks()
 
-        with self.srh.get_pbar(self.real_len, self.real_start) as pbar:
+        with self.bitrix.get_pbar(self.real_len, self.real_start) as pbar:
             while self.tasks:
                 done, self.tasks = await wait(self.tasks,
                                               return_when=FIRST_COMPLETED)
@@ -95,8 +96,8 @@ class MultipleServerRequestHandler:
 
 class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
 
-    def __init__(self, srh, method, item_list, ID_field):
-        super().__init__(srh, method, item_list)
+    def __init__(self, bitrix, method, item_list, ID_field):
+        super().__init__(bitrix, method, item_list)
         self.ID_field = ID_field
         self.results = {}
 

@@ -43,9 +43,8 @@ class ServerRequestHandler():
     последовательных запросов к серверу.
     '''
 
-    def __init__(self, webhook, verbose):
+    def __init__(self, webhook):
         self.webhook = self._standardize_webhook(webhook)
-        self._verbose = verbose
 
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
@@ -219,33 +218,3 @@ class ServerRequestHandler():
         finally:
             self.concurrent_requests -= 1
             self.request_complete.set()
-
-    def get_pbar(self, real_len, real_start):
-        '''Возвращает прогресс бар `tqdm()` или пустышку,
-        если `self._verbose is False`.'''
-
-        class MutePBar():
-            def __enter__(self):
-                return self
-
-            def __exit__(*args):
-                pass
-
-            def update(*args):
-                pass
-
-            def close(*args):
-                pass
-
-        if self._verbose:
-            return tqdm(total=real_len, initial=real_start)
-        else:
-            return MutePBar()
-
-    @asynccontextmanager
-    async def no_pbar(self):
-        verbose_backup, self._verbose = self._verbose, False
-        try:
-            yield
-        finally:
-            self._verbose = verbose_backup
