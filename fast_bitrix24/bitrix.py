@@ -165,10 +165,12 @@ class Bitrix:
 
         mcr_max_backup, self.srh.mcr_max = \
             self.srh.mcr_max, max_concurrent_requests
+        self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
 
         yield True
 
         self.srh.mcr_max = mcr_max_backup
+        self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
 
 
 class BitrixAsync:
@@ -329,7 +331,9 @@ class BitrixAsync:
 
         mcr_max_backup, self.srh.mcr_max = \
             self.srh.mcr_max, max_concurrent_requests
+        self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
 
         yield True
 
         self.srh.mcr_max = mcr_max_backup
+        self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)

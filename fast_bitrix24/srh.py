@@ -16,11 +16,16 @@ from .utils import _url_valid
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
 BITRIX_MAX_BATCH_SIZE = 50
-BITRIX_MAX_CONCURRENT_REQUESTS = 20
+BITRIX_MAX_CONCURRENT_REQUESTS = 100
 
-MAX_RETRIES = 3
-INITIAL_TIMEOUT = 1
-BACKOFF = 3
+MAX_RETRIES = 10
+
+RESTORE_CONNECTIONS_FACTOR = 1.3  # скорость восстановления количества запросов
+DECREASE_CONNECTIONS_FACTOR = 3  # скорость уменьшения количества запросов
+INITIAL_TIMEOUT = 0.5  # начальный таймаут в секундах
+BACKOFF_FACTOR = 2  # основа расчета таймаута
+# количество ошибок, до достижения котрого таймауты не делаются
+NUM_FAILURES_NO_TIMEOUT = 3
 
 
 class ServerError(Exception):
@@ -51,11 +56,19 @@ class ServerRequestHandler():
         # rr - requests register - список отправленных запросов к серверу
         self.rr = deque()
 
+        # лимит количества одновременных запросов,
+        # установленный конструктором или пользователем
         self.mcr_max = BITRIX_MAX_CONCURRENT_REQUESTS
+
+        # временный лимит количества одновременных запросов,
+        # установленный через autothrottling
         self.mcr_cur_limit = BITRIX_MAX_CONCURRENT_REQUESTS
+
         self.concurrent_requests = 0
         self.request_complete = Event()
 
+        # если положительное - количество последовательных удачных запросов
+        # если отрицательное - количество последовательно полученных ошибок
         self.successive_results = 0
 
     def _standardize_webhook(self, webhook):
@@ -141,7 +154,7 @@ class ServerRequestHandler():
     async def acquire(self):
         '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
 
-        self.autothrottle()
+        await self.autothrottle()
 
         async with self.limit_concurrent_requests():
             # если пул заполнен, ждать
@@ -167,15 +180,23 @@ class ServerRequestHandler():
                 while self.rr and self.rr[len(self.rr) - 1] < trim_time:
                     self.rr.pop()
 
-    def autothrottle(self):
-        '''Если было несколько неудач, уменьшай скорость и количество
+    async def autothrottle(self):
+        '''Если было несколько неудач, делаем таймаут и уменьшаем скорость и количество
         одновременных запросов, и наоборот.'''
 
         if self.successive_results > 0:
-            self.mcr_cur_limit = max(2, min(int(self.mcr_cur_limit * 1.5),
-                                            self.mcr_max))
+
+            self.mcr_cur_limit = min(
+                self.mcr_cur_limit * RESTORE_CONNECTIONS_FACTOR, self.mcr_max)
+
         elif self.successive_results < 0:
-            self.mcr_cur_limit = max(int(self.mcr_cur_limit // 1.5), 1)
+
+            self.mcr_cur_limit = max(
+                self.mcr_cur_limit / DECREASE_CONNECTIONS_FACTOR, 1)
+
+            if self.successive_results < NUM_FAILURES_NO_TIMEOUT:
+                power = -self.successive_results - NUM_FAILURES_NO_TIMEOUT - 1
+                await sleep(INITIAL_TIMEOUT * BACKOFF_FACTOR ** power)
 
     @asynccontextmanager
     async def limit_concurrent_requests(self):
