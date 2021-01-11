@@ -3,8 +3,6 @@
 from contextlib import asynccontextmanager, contextmanager
 from typing import Iterable, Union
 
-from tqdm import tqdm
-
 from . import correct_asyncio
 from .srh import ServerRequestHandler
 from .user_request import (BatchUserRequest, CallUserRequest,
@@ -26,35 +24,6 @@ class BitrixAbstract(object):
 
         self.srh = ServerRequestHandler(webhook)
         self.verbose = verbose
-
-    def get_pbar(self, real_len, real_start):
-        '''Возвращает прогресс бар `tqdm()` или пустышку,
-        если `self._verbose is False`.'''
-
-        if self.verbose:
-            return tqdm(total=real_len, initial=real_start)
-        else:
-            return MutePBar()
-
-    @asynccontextmanager
-    async def no_pbar(self):
-        verbose_backup, self.verbose = self.verbose, False
-        try:
-            yield
-        finally:
-            self.verbose = verbose_backup
-
-
-class MutePBar():
-    def __enter__(self):
-        return self
-
-    def __exit__(*args):
-        pass
-
-    def update(*args):
-        pass
-
 
 class Bitrix(BitrixAbstract):
     '''Клиент для запросов к серверу Битрикс24.'''
@@ -189,7 +158,8 @@ class Bitrix(BitrixAbstract):
 
 
 class BitrixAsync(BitrixAbstract):
-    '''Класс, повторяющий интерфейс класса `Bitrix`, но с асинхронными методами.'''
+    '''Класс, повторяющий интерфейс класса `Bitrix`,
+    но с асинхронными методами.'''
 
     async def get_all(self, method: str, params: dict = None) -> \
             Union[list, dict]:

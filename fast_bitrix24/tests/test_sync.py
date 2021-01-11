@@ -138,6 +138,36 @@ class TestBasic:
 
         b.call('crm.lead.delete', [])
 
+    def test_issue_129(self, create_a_lead):
+        b, lead = create_a_lead
+
+        # итератор и прогресс-бар - ошибка
+        with pytest.raises(TypeError):
+            b.get_by_ID('crm.lead.get', iter([lead]))
+
+        with pytest.raises(TypeError):
+            b.call('crm.lead.get', iter([{'ID': lead}]))
+
+        # итератор и без прогресс бара - нет ошибки
+        b.verbose = False
+        b.get_by_ID('crm.lead.get', iter([lead]))
+        b.call('crm.lead.get', iter([{'ID': lead}]))
+
+        # sequence - нет ошибки
+        b.verbose = True
+        b.get_by_ID('crm.lead.get', [lead])
+
+        result = b.call('crm.lead.get', [{'ID': lead}])
+        assert isinstance(result, tuple)
+
+        result = b.call('crm.lead.get', {'ID': lead})
+        assert isinstance(result, dict)
+
+        # пустой итератор и без прогресс бара - нет ошибки
+        b.verbose = False
+        b.get_by_ID('crm.lead.get', iter([]))
+        b.call('crm.lead.get', iter([]))
+
 
 class TestLongRequests:
 

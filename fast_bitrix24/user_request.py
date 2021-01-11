@@ -15,13 +15,14 @@ BITRIX_PAGE_SIZE = 50
 class UserRequestAbstract(object):
 
     def __init__(self, bitrix, method: str,
-                 params: dict = None):
+                 params: dict = None, mute=False):
         self.bitrix = bitrix
         self.srh: ServerRequestHandler = bitrix.srh
         self.method = method
         self.st_method = self.standardized_method(method)
         self.params = params
         self.st_params = self.standardized_params(params)
+        self.mute = mute
         self.check_special_limitations()
 
     def standardized_method(self, method):
@@ -139,7 +140,8 @@ class GetAllUserRequest(UserRequestAbstract):
                 method=self.method,
                 item_list=item_list,
                 real_len=self.total,
-                real_start=len(self.results)
+                real_start=len(self.results),
+                mute=self.mute
             ).run()
 
         self.results.extend(remaining_results)
@@ -177,14 +179,19 @@ class GetByIDUserRequest(UserRequestAbstract):
         except TypeError:
             raise TypeError("get_by_ID(): 'ID_list' should be iterable")
 
+        if self.bitrix.verbose:
+            try:
+                len(self.ID_list)
+            except TypeError:
+                raise TypeError("get_by_ID(): 'ID_list' should be a Sequence "
+                                "if a progress bar is to be displayed")
+
         for ID in self.ID_list:
             if not isinstance(ID, (str, int)):
                 raise TypeError(
                     "get_by_ID(): 'ID_list' should contain only ints or strs")
 
     async def run(self) -> dict:
-        if self.list_empty():
-            return []
 
         self.prepare_item_list()
 
@@ -196,9 +203,6 @@ class GetByIDUserRequest(UserRequestAbstract):
         ).run()
 
         return results
-
-    def list_empty(self):
-        return len(self.ID_list) == 0
 
     def prepare_item_list(self):
         if self.params:
@@ -230,10 +234,14 @@ class CallUserRequest(GetByIDUserRequest):
                 'call() accepts either an iterable of params dicts or '
                 'a single params dict')
 
-    async def run(self):
+        if self.bitrix.verbose:
+            try:
+                len(self.item_list)
+            except TypeError:
+                raise TypeError("call(): 'items' should be a Sequence "
+                                "if a progress bar is to be displayed")
 
-        if self.list_empty():
-            return tuple()
+    async def run(self):
 
         is_single_item = isinstance(self.item_list, dict)
         if is_single_item:
@@ -242,9 +250,6 @@ class CallUserRequest(GetByIDUserRequest):
         results = tuple((await super().run()).values())
 
         return results[0] if is_single_item else results
-
-    def list_empty(self):
-        return len(self.item_list) == 0
 
     def prepare_item_list(self):
         # добавим порядковый номер
@@ -294,11 +299,11 @@ class ListAndGetUserRequest(object):
             raise ValueError(
                 '"method_branch" should not end in ".list" or ".get"')
 
-        async with self.bitrix.no_pbar():
-            IDs = await self.srh.run_async(GetAllUserRequest(
-                self.bitrix,
-                self.method_branch + '.list',
-                params={'select': ['ID']}).run())
+        IDs = await self.srh.run_async(GetAllUserRequest(
+            self.bitrix,
+            self.method_branch + '.list',
+            params={'select': ['ID']},
+            mute=True).run())
 
         try:
             ID_list = [x['ID'] for x in IDs]
