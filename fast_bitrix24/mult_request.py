@@ -2,6 +2,7 @@ from asyncio import FIRST_COMPLETED, ensure_future, wait
 from itertools import chain
 
 from more_itertools import chunked
+from tqdm import tqdm
 
 from .server_response import ServerResponse
 from .srh import BITRIX_MAX_BATCH_SIZE, ServerRequestHandler
@@ -11,13 +12,15 @@ from .utils import http_build_query
 class MultipleServerRequestHandler:
 
     def __init__(self, bitrix, method, item_list,
-                 real_len=None, real_start=0):
+                 real_len=None, real_start=0, mute=False):
         self.bitrix = bitrix
         self.srh: ServerRequestHandler = bitrix.srh
         self.method = method
         self.item_list = item_list
-        self.real_len = real_len or len(item_list)
+        self.real_len = real_len
         self.real_start = real_start
+        self.mute = mute
+
         self.results = []
         self.task_iterator = self.generate_a_task()
         self.tasks = set()
@@ -44,7 +47,7 @@ class MultipleServerRequestHandler:
     async def run(self):
         self.top_up_tasks()
 
-        with self.bitrix.get_pbar(self.real_len, self.real_start) as pbar:
+        with self.get_pbar() as pbar:
             while self.tasks:
                 done, self.tasks = await wait(self.tasks,
                                               return_when=FIRST_COMPLETED)
@@ -92,6 +95,27 @@ class MultipleServerRequestHandler:
             result_list = list(chain(*result_list))
         self.results.extend(result_list)
         return len(result_list)
+
+    def get_pbar(self):
+        '''Возвращает прогресс бар `tqdm()` или пустышку,
+        если `self.bitrix.verbose is False`.'''
+
+        if self.bitrix.verbose and not self.mute:
+            return tqdm(total=(self.real_len or len(self.item_list)),
+                        initial=self.real_start)
+        else:
+            return MutePBar()
+
+
+class MutePBar():
+    def __enter__(self):
+        return self
+
+    def __exit__(*args):
+        pass
+
+    def update(*args):
+        pass
 
 
 class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
