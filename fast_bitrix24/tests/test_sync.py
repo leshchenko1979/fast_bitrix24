@@ -173,9 +173,12 @@ class TestBasic:
 
     def test_issue_132(self, create_100_tasks):
         b = create_100_tasks
+
         result = b.get_all('tasks.task.list')
         assert result
-        result = b.list_and_get('tasks.task')
+
+        with pytest.raises(ValueError):
+            result = b.list_and_get('tasks.task', 'taskId')
 
 
 class TestLongRequests:

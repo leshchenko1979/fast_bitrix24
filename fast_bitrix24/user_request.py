@@ -286,10 +286,11 @@ class BatchUserRequest(UserRequestAbstract):
 
 class ListAndGetUserRequest(object):
 
-    def __init__(self, bitrix, method_branch):
+    def __init__(self, bitrix, method_branch, ID_field_name='ID'):
         self.bitrix = bitrix
         self.srh: ServerRequestHandler = bitrix.srh
         self.method_branch = method_branch
+        self.ID_field_name = ID_field_name
 
     async def run(self):
         if not isinstance(self.method_branch, str):
@@ -302,12 +303,12 @@ class ListAndGetUserRequest(object):
         IDs = await self.srh.run_async(GetAllUserRequest(
             self.bitrix,
             self.method_branch + '.list',
-            params={'select': ['ID']},
+            params={'select': [self.ID_field_name]},
             mute=True).run())
 
         try:
-            ID_list = [x['ID'] for x in IDs]
-        except TypeError:
+            ID_list = [x[self.ID_field_name] for x in IDs]
+        except (TypeError, KeyError):
             raise ValueError('Seems like list_and_get() cannot be used '
                              f'with method branch "{self.method_branch}"')
 
@@ -315,5 +316,5 @@ class ListAndGetUserRequest(object):
             bitrix=self.bitrix,
             method=self.method_branch + '.get',
             params=None,
-            ID_field_name='ID',
+            ID_field_name=self.ID_field_name,
             ID_list=ID_list).run())
