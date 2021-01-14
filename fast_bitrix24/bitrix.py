@@ -60,10 +60,10 @@ class Bitrix(BitrixAbstract):
         Параметры:
         - `method` - метод REST API для запроса к серверу
         - `ID_list` - список ID
-        - `ID_list_name` - название поля, которое будет подаваться в запрос для
-            каждого элемента ID_list
+        - `ID_field_name` - название поля, которое будет подаваться в запрос
+        для каждого элемента ID_list
         - `params` - параметры для передачи методу. Используется именно тот
-            формат, который указан в документации к REST API Битрикс24
+        формат, который указан в документации к REST API Битрикс24
 
         Возвращает словарь вида:
         ```
@@ -83,7 +83,7 @@ class Bitrix(BitrixAbstract):
         return self.srh.run(GetByIDUserRequest(
             self, method, params, ID_list, ID_field_name).run())
 
-    def list_and_get(self, method_branch: str) -> dict:
+    def list_and_get(self, method_branch: str, ID_field_name='ID') -> dict:
         '''
         Скачать список всех ID при помощи метода *.list,
         а затем все элементы при помощи метода *.get.
@@ -95,6 +95,8 @@ class Bitrix(BitrixAbstract):
         Параметры:
         * `method_branch: str` - группа методов к использованию, например,
         `crm.lead` или `tasks.task`
+        * `ID_field_name='ID'` - имя поля, в котором метод *.get принимает
+        идентификаторы элементов (например, `'ID'` для метода `crm.lead.get`)
 
         Возвращает полное содержимое всех элементов в виде, используемом
         функцией `get_by_ID()` - словарь следующего вида:
@@ -107,7 +109,8 @@ class Bitrix(BitrixAbstract):
         ```
         '''
 
-        return self.srh.run(ListAndGetUserRequest(self, method_branch).run())
+        return self.srh.run(ListAndGetUserRequest(
+            self, method_branch, ID_field_name).run())
 
     def call(self, method: str, items: Union[dict, Iterable]):
         '''
@@ -197,10 +200,10 @@ class BitrixAsync(BitrixAbstract):
         Параметры:
         - `method` - метод REST API для запроса к серверу
         - `ID_list` - список ID
-        - `ID_list_name` - название поля, которое будет подаваться в запрос для
-            каждого элемента ID_list
+        - `ID_field_name` - название поля, которое будет подаваться в запрос
+        для каждого элемента ID_list
         - `params` - параметры для передачи методу. Используется именно тот
-            формат, который указан в документации к REST API Битрикс24
+        формат, который указан в документации к REST API Битрикс24
 
         Возвращает словарь вида:
         ```
@@ -220,7 +223,8 @@ class BitrixAsync(BitrixAbstract):
         return await self.srh.run_async(GetByIDUserRequest(
             self, method, params, ID_list, ID_field_name).run())
 
-    async def list_and_get(self, method_branch: str) -> dict:
+    async def list_and_get(self, method_branch: str,
+                           ID_field_name='ID') -> dict:
         '''
         Скачать список всех ID при помощи метода *.list,
         а затем все элементы при помощи метода *.get.
@@ -232,6 +236,8 @@ class BitrixAsync(BitrixAbstract):
         Параметры:
         * `method_branch: str` - группа методов к использованию, например,
         `crm.lead` или `tasks.task`
+        * `ID_field_name='ID'` - имя поля, в котором метод *.get принимает
+        идентификаторы элементов (например, `'ID'` для метода `crm.lead.get`)
 
         Возвращает полное содержимое всех элементов в виде, используемом
         функцией `get_by_ID()` - словарь следующего вида:
@@ -244,7 +250,8 @@ class BitrixAsync(BitrixAbstract):
         ```
         '''
 
-        return await ListAndGetUserRequest(self, method_branch).run()
+        return await ListAndGetUserRequest(
+            self, method_branch, ID_field_name=ID_field_name).run()
 
     async def call(self, method: str, items: Union[dict, Iterable]):
         '''

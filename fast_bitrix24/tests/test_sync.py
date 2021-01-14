@@ -2,7 +2,10 @@ import pytest
 
 from ..utils import http_build_query
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
-                       get_test, get_test_async, create_a_deal)
+                       get_test, get_test_async, create_a_deal,
+                       create_100_tasks)
+
+from ..bitrix import Bitrix
 
 
 class TestBasic:
@@ -167,6 +170,15 @@ class TestBasic:
         b.verbose = False
         b.get_by_ID('crm.lead.get', iter([]))
         b.call('crm.lead.get', iter([]))
+
+    def test_issue_132(self, create_100_tasks):
+        b = create_100_tasks
+
+        result = b.get_all('tasks.task.list')
+        assert result
+
+        with pytest.raises(ValueError):
+            result = b.list_and_get('tasks.task', 'taskId')
 
 
 class TestLongRequests:

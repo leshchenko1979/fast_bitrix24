@@ -14,7 +14,7 @@ class TestAsync:
     @pytest.mark.asyncio
     async def test_simple_async_calls(self, create_100_leads_async):
 
-        b = create_100_leads_async
+        b: BitrixAsync = create_100_leads_async
 
         leads = await b.get_all('crm.lead.list')
         await b.get_by_ID('crm.lead.list', [lead['ID'] for lead in leads])
