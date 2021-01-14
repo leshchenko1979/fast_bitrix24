@@ -36,21 +36,22 @@ def create_100_leads(get_test) -> Bitrix:
     # аккаунта при создании более 1000 сущностей.
     # Скорее всего, вызовет проблемы в параллельно
     # запущенных тестах.
-    total_leads = len(b.get_all('crm.lead.list'))
-    if total_leads > 500:
-        leads = b.get_all('crm.lead.list', {'select': ['ID']})
+    leads = b.get_all('crm.lead.list', {'select': ['ID']})
+
+    if len(leads) > 500:
         b.get_by_ID('crm.lead.delete', [lead['ID'] for lead in leads])
 
-    with b.slow(5):
-        lead_nos = b.call('crm.lead.add', [{
-            'fields': {
-                'NAME': f'Customer #{n}',
-            }
-        } for n in range(100)])
+    lead_nos = b.call('crm.lead.add', [{
+        'fields': {
+            'NAME': f'Customer #{n}',
+        }
+    } for n in range(100)])
 
-    yield b
+    try:
+        yield b
 
-    b.get_by_ID('crm.lead.delete', lead_nos)
+    finally:
+        b.get_by_ID('crm.lead.delete', lead_nos)
 
 
 @pytest.fixture(scope='function')
@@ -62,9 +63,40 @@ def create_a_lead(get_test) -> tuple:
         }
     })
 
-    yield b, lead_no
+    try:
+        yield b, lead_no
 
-    b.get_by_ID('crm.lead.delete', [lead_no])
+    finally:
+        b.get_by_ID('crm.lead.delete', [lead_no])
+
+
+@pytest.fixture(scope='session')
+def create_100_tasks(get_test) -> Bitrix:
+    b: Bitrix = get_test
+
+    # Подчистить тестовый аккаунт от лишних сущностей,
+    # созданных при неудачных тестах, чтобы не было блокировки
+    # аккаунта при создании более 1000 сущностей.
+    # Скорее всего, вызовет проблемы в параллельно
+    # запущенных тестах.
+    tasks = b.get_all('tasks.task.list', {'select': ['ID']})
+    if len(tasks) > 500:
+        b.get_by_ID('tasks.task.delete', [x['task']['id'] for x in tasks],
+                    ID_field_name='taskId')
+
+    new_tasks = b.call('tasks.task.add', [{
+        'fields': {
+            'TITLE': f'Task #{n}',
+            'RESPONSIBLE_ID': 1
+        }
+    } for n in range(100)])
+
+    try:
+        yield b
+
+    finally:
+        b.get_by_ID('tasks.task.delete', [x['task']['id'] for x in new_tasks],
+                    ID_field_name='taskId')
 
 
 @pytest.fixture(scope='function')
@@ -77,9 +109,8 @@ async def create_100_leads_async(get_test_async) -> BitrixAsync:
     # аккаунта при создании более 1000 сущностей.
     # Скорее всего, вызовет проблемы в параллельно
     # запущенных тестах.
-    total_leads = len(await b.get_all('crm.lead.list'))
-    if total_leads > 500:
-        leads = await b.get_all('crm.lead.list', {'select': ['ID']})
+    leads = await b.get_all('crm.lead.list', {'select': ['ID']})
+    if len(leads) > 500:
         await b.get_by_ID('crm.lead.delete', [lead['ID'] for lead in leads])
 
     async with b.slow(5):
@@ -89,9 +120,12 @@ async def create_100_leads_async(get_test_async) -> BitrixAsync:
             }
         } for n in range(100)])
 
-    yield b
+    try:
+        yield b
 
-    await b.get_by_ID('crm.lead.delete', lead_nos)
+    finally:
+        await b.get_by_ID('crm.lead.delete', lead_nos)
+
 
 @pytest.fixture(scope='session')
 def create_a_deal(get_test):
@@ -103,6 +137,8 @@ def create_a_deal(get_test):
         }
     })
 
-    yield b, deal_no
+    try:
+        yield b, deal_no
 
-    b.get_by_ID('crm.deal.delete', [deal_no])
+    finally:
+        b.get_by_ID('crm.deal.delete', [deal_no])
