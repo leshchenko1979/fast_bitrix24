@@ -4,7 +4,7 @@ from time import monotonic
 
 import pytest
 
-from ..bitrix import BitrixAsync
+from fast_bitrix24 import BitrixAsync
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
                        get_test, get_test_async)
 

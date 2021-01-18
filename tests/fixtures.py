@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from ..bitrix import Bitrix, BitrixAsync
+from fast_bitrix24 import Bitrix, BitrixAsync
 
 
 @pytest.fixture(scope='session')

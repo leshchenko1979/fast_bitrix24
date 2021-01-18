@@ -1,11 +1,11 @@
 import pytest
 
-from ..utils import http_build_query
+from fast_bitrix24.utils import http_build_query
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
                        get_test, get_test_async, create_a_deal,
                        create_100_tasks)
 
-from ..bitrix import Bitrix
+from fast_bitrix24 import Bitrix
 
 
 class TestBasic:
@@ -145,8 +145,7 @@ class TestBasic:
         b.call('crm.lead.delete', [])
 
     def test_call_single_param(self, get_test):
-        b.call('crm.list.fields')
-
+        b = get_test
         delete_ID = b.call('crm.lead.add', {'fields': {'NAME': 'Bob'}})
         b.call('crm.lead.delete', {'ID': delete_ID})
 

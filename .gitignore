@@ -130,4 +130,4 @@ dmypy.json
 .pypirc
 tests_private/**
 .vscode/settings.json
-fast_bitrix24/speed_tests/karpov.py
+speed_tests/karpov.py
