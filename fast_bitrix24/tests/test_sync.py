@@ -23,9 +23,15 @@ class TestBasic:
     def test_simple_get_all(self, create_100_leads):
         b = create_100_leads
 
-        resulting = len(b.get_all('crm.lead.list'))
+        result = b.get_all('crm.lead.list')
+        assert isinstance(result, list)
+        assert len(result) >= 100
 
-        assert resulting >= 100
+    def test_get_all_single_page(self, get_test):
+        b = get_test
+
+        result = b.get_all('crm.lead.fields')
+        assert isinstance(result, dict)
 
     def test_get_all_params(self, create_100_leads):
         b = create_100_leads
@@ -130,9 +136,6 @@ class TestBasic:
     def test_call(self, get_test):
         b = get_test
 
-        delete_ID = b.call('crm.lead.add', {'fields': {'NAME': 'Bob'}})
-        b.call('crm.lead.delete', {'ID': delete_ID})
-
         delete_IDs = b.call('crm.lead.add', [
             {'fields': {'NAME': 'Bob'}},
             {'fields': {'NAME': 'Jake'}},
@@ -140,6 +143,12 @@ class TestBasic:
         b.call('crm.lead.delete', [{'ID': ID} for ID in delete_IDs])
 
         b.call('crm.lead.delete', [])
+
+    def test_call_single_param(self, get_test):
+        b.call('crm.list.fields')
+
+        delete_ID = b.call('crm.lead.add', {'fields': {'NAME': 'Bob'}})
+        b.call('crm.lead.delete', {'ID': delete_ID})
 
     def test_issue_129(self, create_a_lead):
         b, lead = create_a_lead
