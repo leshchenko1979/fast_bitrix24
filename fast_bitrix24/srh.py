@@ -32,6 +32,10 @@ class ServerError(Exception):
     pass
 
 
+class TokenRejected(Exception):
+    pass
+
+
 class ServerRequestHandler():
     '''
     Используется для контроля скорости доступа к серверам Битрикс.
@@ -43,8 +47,15 @@ class ServerRequestHandler():
     последовательных запросов к серверу.
     '''
 
-    def __init__(self, webhook):
+    def __init__(self, webhook, token_func=None):
         self.webhook = self.standardize_webhook(webhook)
+
+        self.token_func = token_func
+        self.token = None  # Если None, то требуется получить новый токен
+
+        # процесс получения токена уже запущен
+        self.token_received = Event()
+        self.token_received.set()
 
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
@@ -134,7 +145,7 @@ class ServerRequestHandler():
                 self.success()
                 return result
 
-            except (ClientPayloadError,
+            except (ClientPayloadError, TokenRejected,
                     ServerDisconnectedError, ServerError) as err:
                 self.failure(err)
 
@@ -142,15 +153,26 @@ class ServerRequestHandler():
         '''Делает попытку запроса к серверу, ожидая при необходимости.'''
 
         try:
+
+            url = self.webhook + method + await self.get_token_param()
+
             async with self.acquire(), self.session.post(
-                    url=self.webhook + method, json=params) as response:
+                    url=url, json=params) as response:
+
                 return ServerResponse(await response.json(encoding='utf-8'))
 
         except ClientResponseError as error:
+
             if error.status // 100 == 5:  # ошибки вида 5XX
                 raise ServerError('The server returned an error') from error
-            else:
-                raise
+
+            # нужно получить или освежить токен
+            elif error.status == 403 and self.token_func:
+                await self.update_token()
+                raise TokenRejected(
+                    'The server rejected the auth token') from error
+
+            raise  # иначе повторяем полученное исключение
 
     def success(self):
         '''Увеличить счетчик удачных попыток.'''
@@ -200,6 +222,10 @@ class ServerRequestHandler():
         '''Не позволяет оновременно выполнять
         более `self.mcr_cur_limit` запросов.'''
 
+        '''Не использует семафоры, потому что в них отсутствует возможность
+        изменять размер семафора после инициализации,
+        а нам это надо для `Bitrix.slow()`.'''
+
         while self.concurrent_requests > self.mcr_cur_limit:
             self.request_complete.clear()
             await self.request_complete.wait()
@@ -238,3 +264,23 @@ class ServerRequestHandler():
             trim_time = cur_time - self.pool_size / self.requests_per_second
             while self.rr and self.rr[len(self.rr) - 1] < trim_time:
                 self.rr.pop()
+
+    async def get_token_param(self):
+        '''Получить часть строки запроса с токеном авторизации.'''
+
+        if not self.token_func:
+            return ''
+
+        await self.token_received.wait()
+
+        if not self.token:
+            await self.update_token()
+
+        return '&auth=' + self.token
+
+    async def update_token(self):
+        '''Запросить новый токен авторизации.'''
+
+        self.token_received.clear()
+        self.token = await self.token_func()
+        self.token_received.set()

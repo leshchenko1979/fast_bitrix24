@@ -12,7 +12,7 @@ from .user_request import (BatchUserRequest, CallUserRequest,
 
 class BitrixAbstract(object):
 
-    def __init__(self, webhook: str, verbose: bool = True):
+    def __init__(self, webhook: str, verbose: bool = True, token_func=None):
         '''
         Создает объект класса Bitrix.
 
@@ -20,9 +20,11 @@ class BitrixAbstract(object):
         - `webhook: str` - URL вебхука, полученного от сервера Битрикс
         - `verbose: bool = True` - показывать ли прогрессбар при выполнении
         запроса
+        - `token_func = None` - функция без парамтеров, которая
+        отдает новый токен для авторизации при каждом обращении к ней
         '''
 
-        self.srh = ServerRequestHandler(webhook)
+        self.srh = ServerRequestHandler(webhook, token_func)
         self.verbose = verbose
 
 class Bitrix(BitrixAbstract):
