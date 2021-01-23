@@ -71,7 +71,7 @@ class TestAcquire:
 
         await assert_time_acquire(get_custom_bitrix(1, 1), 1, 0)
         await assert_time_acquire(get_custom_bitrix(10, 1), 10, 0)
-        await assert_time_acquire(get_custom_bitrix(1, 5), 5, 1)
+        await assert_time_acquire(get_custom_bitrix(1, 5), 5, 0.8)
         await assert_time_acquire(get_custom_bitrix(50, 10), 60, 1)
 
 
