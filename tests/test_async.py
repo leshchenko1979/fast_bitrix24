@@ -1,15 +1,13 @@
-from asyncio import gather, sleep
-from asyncio.events import get_event_loop
-from asyncio.tasks import create_task, ensure_future, wait
+from asyncio import create_task, ensure_future, gather, sleep, wait
 from collections import namedtuple
 from contextlib import asynccontextmanager
-from fast_bitrix24.srh import BITRIX_POOL_SIZE, BITRIX_RPS, ServerRequestHandler
 from time import monotonic
-from aiofastforward import FastForward
 
 import pytest
-
 from fast_bitrix24 import BitrixAsync
+from fast_bitrix24.srh import (BITRIX_POOL_SIZE, BITRIX_RPS,
+                               ServerRequestHandler)
+
 from .fixtures import (create_100_leads, create_100_leads_async, create_a_lead,
                        get_test, get_test_async)
 
