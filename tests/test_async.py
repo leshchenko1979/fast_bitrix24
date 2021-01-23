@@ -1,9 +1,11 @@
 from asyncio import gather, sleep
-from asyncio.tasks import create_task, wait
+from asyncio.events import get_event_loop
+from asyncio.tasks import create_task, ensure_future, wait
 from collections import namedtuple
 from contextlib import asynccontextmanager
 from fast_bitrix24.srh import BITRIX_POOL_SIZE, BITRIX_RPS, ServerRequestHandler
 from time import monotonic
+from aiofastforward import FastForward
 
 import pytest
 
@@ -152,82 +154,113 @@ class MockSRH(ServerRequestHandler):
             await sleep(1 / self.session.rps)
 
 
-@pytest.mark.asyncio
-async def test_mock():
+class TestMocks:
+    @pytest.mark.asyncio
+    async def test_mock(self):
 
-    bitrix = BitrixAsync('http://www.google.com/')
-    bitrix.srh = MockSRH(lambda *args: MockResponse({'result': ('OK',)}))
+        bitrix = BitrixAsync('http://www.google.com/')
+        bitrix.srh = MockSRH(lambda *args: MockResponse({'result': ('OK',)}))
 
-    assert await bitrix.get_all('abc') == ('OK',)
-
-
-@pytest.mark.asyncio
-async def test_mock_get_all():
-
-    record_ID = iter(range(1_000_000))
-
-    def post_callback(self: ServerRequestHandler, url: str, json: dict):
-
-        if 'batch' not in url:
-            response = {
-                'result': [{'ID': next(record_ID)} for _ in range(50)],
-                'total': 5000
-            }
-
-        else:
-            response = {
-                'result': {'result': {command: [{'ID': next(record_ID)}
-                                                for _ in range(50)]
-                                      for command in json['cmd']},
-                           'total': 5000}
-            }
-
-        return MockResponse(response)
-
-    bitrix = BitrixAsync('http://www.google.com/')
-    bitrix.srh = MockSRH(post_callback)
-
-    result = await bitrix.get_all('abc')
-    assert bitrix.srh.session.num_requests == 3
-    assert len(result) == 5000
+        assert await bitrix.get_all('abc') == ('OK',)
 
 
-@pytest.mark.asyncio
-async def test_get_by_ID():
+    @pytest.mark.asyncio
+    async def test_mock_get_all(self):
 
-    ParsedCommand = namedtuple('ParsedCommand', ['metod', 'params'])
+        record_ID = iter(range(1_000_000))
 
-    def post_callback(self: ServerRequestHandler, url: str, json: dict):
+        def post_callback(self: ServerRequestHandler, url: str, json: dict):
 
-        def parse_command(value: str):
-            split = value.split('?')
-            method, param_str = split[0], split[1]
-            pairs = param_str.split('&')
-            split = (pair.split('=') for pair in pairs if pair)
-            params = {key: value for key, value in split}
-            return ParsedCommand(method, params)
+            if 'batch' not in url:
+                response = {
+                    'result': [{'ID': next(record_ID)} for _ in range(50)],
+                    'total': 5000
+                }
 
-        commands = {key: parse_command(value)
-                    for key, value in json['cmd'].items()}
+            else:
+                response = {
+                    'result': {'result': {command: [{'ID': next(record_ID)}
+                                                    for _ in range(50)]
+                                        for command in json['cmd']},
+                            'total': 5000}
+                }
 
-        items = {label: {'ID': parsed.params['ID']}
-                 for label, parsed in commands.items()}
+            return MockResponse(response)
 
-        response = {'result': {'result': items}}
+        bitrix = BitrixAsync('http://www.google.com/')
+        bitrix.srh = MockSRH(post_callback)
 
-        return MockResponse(response)
+        result = await bitrix.get_all('abc')
+        assert bitrix.srh.session.num_requests == 3
+        assert len(result) == 5000
 
 
-    bitrix = BitrixAsync('http://www.google.com/')
-    bitrix.srh = MockSRH(post_callback)
+    @pytest.mark.asyncio
+    async def test_get_by_ID(self):
 
-    SIZE = 5000
+        ParsedCommand = namedtuple('ParsedCommand', ['metod', 'params'])
 
-    bitrix_task = create_task(bitrix.get_by_ID('abc', list(range(SIZE))))
-    restore_pool_task = create_task(bitrix.srh.restore_pool())
+        def post_callback(self: ServerRequestHandler, url: str, json: dict):
 
-    await wait({bitrix_task, restore_pool_task}, timeout=10)
+            def parse_command(value: str):
+                split = value.split('?')
+                method, param_str = split[0], split[1]
+                pairs = param_str.split('&')
+                split = (pair.split('=') for pair in pairs if pair)
+                params = {key: value for key, value in split}
+                return ParsedCommand(method, params)
 
-    result = bitrix_task.result()
+            commands = {key: parse_command(value)
+                        for key, value in json['cmd'].items()}
 
-    assert len(result) == SIZE
+            items = {label: {'ID': parsed.params['ID']}
+                    for label, parsed in commands.items()}
+
+            response = {'result': {'result': items}}
+
+            return MockResponse(response)
+
+
+        bitrix = BitrixAsync('http://www.google.com/')
+        bitrix.srh = MockSRH(post_callback)
+
+        SIZE = 4000
+
+        bitrix_task = create_task(bitrix.get_by_ID('abc', list(range(SIZE))))
+        restore_pool_task = create_task(bitrix.srh.restore_pool())
+
+        timeout = (SIZE / 50 - BITRIX_POOL_SIZE) / BITRIX_RPS + 1
+
+        await wait({bitrix_task, restore_pool_task}, timeout=timeout)
+
+        result = bitrix_task.result()
+        restore_pool_task.cancel()
+
+        assert len(result) == SIZE
+
+
+    @pytest.mark.asyncio
+    async def test_limit_request_velocity(self):
+
+        async def mock_request(srh: ServerRequestHandler):
+            async with srh.limit_request_velocity():
+                print(len(srh.rr), min(srh.rr), max(srh.rr), max(srh.rr) - min(srh.rr))
+
+        srh = MockSRH(None)
+        tasks = set()
+
+        SIZE = 70
+
+        for _ in range(SIZE):
+            tasks |= {ensure_future(mock_request(srh))}
+
+        timeout = (SIZE - BITRIX_POOL_SIZE) / BITRIX_RPS + 1
+
+        start = monotonic()
+    
+        await wait(tasks, timeout=timeout)
+    
+        elapsed = monotonic() - start
+        print(elapsed)
+
+        assert timeout - 1 <= elapsed < timeout
