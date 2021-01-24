@@ -43,8 +43,9 @@ class ServerRequestHandler():
     последовательных запросов к серверу.
     '''
 
-    def __init__(self, webhook):
+    def __init__(self, webhook, respect_velocity_policy):
         self.webhook = self.standardize_webhook(webhook)
+        self.respect_velocity_policy = respect_velocity_policy
 
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
@@ -173,9 +174,12 @@ class ServerRequestHandler():
 
         await self.autothrottle()
 
-        async with self.limit_concurrent_requests(), \
-                self.limit_request_velocity():
-            yield
+        async with self.limit_concurrent_requests():
+            if self.respect_velocity_policy:
+                async with self.limit_request_velocity():
+                    yield
+            else:
+                yield
 
     async def autothrottle(self):
         '''Если было несколько неудач, делаем таймаут и уменьшаем скорость
@@ -218,16 +222,18 @@ class ServerRequestHandler():
         '''Ограничивает скорость запросов к серверу.'''
 
         # если пул заполнен, ждать
-        if len(self.rr) >= self.pool_size:
+        while len(self.rr) >= self.pool_size:
             time_from_last_request = time.monotonic() - self.rr[0]
             time_to_wait = 1 / self.requests_per_second - \
                 time_from_last_request
             if time_to_wait > 0:
                 await sleep(time_to_wait)
+            else:
+                break
 
         # зарегистрировать запрос в очереди
-        cur_time = time.monotonic()
-        self.rr.appendleft(cur_time)
+        start_time = time.monotonic()
+        self.rr.appendleft(start_time)
 
         # отдать управление
         try:
@@ -235,6 +241,6 @@ class ServerRequestHandler():
 
         # подчистить пул
         finally:
-            trim_time = cur_time - self.pool_size / self.requests_per_second
-            while self.rr and self.rr[len(self.rr) - 1] < trim_time:
+            trim_time = start_time - self.pool_size / self.requests_per_second
+            while self.rr[-1] < trim_time:
                 self.rr.pop()
