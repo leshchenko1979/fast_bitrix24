@@ -43,8 +43,9 @@ class ServerRequestHandler():
     последовательных запросов к серверу.
     '''
 
-    def __init__(self, webhook):
+    def __init__(self, webhook, respect_velocity_policy):
         self.webhook = self.standardize_webhook(webhook)
+        self.respect_velocity_policy = respect_velocity_policy
 
         self.requests_per_second = BITRIX_RPS
         self.pool_size = BITRIX_POOL_SIZE
@@ -173,9 +174,12 @@ class ServerRequestHandler():
 
         await self.autothrottle()
 
-        async with self.limit_concurrent_requests(), \
-                self.limit_request_velocity():
-            yield
+        async with self.limit_concurrent_requests():
+            if self.respect_velocity_policy:
+                async with self.limit_request_velocity():
+                    yield
+            else:
+                yield
 
     async def autothrottle(self):
         '''Если было несколько неудач, делаем таймаут и уменьшаем скорость
@@ -225,7 +229,7 @@ class ServerRequestHandler():
             if time_to_wait > 0:
                 await sleep(time_to_wait)
             else:
-                break   
+                break
 
         # зарегистрировать запрос в очереди
         start_time = time.monotonic()

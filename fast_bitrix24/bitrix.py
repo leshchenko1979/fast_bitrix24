@@ -12,7 +12,8 @@ from .user_request import (BatchUserRequest, CallUserRequest,
 
 class BitrixAbstract(object):
 
-    def __init__(self, webhook: str, verbose: bool = True):
+    def __init__(self, webhook: str, verbose: bool = True,
+                 respect_velocity_policy: bool = False):
         '''
         Создает объект класса Bitrix.
 
@@ -20,10 +21,13 @@ class BitrixAbstract(object):
         - `webhook: str` - URL вебхука, полученного от сервера Битрикс
         - `verbose: bool = True` - показывать ли прогрессбар при выполнении
         запроса
+        - `respect_velocity_policy: bool = False` - соблюдать ли политику
+        Битрикса о скорости запросов
         '''
 
-        self.srh = ServerRequestHandler(webhook)
+        self.srh = ServerRequestHandler(webhook, respect_velocity_policy)
         self.verbose = verbose
+
 
 class Bitrix(BitrixAbstract):
     '''Клиент для запросов к серверу Битрикс24.'''

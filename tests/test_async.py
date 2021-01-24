@@ -44,7 +44,8 @@ class TestAsync:
 
 
 def get_custom_bitrix(pool_size, requests_per_second):
-    bitrix = BitrixAsync('http://www.bitrix24.ru/path')
+    bitrix = BitrixAsync('http://www.bitrix24.ru/path',
+                         respect_velocity_policy=True)
 
     bitrix.srh.pool_size = pool_size
     bitrix.srh.requests_per_second = requests_per_second
@@ -73,7 +74,6 @@ class TestAcquire:
         await assert_time_acquire(get_custom_bitrix(10, 1), 10, 0)
         await assert_time_acquire(get_custom_bitrix(1, 5), 5, 0.8)
         await assert_time_acquire(get_custom_bitrix(50, 10), 60, 1)
-
 
     @pytest.mark.asyncio
     async def test_acquire_intermittent(self):
@@ -135,9 +135,11 @@ class MockSession(object):
 
         yield self.post_callback(self, url, json)
 
+
 class MockSRH(ServerRequestHandler):
     def __init__(self, post_callback):
-        super().__init__('http://www.google.com/')
+        super().__init__('http://www.google.com/',
+                         respect_velocity_policy=True)
         self.post_callback = post_callback
 
     @asynccontextmanager
@@ -161,7 +163,6 @@ class TestMocks:
 
         assert await bitrix.get_all('abc') == ('OK',)
 
-
     @pytest.mark.asyncio
     async def test_mock_get_all(self):
 
@@ -179,8 +180,8 @@ class TestMocks:
                 response = {
                     'result': {'result': {command: [{'ID': next(record_ID)}
                                                     for _ in range(50)]
-                                        for command in json['cmd']},
-                            'total': 5000}
+                                          for command in json['cmd']},
+                               'total': 5000}
                 }
 
             return MockResponse(response)
@@ -191,7 +192,6 @@ class TestMocks:
         result = await bitrix.get_all('abc')
         assert bitrix.srh.session.num_requests == 3
         assert len(result) == 5000
-
 
     @pytest.mark.asyncio
     async def test_get_by_ID(self):
@@ -212,12 +212,11 @@ class TestMocks:
                         for key, value in json['cmd'].items()}
 
             items = {label: {'ID': parsed.params['ID']}
-                    for label, parsed in commands.items()}
+                     for label, parsed in commands.items()}
 
             response = {'result': {'result': items}}
 
             return MockResponse(response)
-
 
         bitrix = BitrixAsync('http://www.google.com/')
         bitrix.srh = MockSRH(post_callback)
@@ -236,13 +235,13 @@ class TestMocks:
 
         assert len(result) == SIZE
 
-
     @pytest.mark.asyncio
     async def test_limit_request_velocity(self):
 
         async def mock_request(srh: ServerRequestHandler):
             async with srh.limit_request_velocity():
-                print(len(srh.rr), min(srh.rr), max(srh.rr), max(srh.rr) - min(srh.rr))
+                print(len(srh.rr), min(srh.rr), max(srh.rr),
+                      max(srh.rr) - min(srh.rr))
 
         srh = MockSRH(None)
         tasks = set()
@@ -255,9 +254,9 @@ class TestMocks:
         timeout = (SIZE - BITRIX_POOL_SIZE) / BITRIX_RPS + 1
 
         start = monotonic()
-    
+
         await wait(tasks, timeout=timeout)
-    
+
         elapsed = monotonic() - start
         print(elapsed)
 
