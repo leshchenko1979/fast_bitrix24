@@ -171,18 +171,17 @@ class TestMocks:
         def post_callback(self: ServerRequestHandler, url: str, json: dict):
 
             if 'batch' not in url:
+                page = [{'ID': next(record_ID)} for _ in range(50)]
                 response = {
-                    'result': [{'ID': next(record_ID)} for _ in range(50)],
+                    'result': page,
                     'total': 5000
                 }
 
             else:
-                response = {
-                    'result': {'result': {command: [{'ID': next(record_ID)}
-                                                    for _ in range(50)]
-                                          for command in json['cmd']},
-                               'total': 5000}
-                }
+                cmds = {command: [{'ID': next(record_ID)} for _ in range(50)]
+                        for command in json['cmd']}
+                response = {'result': {'result': cmds,
+                                       'total': 5000}}
 
             return MockResponse(response)
 
