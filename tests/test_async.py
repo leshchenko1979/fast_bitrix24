@@ -43,9 +43,10 @@ class TestAsync:
         assert all(len(r) >= 100 for r in result)
 
 
-def get_custom_bitrix(pool_size, requests_per_second):
+def get_custom_bitrix(pool_size, requests_per_second,
+                      respect_velocity_policy=True):
     bitrix = BitrixAsync('http://www.bitrix24.ru/path',
-                         respect_velocity_policy=True)
+                         respect_velocity_policy=respect_velocity_policy)
 
     bitrix.srh.pool_size = pool_size
     bitrix.srh.requests_per_second = requests_per_second
@@ -74,6 +75,8 @@ class TestAcquire:
         await assert_time_acquire(get_custom_bitrix(10, 1), 10, 0)
         await assert_time_acquire(get_custom_bitrix(1, 5), 5, 0.8)
         await assert_time_acquire(get_custom_bitrix(50, 10), 60, 1)
+
+        await assert_time_acquire(get_custom_bitrix(1, 1, False), 100, 0)
 
     @pytest.mark.asyncio
     async def test_acquire_intermittent(self):
