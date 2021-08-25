@@ -90,6 +90,10 @@ class MultipleServerRequestHandler:
     def extract_result_from_batch_response(self, unwrapped_result):
         '''Добавляет `unwrapped_result` в `self.results` и возвращает
         длину добавленного списка результатов'''
+
+        if not unwrapped_result:
+            return 0
+
         result_list = list(unwrapped_result.values())
         if type(result_list[0]) == list:
             result_list = list(chain(*result_list))
