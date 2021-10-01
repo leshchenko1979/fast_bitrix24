@@ -167,13 +167,14 @@ leads = await b.get_all('crm.lead.list')
 
 Внутри объекта ведётся учёт скорости отправки запросов к серверу, поэтому важно, чтобы все запросы приложения в отношении одного аккаунта с одного IP-адреса отправлялись из одного экземпляра `Bitrix`.
 
-### Метод ` __init__(self, webhook: str, verbose: bool = True, respect_velocity_policy: bool = False):`
+### Метод ` __init__(self, webhook: str, verbose: bool = True, respect_velocity_policy: bool = False, client: aiohttp.ClientSession = None):`
 Создаёт экземпляр объекта `Bitrix`.
 
 #### Параметры
 * `webhook: str` - URL вебхука, полученного от сервера Битрикс.
 * `verbose: bool = True` - показывать прогрессбар при выполнении запроса.
 * `respect_velocity_policy: bool = False` - соблюдать политику Битрикса о скорости запросов.
+* `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов клиента, инициализированного и настроенного пользователем.
 
 ### Метод `get_all(self, method: str, params: dict = None) -> list | dict`
 Получить полный список сущностей по запросу `method`.
