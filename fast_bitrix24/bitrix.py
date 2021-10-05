@@ -1,5 +1,6 @@
 '''Высокоуровневый API для доступа к Битрикс24'''
 
+import aiohttp
 from contextlib import asynccontextmanager, contextmanager
 from typing import Iterable, Union
 
@@ -13,7 +14,8 @@ from .user_request import (BatchUserRequest, CallUserRequest,
 class BitrixAbstract(object):
 
     def __init__(self, webhook: str, verbose: bool = True,
-                 respect_velocity_policy: bool = False):
+                 respect_velocity_policy: bool = False,
+                 client: aiohttp.ClientSession = None):
         '''
         Создает объект класса Bitrix.
 
@@ -23,9 +25,12 @@ class BitrixAbstract(object):
         запроса
         - `respect_velocity_policy: bool = False` - соблюдать ли политику
         Битрикса о скорости запросов
+        - `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов
+        объект aiohttp.ClientSession, инициализированнный и настроенный
+        пользователем.
         '''
 
-        self.srh = ServerRequestHandler(webhook, respect_velocity_policy)
+        self.srh = ServerRequestHandler(webhook, respect_velocity_policy, client)
         self.verbose = verbose
 
 

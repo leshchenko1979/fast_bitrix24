@@ -167,13 +167,14 @@ leads = await b.get_all('crm.lead.list')
 
 Внутри объекта ведётся учёт скорости отправки запросов к серверу, поэтому важно, чтобы все запросы приложения в отношении одного аккаунта с одного IP-адреса отправлялись из одного экземпляра `Bitrix`.
 
-### Метод ` __init__(self, webhook: str, verbose: bool = True, respect_velocity_policy: bool = False):`
+### Метод ` __init__(self, webhook: str, verbose: bool = True, respect_velocity_policy: bool = False, client: aiohttp.ClientSession = None):`
 Создаёт экземпляр объекта `Bitrix`.
 
 #### Параметры
 * `webhook: str` - URL вебхука, полученного от сервера Битрикс.
 * `verbose: bool = True` - показывать прогрессбар при выполнении запроса.
 * `respect_velocity_policy: bool = False` - соблюдать политику Битрикса о скорости запросов.
+* `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов клиента, инициализированного и настроенного пользователем.
 
 ### Метод `get_all(self, method: str, params: dict = None) -> list | dict`
 Получить полный список сущностей по запросу `method`.
@@ -377,6 +378,24 @@ deals.sort(key = lambda d: int(d['ID']))
 Попробуйте применить метод `list_and_get()` - он стабильно показывает на порядок лучшие результаты на больших объемах информации.
 
 См. [результаты тестов](https://github.com/leshchenko1979/fast_bitrix24/discussions/113).
+
+### Я получаю ошибку сертификата SSL. Что делать?
+Если вы получаете `SSLCertVerificationError` / `CERTIFICATE_VERIFY_FAILED`, попробуйте отключить верификацию сертификата SSL. При инициализации передайте в `Bitrix` / `BitrixAsync` параметр `client`,  где будет инициализированный вами экземпляр `aiohttp.ClientSession`, где будет отключена верификация SSL:
+```python
+import aiohttp
+from fast_bitrix24 import Bitrix
+
+# Инициалиировать HTTP-клиента без верификации SSL и передать его в `Bitrix`
+connector = aiohttp.TCPConnector(verify_ssl=False)
+client = aiohttp.ClientSession(connector=connector)
+b = Bitrix(webhook, client=client)
+
+# Далее ваши вызовы Битрикса
+...
+
+# Закрыть клиента
+client.close()
+```
 
 ## Как связаться с автором
 - telegram: https://t.me/fast_bitrix24

@@ -43,7 +43,7 @@ class ServerRequestHandler():
     последовательных запросов к серверу.
     '''
 
-    def __init__(self, webhook, respect_velocity_policy):
+    def __init__(self, webhook, respect_velocity_policy, client):
         self.webhook = self.standardize_webhook(webhook)
         self.respect_velocity_policy = respect_velocity_policy
 
@@ -51,7 +51,11 @@ class ServerRequestHandler():
         self.pool_size = BITRIX_POOL_SIZE
 
         self.active_runs = 0
-        self.session = None
+
+        # если пользователь при инициализации передал клиента со своими настройками,
+        # то будем использовать его клиента
+        self.client_provided_by_user = bool(client)
+        self.session = client
 
         # rr - requests register - список отправленных запросов к серверу
         self.rr = deque()
@@ -110,6 +114,9 @@ class ServerRequestHandler():
     async def handle_sessions(self):
         '''Открывает и закрывает сессию в зависимости от наличия
         активных запросов.'''
+        if self.client_provided_by_user:
+            yield True
+            return
 
         if not self.active_runs and (not self.session or self.session.closed):
             self.session = aiohttp.ClientSession(raise_for_status=True)
