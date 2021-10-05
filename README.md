@@ -385,9 +385,16 @@ deals.sort(key = lambda d: int(d['ID']))
 import aiohttp
 from fast_bitrix24 import Bitrix
 
+# Инициалиировать HTTP-клиента без верификации SSL и передать его в `Bitrix`
 connector = aiohttp.TCPConnector(verify_ssl=False)
 client = aiohttp.ClientSession(connector=connector)
 b = Bitrix(webhook, client=client)
+
+# Далее ваши вызовы Битрикса
+...
+
+# Закрыть клиента
+client.close()
 ```
 
 ## Как связаться с автором
