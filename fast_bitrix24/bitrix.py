@@ -13,7 +13,7 @@ from .user_request import (BatchUserRequest, CallUserRequest,
 class BitrixAbstract(object):
 
     def __init__(self, webhook: str, verbose: bool = True,
-                 respect_velocity_policy: bool = False):
+                 respect_velocity_policy: bool = False, token_func=None):
         '''
         Создает объект класса Bitrix.
 
@@ -23,9 +23,11 @@ class BitrixAbstract(object):
         запроса
         - `respect_velocity_policy: bool = False` - соблюдать ли политику
         Битрикса о скорости запросов
+        - `token_func = None` - функция без парамтеров, которая
+        отдает новый токен для авторизации при каждом обращении к ней
         '''
 
-        self.srh = ServerRequestHandler(webhook, respect_velocity_policy)
+        self.srh = ServerRequestHandler(webhook, respect_velocity_policy, token_func)
         self.verbose = verbose
 
 

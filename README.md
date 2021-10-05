@@ -167,13 +167,29 @@ leads = await b.get_all('crm.lead.list')
 
 Внутри объекта ведётся учёт скорости отправки запросов к серверу, поэтому важно, чтобы все запросы приложения в отношении одного аккаунта с одного IP-адреса отправлялись из одного экземпляра `Bitrix`.
 
-### Метод ` __init__(self, webhook: str, verbose: bool = True, respect_velocity_policy: bool = False):`
+### Метод ` __init__(self, webhook: str, verbose: bool = True, respect_velocity_policy: bool = False, token_func: Callable = None):`
 Создаёт экземпляр объекта `Bitrix`.
 
 #### Параметры
 * `webhook: str` - URL вебхука, полученного от сервера Битрикс.
 * `verbose: bool = True` - показывать прогрессбар при выполнении запроса.
 * `respect_velocity_policy: bool = False` - соблюдать политику Битрикса о скорости запросов.
+* `token_func: Callable = None` - функция, которая должна возвращать новый токен авторизации каждый раз, когда клиент получает от сервера ответ `403 Not authorized`.
+
+Например:
+
+```python
+def get_new_token() -> str:
+    # Тут идет ваша реализация получения нового токена от сервера авторизации
+    return new_token
+
+
+b = Bitrix(webhook, token_func=get_new_token())
+
+# Дальше идут ваши вызовы к Битриксу. `get_new_token` будет вызываться каждый раз,
+# когда старый токен перестает работать.
+```
+
 
 ### Метод `get_all(self, method: str, params: dict = None) -> list | dict`
 Получить полный список сущностей по запросу `method`.

@@ -112,6 +112,42 @@ class TestAcquire:
         assert 10 + 15 < elapsed < 10 + 15 + 1
 
 
+@pytest.mark.asyncio
+async def test_get_token():
+
+    q = []
+    start = monotonic()
+
+    def log(msg):
+        q.append(f'{round(monotonic() - start, 1)}: {msg}')
+
+    async def get_token():
+        log('get_token called')
+        await sleep(0.5)
+        log('token returned')
+        return 'token'
+
+    async def request(srh):
+        log('requested')
+        await srh.get_token_param()
+        log('proceeded')
+
+    srh = ServerRequestHandler('http://www.bitrix.ru/', get_token)
+
+    tasks = set()
+    for n in range(5):
+        tasks |= {create_task(request(srh))}
+        _, tasks = await wait(tasks, timeout=0.2)
+
+    log('finished')
+
+    assert ', '.join(q) == (
+        '0.0: requested, 0.0: get_token called, 0.2: requested, '
+        '0.4: requested, 0.5: token returned, 0.5: proceeded, 0.5: proceeded, '
+        '0.5: proceeded, 0.5: requested, 0.5: proceeded, '
+        '0.5: requested, 0.5: proceeded, 0.5: finished')
+
+
 class MockResponse(object):
     def __init__(self, stored_json=None):
         self.stored_json = stored_json
