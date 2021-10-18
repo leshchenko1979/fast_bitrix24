@@ -117,7 +117,7 @@ class GetAllUserRequest(UserRequestAbstract):
         # будет рандомная и сущности будут повторяться на разных страницах
 
         # ряд методов не признают параметра "order", для таких ничего не делаем
-        excluded_methods = {"crm.address.list"}
+        excluded_methods = {"crm.address.list", "documentgenerator.template.list"}
 
         if self.method in excluded_methods:
             return
