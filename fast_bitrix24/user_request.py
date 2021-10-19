@@ -116,6 +116,12 @@ class GetAllUserRequest(UserRequestAbstract):
         # необходимо установить порядок сортировки, иначе сортировка
         # будет рандомная и сущности будут повторяться на разных страницах
 
+        # ряд методов не признают параметра "order", для таких ничего не делаем
+        excluded_methods = {"crm.address.list", "documentgenerator.template.list"}
+
+        if self.method in excluded_methods:
+            return
+
         order_clause = {'order': {'ID': 'ASC'}}
 
         if self.params:
