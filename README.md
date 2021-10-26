@@ -380,21 +380,24 @@ deals.sort(key = lambda d: int(d['ID']))
 См. [результаты тестов](https://github.com/leshchenko1979/fast_bitrix24/discussions/113).
 
 ### Я получаю ошибку сертификата SSL. Что делать?
-Если вы получаете `SSLCertVerificationError` / `CERTIFICATE_VERIFY_FAILED`, попробуйте отключить верификацию сертификата SSL. При инициализации передайте в `Bitrix` / `BitrixAsync` параметр `client`,  где будет инициализированный вами экземпляр `aiohttp.ClientSession`, где будет отключена верификация SSL:
+Если вы получаете `SSLCertVerificationError` / `CERTIFICATE_VERIFY_FAILED`, попробуйте отключить верификацию сертификата SSL. При инициализации передайте в `BitrixAsync` параметр `client`,  где будет инициализированный вами экземпляр `aiohttp.ClientSession`, у которого будет отключена верификация SSL:
 ```python
 import aiohttp
-from fast_bitrix24 import Bitrix
+import asyncio
 
-# Инициалиировать HTTP-клиента без верификации SSL и передать его в `Bitrix`
-connector = aiohttp.TCPConnector(verify_ssl=False)
-client = aiohttp.ClientSession(connector=connector)
-b = Bitrix(webhook, client=client)
+from fast_bitrix24 import BitrixAsync
 
-# Далее ваши вызовы Битрикса
-...
 
-# Закрыть клиента
-client.close()
+async def main():
+    # Инициалиировать HTTP-клиента без верификации SSL и передать его в `BitrixAsync`
+    with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as client:
+        b = BitrixAsync(webhook, client=client)
+
+        # Далее ваши вызовы Битрикса
+        ...
+
+
+asyncio.run(main)
 ```
 
 ## Как связаться с автором
