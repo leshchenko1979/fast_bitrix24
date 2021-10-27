@@ -389,15 +389,16 @@ from fast_bitrix24 import BitrixAsync
 
 
 async def main():
-    # Инициалиировать HTTP-клиента без верификации SSL и передать его в `BitrixAsync`
-    with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as client:
+    # Инициализировать HTTP-клиента без верификации SSL и передать его в `BitrixAsync`
+    connector = aiohttp.TCPConnector(ssl=False)
+    async with aiohttp.ClientSession(connector=connector) as client:
         b = BitrixAsync(webhook, client=client)
 
         # Далее ваши вызовы Битрикса
         ...
 
 
-asyncio.run(main)
+asyncio.run(main())
 ```
 
 ## Как связаться с автором
