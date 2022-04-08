@@ -13,6 +13,7 @@ from .user_request import (
     GetAllUserRequest,
     GetByIDUserRequest,
     ListAndGetUserRequest,
+    RawCallUserRequest,
 )
 
 
@@ -136,7 +137,7 @@ class Bitrix(BitrixAbstract):
             ListAndGetUserRequest(self, method_branch, ID_field_name).run()
         )
 
-    def call(self, method: str, items: Union[dict, Iterable]):
+    def call(self, method: str, items: Union[dict, Iterable], /, raw=False):
         """
         Вызвать метод REST API по списку элементов.
 
@@ -144,12 +145,16 @@ class Bitrix(BitrixAbstract):
         - `method` - метод REST API
         - `items` - список параметров вызываемого метода
             либо dict с параметрами для единичного вызова
+        - `raw` - если True, то items отправляются на сервер в виде json
+            в первозданном виде, без обычных преобразований.
+            По умолчанию False.
 
         Возвращает список ответов сервера для каждого из элементов `items`
         либо просто результат для единичного вызова.
         """
 
-        return self.srh.run(CallUserRequest(self, method, items).run())
+        request_cls = RawCallUserRequest if raw else CallUserRequest
+        return self.srh.run(request_cls(self, method, items).run())
 
     def call_batch(self, params: dict) -> dict:
         """
@@ -279,7 +284,7 @@ class BitrixAsync(BitrixAbstract):
             self, method_branch, ID_field_name=ID_field_name
         ).run()
 
-    async def call(self, method: str, items: Union[dict, Iterable]):
+    async def call(self, method: str, items: Union[dict, Iterable], /, raw=False):
         """
         Вызвать метод REST API по списку элементов.
 
@@ -287,12 +292,16 @@ class BitrixAsync(BitrixAbstract):
         - `method` - метод REST API
         - `items` - список параметров вызываемого метода
             либо dict с параметрами для единичного вызова
+        - `raw` - если True, то items отправляются на сервер в виде json
+            в первозданном виде, без обычных преобразований.
+            По умолчанию False.
 
         Возвращает список ответов сервера для каждого из элементов `items`
         либо просто результат для единичного вызова.
         """
 
-        return await self.srh.run_async(CallUserRequest(self, method, items).run())
+        request_cls = RawCallUserRequest if raw else CallUserRequest
+        return await self.srh.run_async(request_cls(self, method, items).run())
 
     async def call_batch(self, params: dict) -> dict:
         """
