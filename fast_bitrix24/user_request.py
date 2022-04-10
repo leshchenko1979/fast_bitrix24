@@ -274,12 +274,16 @@ class RawCallUserRequest(UserRequestAbstract):
     в строку при заворачивании в батч
     (https://github.com/leshchenko1979/fast_bitrix24/issues/156).
     """
+
     def __init__(self, bitrix, method: str, item: dict):
         super().__init__(bitrix, method, item)
 
     def standardized_params(self, p):
         """Пропускаем все проверки и изменения параметров."""
         return p
+
+    def check_special_limitations(self):
+        pass
 
     async def run(self):
         response = await self.srh.single_request(self.method, self.params)
