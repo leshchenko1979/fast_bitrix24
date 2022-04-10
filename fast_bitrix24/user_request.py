@@ -287,7 +287,7 @@ class RawCallUserRequest(UserRequestAbstract):
 
     async def run(self):
         response = await self.srh.single_request(self.method, self.params)
-        return ServerResponse(response.result).result
+        return ServerResponse(response.result)
 
 
 class BatchUserRequest(UserRequestAbstract):
