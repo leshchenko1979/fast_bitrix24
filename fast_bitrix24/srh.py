@@ -131,7 +131,7 @@ class ServerRequestHandler:
             if not self.active_runs and self.session and not self.session.closed:
                 await self.session.close()
 
-    async def single_request(self, method, params=None):
+    async def single_request(self, method, params=None) -> ServerResponse:
         """Делает единичный запрос к серверу,
         с повторными попытками при необходимости."""
 
@@ -145,7 +145,7 @@ class ServerRequestHandler:
             except (ClientPayloadError, ServerDisconnectedError, ServerError) as err:
                 self.failure(err)
 
-    async def request_attempt(self, method, params=None):
+    async def request_attempt(self, method, params=None) -> ServerResponse:
         """Делает попытку запроса к серверу, ожидая при необходимости."""
 
         try:
