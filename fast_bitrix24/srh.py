@@ -1,17 +1,18 @@
 import asyncio
-from asyncio import sleep, Event
 import time
+from asyncio import Event, sleep
 from collections import deque
 from contextlib import asynccontextmanager
 
 import aiohttp
-from aiohttp.client_exceptions import (ClientPayloadError, ClientResponseError,
-                                       ServerDisconnectedError)
-from tqdm import tqdm
+from aiohttp.client_exceptions import (
+    ClientPayloadError,
+    ClientResponseError,
+    ServerDisconnectedError,
+)
 
 from .server_response import ServerResponse
 from .utils import _url_valid
-
 
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
@@ -32,8 +33,8 @@ class ServerError(Exception):
     pass
 
 
-class ServerRequestHandler():
-    '''
+class ServerRequestHandler:
+    """
     Используется для контроля скорости доступа к серверам Битрикс.
 
     Основная цель - вести учет количества запросов, которые можно передать
@@ -41,7 +42,7 @@ class ServerRequestHandler():
 
     Используется как контекстный менеджер, оборачивающий несколько
     последовательных запросов к серверу.
-    '''
+    """
 
     def __init__(self, webhook, respect_velocity_policy, client):
         self.webhook = self.standardize_webhook(webhook)
@@ -77,23 +78,23 @@ class ServerRequestHandler():
 
     @staticmethod
     def standardize_webhook(webhook):
-        '''Приводит `webhook` к стандартному виду.'''
+        """Приводит `webhook` к стандартному виду."""
 
         if not isinstance(webhook, str):
-            raise TypeError(f'Webhook should be a {str}')
+            raise TypeError(f"Webhook should be a {str}")
 
         webhook = webhook.strip()
 
         if not _url_valid(webhook):
-            raise ValueError('Webhook is not a valid URL')
+            raise ValueError("Webhook is not a valid URL")
 
-        if webhook[-1] != '/':
-            webhook += '/'
+        if webhook[-1] != "/":
+            webhook += "/"
 
         return webhook
 
     def run(self, coroutine):
-        '''Запускает `coroutine`, оборачивая его в `run_async()`.'''
+        """Запускает `coroutine`, оборачивая его в `run_async()`."""
 
         try:
             loop = asyncio.get_event_loop()
@@ -104,16 +105,16 @@ class ServerRequestHandler():
         return loop.run_until_complete(self.run_async(coroutine))
 
     async def run_async(self, coroutine):
-        '''Запускает `coroutine`, создавая и прекращая сессию
-        при необходимости.'''
+        """Запускает `coroutine`, создавая и прекращая сессию
+        при необходимости."""
 
         async with self.handle_sessions():
             return await coroutine
 
     @asynccontextmanager
     async def handle_sessions(self):
-        '''Открывает и закрывает сессию в зависимости от наличия
-        активных запросов.'''
+        """Открывает и закрывает сессию в зависимости от наличия
+        активных запросов."""
         if self.client_provided_by_user:
             yield True
             return
@@ -127,13 +128,12 @@ class ServerRequestHandler():
 
         finally:
             self.active_runs -= 1
-            if not self.active_runs and self.session and \
-                    not self.session.closed:
+            if not self.active_runs and self.session and not self.session.closed:
                 await self.session.close()
 
-    async def single_request(self, method, params=None):
-        '''Делает единичный запрос к серверу,
-        с повторными попытками при необходимости.'''
+    async def single_request(self, method, params=None) -> ServerResponse:
+        """Делает единичный запрос к серверу,
+        с повторными попытками при необходимости."""
 
         while True:
 
@@ -142,42 +142,43 @@ class ServerRequestHandler():
                 self.success()
                 return result
 
-            except (ClientPayloadError,
-                    ServerDisconnectedError, ServerError) as err:
+            except (ClientPayloadError, ServerDisconnectedError, ServerError) as err:
                 self.failure(err)
 
-    async def request_attempt(self, method, params=None):
-        '''Делает попытку запроса к серверу, ожидая при необходимости.'''
+    async def request_attempt(self, method, params=None) -> ServerResponse:
+        """Делает попытку запроса к серверу, ожидая при необходимости."""
 
         try:
             async with self.acquire(), self.session.post(
-                    url=self.webhook + method, json=params) as response:
-                return ServerResponse(await response.json(encoding='utf-8'))
+                url=self.webhook + method, json=params
+            ) as response:
+                return ServerResponse(await response.json(encoding="utf-8"))
 
         except ClientResponseError as error:
             if error.status // 100 == 5:  # ошибки вида 5XX
-                raise ServerError('The server returned an error') from error
+                raise ServerError("The server returned an error") from error
             else:
                 raise
 
     def success(self):
-        '''Увеличить счетчик удачных попыток.'''
+        """Увеличить счетчик удачных попыток."""
 
         self.successive_results = max(self.successive_results + 1, 1)
 
     def failure(self, err: Exception):
-        '''Увеличить счетчик неудачных попыток и поднять исключение,
-        если попытки исчерпаны.'''
+        """Увеличить счетчик неудачных попыток и поднять исключение,
+        если попытки исчерпаны."""
 
         self.successive_results = min(self.successive_results - 1, -1)
 
         if self.successive_results < -MAX_RETRIES:
             raise RuntimeError(
-                'All attempts to get data from server exhausted') from err
+                "All attempts to get data from server exhausted"
+            ) from err
 
     @asynccontextmanager
     async def acquire(self):
-        '''Ожидает, пока не станет безопасно делать запрос к серверу.'''
+        """Ожидает, пока не станет безопасно делать запрос к серверу."""
 
         await self.autothrottle()
 
@@ -189,27 +190,29 @@ class ServerRequestHandler():
                 yield
 
     async def autothrottle(self):
-        '''Если было несколько неудач, делаем таймаут и уменьшаем скорость
-        и количество одновременных запросов, и наоборот.'''
+        """Если было несколько неудач, делаем таймаут и уменьшаем скорость
+        и количество одновременных запросов, и наоборот."""
 
         if self.successive_results < 0:
 
             self.mcr_cur_limit = max(
-                self.mcr_cur_limit / DECREASE_CONNECTIONS_FACTOR, 1)
+                self.mcr_cur_limit / DECREASE_CONNECTIONS_FACTOR, 1
+            )
 
             if self.successive_results < NUM_FAILURES_NO_TIMEOUT:
                 power = -self.successive_results - NUM_FAILURES_NO_TIMEOUT - 1
-                await sleep(INITIAL_TIMEOUT * BACKOFF_FACTOR ** power)
+                await sleep(INITIAL_TIMEOUT * BACKOFF_FACTOR**power)
 
         elif self.successive_results > 0:
 
             self.mcr_cur_limit = min(
-                self.mcr_cur_limit * RESTORE_CONNECTIONS_FACTOR, self.mcr_max)
+                self.mcr_cur_limit * RESTORE_CONNECTIONS_FACTOR, self.mcr_max
+            )
 
     @asynccontextmanager
     async def limit_concurrent_requests(self):
-        '''Не позволяет оновременно выполнять
-        более `self.mcr_cur_limit` запросов.'''
+        """Не позволяет оновременно выполнять
+        более `self.mcr_cur_limit` запросов."""
 
         while self.concurrent_requests > self.mcr_cur_limit:
             self.request_complete.clear()
@@ -226,13 +229,12 @@ class ServerRequestHandler():
 
     @asynccontextmanager
     async def limit_request_velocity(self):
-        '''Ограничивает скорость запросов к серверу.'''
+        """Ограничивает скорость запросов к серверу."""
 
         # если пул заполнен, ждать
         while len(self.rr) >= self.pool_size:
             time_from_last_request = time.monotonic() - self.rr[0]
-            time_to_wait = 1 / self.requests_per_second - \
-                time_from_last_request
+            time_to_wait = 1 / self.requests_per_second - time_from_last_request
             if time_to_wait > 0:
                 await sleep(time_to_wait)
             else:

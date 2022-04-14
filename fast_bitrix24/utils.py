@@ -1,5 +1,3 @@
-from functools import wraps
-from time import sleep
 from urllib.parse import quote, urlparse
 
 
@@ -24,11 +22,9 @@ def http_build_query(params, convention="%s"):
 
         elif type(params[key]) is list:
 
-            new_params = {str(i): element for i, element
-                          in enumerate(params[key])}
+            new_params = {str(i): element for i, element in enumerate(params[key])}
 
-            output += http_build_query(
-                new_params, convention % key + "[%s]")
+            output += http_build_query(new_params, convention % key + "[%s]")
 
         else:
 

@@ -1,22 +1,31 @@
-'''Высокоуровневый API для доступа к Битрикс24'''
+"""Высокоуровневый API для доступа к Битрикс24"""
 
-import aiohttp
 from contextlib import asynccontextmanager, contextmanager
 from typing import Iterable, Union
 
+import aiohttp
+
 from . import correct_asyncio
 from .srh import ServerRequestHandler
-from .user_request import (BatchUserRequest, CallUserRequest,
-                           GetAllUserRequest, GetByIDUserRequest,
-                           ListAndGetUserRequest)
+from .user_request import (
+    BatchUserRequest,
+    CallUserRequest,
+    GetAllUserRequest,
+    GetByIDUserRequest,
+    ListAndGetUserRequest,
+    RawCallUserRequest,
+)
 
 
 class BitrixAbstract(object):
-
-    def __init__(self, webhook: str, verbose: bool = True,
-                 respect_velocity_policy: bool = False,
-                 client: aiohttp.ClientSession = None):
-        '''
+    def __init__(
+        self,
+        webhook: str,
+        verbose: bool = True,
+        respect_velocity_policy: bool = False,
+        client: aiohttp.ClientSession = None,
+    ):
+        """
         Создает объект класса Bitrix.
 
         Параметры:
@@ -28,17 +37,17 @@ class BitrixAbstract(object):
         - `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов
         объект aiohttp.ClientSession, инициализированнный и настроенный
         пользователем.
-        '''
+        """
 
         self.srh = ServerRequestHandler(webhook, respect_velocity_policy, client)
         self.verbose = verbose
 
 
 class Bitrix(BitrixAbstract):
-    '''Клиент для запросов к серверу Битрикс24.'''
+    """Клиент для запросов к серверу Битрикс24."""
 
     def get_all(self, method: str, params: dict = None) -> Union[list, dict]:
-        '''
+        """
         Получить полный список сущностей по запросу `method`.
 
         Под капотом использует параллельные запросы и автоматическое построение
@@ -53,13 +62,18 @@ class Bitrix(BitrixAbstract):
 
         Возвращает полный список сущностей, имеющихся на сервере,
         согласно заданным методу и параметрам.
-        '''
+        """
 
         return self.srh.run(GetAllUserRequest(self, method, params).run())
 
-    def get_by_ID(self, method: str, ID_list: Iterable,
-                  ID_field_name: str = 'ID', params: dict = None) -> dict:
-        '''
+    def get_by_ID(
+        self,
+        method: str,
+        ID_list: Iterable,
+        ID_field_name: str = "ID",
+        params: dict = None,
+    ) -> dict:
+        """
         Получить список сущностей по запросу method и списку ID.
 
         Используется для случаев, когда нужны не все сущности,
@@ -87,13 +101,14 @@ class Bitrix(BitrixAbstract):
         относительно этого ID. Это может быть, например, список связанных
         сущностей или пустой список, если не найдено ни одной привязанной
         сущности.
-        '''
+        """
 
-        return self.srh.run(GetByIDUserRequest(
-            self, method, params, ID_list, ID_field_name).run())
+        return self.srh.run(
+            GetByIDUserRequest(self, method, params, ID_list, ID_field_name).run()
+        )
 
-    def list_and_get(self, method_branch: str, ID_field_name='ID') -> dict:
-        '''
+    def list_and_get(self, method_branch: str, ID_field_name="ID") -> dict:
+        """
         Скачать список всех ID при помощи метода *.list,
         а затем все элементы при помощи метода *.get.
 
@@ -116,28 +131,33 @@ class Bitrix(BitrixAbstract):
             ...
         }
         ```
-        '''
+        """
 
-        return self.srh.run(ListAndGetUserRequest(
-            self, method_branch, ID_field_name).run())
+        return self.srh.run(
+            ListAndGetUserRequest(self, method_branch, ID_field_name).run()
+        )
 
-    def call(self, method: str, items: Union[dict, Iterable]):
-        '''
+    def call(self, method: str, items: Union[dict, Iterable], /, raw=False):
+        """
         Вызвать метод REST API по списку элементов.
 
         Параметры:
         - `method` - метод REST API
         - `items` - список параметров вызываемого метода
             либо dict с параметрами для единичного вызова
+        - `raw` - если True, то items отправляются на сервер в виде json
+            в первозданном виде, без обычных преобразований.
+            По умолчанию False.
 
         Возвращает список ответов сервера для каждого из элементов `items`
         либо просто результат для единичного вызова.
-        '''
+        """
 
-        return self.srh.run(CallUserRequest(self, method, items).run())
+        request_cls = RawCallUserRequest if raw else CallUserRequest
+        return self.srh.run(request_cls(self, method, items).run())
 
     def call_batch(self, params: dict) -> dict:
-        '''
+        """
         Вызвать метод `batch`.
 
         Параметры:
@@ -145,22 +165,21 @@ class Bitrix(BitrixAbstract):
 
         Возвращает ответы сервера в формате словаря, где ключ - название
         команды, а значение - ответ сервера по этой команде.
-        '''
+        """
 
         return self.srh.run(BatchUserRequest(self, params).run())
 
     @contextmanager
     def slow(self, max_concurrent_requests: int = 1):
-        '''Временно ограничивает количество одновременно выполняемых запросов
-        к Битрикс24.'''
+        """Временно ограничивает количество одновременно выполняемых запросов
+        к Битрикс24."""
 
         if not isinstance(max_concurrent_requests, int):
-            raise 'slow() argument should be only int'
+            raise "slow() argument should be only int"
         if max_concurrent_requests < 1:
-            raise 'slow() argument should be >= 1'
+            raise "slow() argument should be >= 1"
 
-        mcr_max_backup, self.srh.mcr_max = \
-            self.srh.mcr_max, max_concurrent_requests
+        mcr_max_backup, self.srh.mcr_max = self.srh.mcr_max, max_concurrent_requests
         self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
 
         yield True
@@ -170,12 +189,11 @@ class Bitrix(BitrixAbstract):
 
 
 class BitrixAsync(BitrixAbstract):
-    '''Класс, повторяющий интерфейс класса `Bitrix`,
-    но с асинхронными методами.'''
+    """Класс, повторяющий интерфейс класса `Bitrix`,
+    но с асинхронными методами."""
 
-    async def get_all(self, method: str, params: dict = None) -> \
-            Union[list, dict]:
-        '''
+    async def get_all(self, method: str, params: dict = None) -> Union[list, dict]:
+        """
         Получить полный список сущностей по запросу `method`.
 
         Под капотом использует параллельные запросы и автоматическое построение
@@ -191,15 +209,18 @@ class BitrixAsync(BitrixAbstract):
 
         Возвращает полный список сущностей, имеющихся на сервере,
         согласно заданным методу и параметрам.
-        '''
+        """
 
-        return await self.srh.run_async(
-            GetAllUserRequest(self, method, params).run())
+        return await self.srh.run_async(GetAllUserRequest(self, method, params).run())
 
-    async def get_by_ID(self, method: str, ID_list: Iterable,
-                        ID_field_name: str = 'ID',
-                        params: dict = None) -> list:
-        '''
+    async def get_by_ID(
+        self,
+        method: str,
+        ID_list: Iterable,
+        ID_field_name: str = "ID",
+        params: dict = None,
+    ) -> list:
+        """
         Получить список сущностей по запросу `method` и списку ID.
 
         Используется для случаев, когда нужны не все сущности,
@@ -227,14 +248,14 @@ class BitrixAsync(BitrixAbstract):
         относительно этого ID. Это может быть, например, список связанных
         сущностей или пустой список, если не найдено ни одной привязанной
         сущности.
-        '''
+        """
 
-        return await self.srh.run_async(GetByIDUserRequest(
-            self, method, params, ID_list, ID_field_name).run())
+        return await self.srh.run_async(
+            GetByIDUserRequest(self, method, params, ID_list, ID_field_name).run()
+        )
 
-    async def list_and_get(self, method_branch: str,
-                           ID_field_name='ID') -> dict:
-        '''
+    async def list_and_get(self, method_branch: str, ID_field_name="ID") -> dict:
+        """
         Скачать список всех ID при помощи метода *.list,
         а затем все элементы при помощи метода *.get.
 
@@ -257,29 +278,33 @@ class BitrixAsync(BitrixAbstract):
             ...
         }
         ```
-        '''
+        """
 
         return await ListAndGetUserRequest(
-            self, method_branch, ID_field_name=ID_field_name).run()
+            self, method_branch, ID_field_name=ID_field_name
+        ).run()
 
-    async def call(self, method: str, items: Union[dict, Iterable]):
-        '''
+    async def call(self, method: str, items: Union[dict, Iterable], /, raw=False):
+        """
         Вызвать метод REST API по списку элементов.
 
         Параметры:
         - `method` - метод REST API
         - `items` - список параметров вызываемого метода
             либо dict с параметрами для единичного вызова
+        - `raw` - если True, то items отправляются на сервер в виде json
+            в первозданном виде, без обычных преобразований.
+            По умолчанию False.
 
         Возвращает список ответов сервера для каждого из элементов `items`
         либо просто результат для единичного вызова.
-        '''
+        """
 
-        return await self.srh.run_async(
-            CallUserRequest(self, method, items).run())
+        request_cls = RawCallUserRequest if raw else CallUserRequest
+        return await self.srh.run_async(request_cls(self, method, items).run())
 
     async def call_batch(self, params: dict) -> dict:
-        '''
+        """
         Вызвать метод `batch`.
 
         Параметры:
@@ -287,23 +312,21 @@ class BitrixAsync(BitrixAbstract):
 
         Возвращает ответы сервера в формате словаря, где ключ - название
         команды, а значение - ответ сервера по этой команде.
-        '''
+        """
 
-        return await self.srh.run_async(
-            BatchUserRequest(self, params).run())
+        return await self.srh.run_async(BatchUserRequest(self, params).run())
 
     @asynccontextmanager
     async def slow(self, max_concurrent_requests: int = 1):
-        '''Временно ограничивает количество одновременно выполняемых запросов
-        к Битрикс24.'''
+        """Временно ограничивает количество одновременно выполняемых запросов
+        к Битрикс24."""
 
         if not isinstance(max_concurrent_requests, int):
-            raise 'slow() argument should be only int'
+            raise "slow() argument should be only int"
         if max_concurrent_requests < 1:
-            raise 'slow() argument should be >= 1'
+            raise "slow() argument should be >= 1"
 
-        mcr_max_backup, self.srh.mcr_max = \
-            self.srh.mcr_max, max_concurrent_requests
+        mcr_max_backup, self.srh.mcr_max = self.srh.mcr_max, max_concurrent_requests
         self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
 
         yield True
