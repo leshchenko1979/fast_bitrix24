@@ -4,6 +4,8 @@ import warnings
 from collections import ChainMap
 from typing import Iterable
 
+import icontract
+
 from .mult_request import (
     MultipleServerRequestHandler,
     MultipleServerRequestHandlerPreserveIDs,
@@ -130,10 +132,12 @@ class GetAllUserRequest(UserRequestAbstract):
         else:
             self.params = order_clause
 
+    @icontract.ensure(lambda self: isinstance(self.results, list))
     async def make_first_request(self):
         self.first_response = await self.srh.single_request(self.method, self.params)
         self.results, self.total = self.first_response.result, self.first_response.total
 
+    @icontract.require(lambda self: isinstance(self.results, list))
     async def make_remaining_requests(self):
         item_list = (
             ChainMap({"start": start}, self.params)

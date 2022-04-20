@@ -1,5 +1,6 @@
 from asyncio import FIRST_COMPLETED, ensure_future, wait
 from itertools import chain
+import icontract
 
 from more_itertools import chunked
 from tqdm import tqdm
@@ -48,6 +49,7 @@ class MultipleServerRequestHandler:
     def batch_command_label(self, i, item):
         return f"cmd{i}"
 
+    @icontract.ensure(lambda result: isinstance(result, list))
     async def run(self):
         self.top_up_tasks()
 
