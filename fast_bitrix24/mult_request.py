@@ -49,7 +49,6 @@ class MultipleServerRequestHandler:
     def batch_command_label(self, i, item):
         return f"cmd{i}"
 
-    @icontract.ensure(lambda result: isinstance(result, list))
     async def run(self):
         self.top_up_tasks()
 
