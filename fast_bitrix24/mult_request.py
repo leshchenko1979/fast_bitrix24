@@ -1,5 +1,6 @@
 from asyncio import FIRST_COMPLETED, ensure_future, wait
 from itertools import chain
+import icontract
 
 from more_itertools import chunked
 from tqdm import tqdm
@@ -96,8 +97,15 @@ class MultipleServerRequestHandler:
             return 0
 
         result_list = list(unwrapped_result.values())
+
+        # метод `crm.stagehistory.list` возвращает dict["items", list] --
+        # разворачиваем его в список
+        if isinstance(result_list[0], dict) and "items" in result_list[0]:
+            result_list = [x["items"] for x in result_list]
+
         if type(result_list[0]) == list:
             result_list = list(chain(*result_list))
+
         self.results.extend(result_list)
         return len(result_list)
 

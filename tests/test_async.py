@@ -112,7 +112,7 @@ class TestAcquire:
         assert 10 + 15 < elapsed < 10 + 15 + 1
 
 
-class MockResponse(object):
+class MockStaticResponse(object):
     def __init__(self, stored_json=None):
         self.stored_json = stored_json
 
@@ -160,9 +160,9 @@ class TestMocks:
     async def test_mock(self):
 
         bitrix = BitrixAsync("http://www.google.com/")
-        bitrix.srh = MockSRH(lambda *args: MockResponse({"result": ("OK",)}))
+        bitrix.srh = MockSRH(lambda *args: MockStaticResponse({"result": ["OK"]}))
 
-        assert await bitrix.get_all("abc") == ("OK",)
+        assert await bitrix.get_all("abc") == ["OK"]
 
     @pytest.mark.asyncio
     async def test_mock_get_all(self):
@@ -182,7 +182,7 @@ class TestMocks:
                 }
                 response = {"result": {"result": cmds, "total": 5000}}
 
-            return MockResponse(response)
+            return MockStaticResponse(response)
 
         bitrix = BitrixAsync("http://www.google.com/")
         bitrix.srh = MockSRH(post_callback)
@@ -213,7 +213,7 @@ class TestMocks:
 
             response = {"result": {"result": items}}
 
-            return MockResponse(response)
+            return MockStaticResponse(response)
 
         bitrix = BitrixAsync("http://www.google.com/")
         bitrix.srh = MockSRH(post_callback)

@@ -2,3 +2,4 @@ aiohttp
 asyncio
 tqdm
 more_itertools
+icontract
