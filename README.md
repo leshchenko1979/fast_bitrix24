@@ -116,6 +116,20 @@ b.call('crm.deal.update', tasks)
 ```
 Метод `call()` возвращает список ответов сервера по каждому элементу переданного списка.
 
+### call(raw=True)
+Рекомендуется использовать метод `call(raw=True)` в следующих случаях:
+- для вызова методов типа `crm.lead.fields` или `crm.deal.fields`, которые не требуют дополнительных параметров и возвращают словарь (`dict`), а не список (`list`),
+- для отправки запросов, в параметрах которых есть `None` (для стирания значения полей).
+
+```python
+# вернуть dict с полями лида
+b.call('crm.lead.fields', raw=True)
+
+# стереть DESCRIPTION в лиде 123
+params = {"ID": 123, "fields": {"DESCRIPTION": None}}
+b.call('crm.lead.update', params, raw=True)
+```
+
 ### `call_batch()`
 Если вы хотите вызвать пакетный метод, используйте `call_batch()`:
 
@@ -272,7 +286,7 @@ all_lead_info = b.list_and_get('crm.lead')
 Например, `tasks.task.list` в результатах идентификатор задачи
 возвращает в поле `ID`, но `tasks.task.get` принимает
 идентификаторы задач в поле `taskId`.
-### Метод `call(self, method: str, items: dict | Iterable[dict] | Any, /, raw: bool = False) -> dict | list[dict] | Any`
+### Метод `call(self, method: str, items: dict | Iterable[dict] | Any = None, /, raw: bool = False) -> dict | list[dict] | Any`
 
 Вызвать метод REST API. Самый универсальный метод,
 применяемый, когда `get_all` и `get_by_ID` не подходят.

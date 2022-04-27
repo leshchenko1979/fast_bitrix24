@@ -11,6 +11,7 @@ from .fixtures import (
 )
 
 from fast_bitrix24 import Bitrix
+from fast_bitrix24.server_response import ServerResponse
 
 
 @pytest.mark.skip("Нет тестового аккаунта для проверки")
@@ -152,7 +153,7 @@ class TestBasic:
 
 
 class TestErrors:
-    def test_param_errors(self, get_test):
+    def test_get_all(self, get_test):
         b = get_test
 
         with pytest.raises(TypeError):
@@ -167,7 +168,7 @@ class TestErrors:
         with pytest.raises(TypeError):
             b.get_all("some_method", {"filter": 3})
 
-    def test_get_by_ID_params(self, get_test):
+    def test_get_by_ID(self, get_test):
         b = get_test
 
         with pytest.raises(TypeError, match="should be iterable"):
@@ -176,6 +177,19 @@ class TestErrors:
         with pytest.raises(TypeError, match="should contain only ints or strs"):
             b.get_by_ID("_", [["a"]])
 
+    def test_call(self, get_test, monkeypatch):
+        b = get_test
+
+        async def stub(*args, **kwargs):
+            return ServerResponse({"result": "ok"})
+
+        monkeypatch.setattr(b.srh, "request_attempt", stub)
+        assert b.srh.request_attempt is stub
+
+        b.call("_", raw=True)
+
+        with pytest.raises(TypeError, match="iterable"):
+            b.call("_", {})
 
 @pytest.mark.skip("Нет тестового аккаунта Битрикс")
 class TestLongRequests:

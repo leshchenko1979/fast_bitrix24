@@ -137,14 +137,15 @@ class Bitrix(BitrixAbstract):
             ListAndGetUserRequest(self, method_branch, ID_field_name).run()
         )
 
-    def call(self, method: str, items: Union[dict, Iterable], /, raw=False):
+    def call(self, method: str, items: Union[dict, Iterable] = None, /, raw=False):
         """
         Вызвать метод REST API по списку элементов.
 
         Параметры:
         - `method` - метод REST API
         - `items` - список параметров вызываемого метода
-            либо dict с параметрами для единичного вызова
+            либо dict с параметрами для единичного вызова. Может быть `None`,
+            если `raw=True`.
         - `raw` - если True, то items отправляются на сервер в виде json
             в первозданном виде, без обычных преобразований.
             По умолчанию False.
@@ -284,14 +285,15 @@ class BitrixAsync(BitrixAbstract):
             self, method_branch, ID_field_name=ID_field_name
         ).run()
 
-    async def call(self, method: str, items: Union[dict, Iterable], /, raw=False):
+    async def call(self, method: str, items: Union[dict, Iterable] = None, /, raw=False):
         """
         Вызвать метод REST API по списку элементов.
 
         Параметры:
         - `method` - метод REST API
         - `items` - список параметров вызываемого метода
-            либо dict с параметрами для единичного вызова
+            либо dict с параметрами для единичного вызова. Может быть `None`,
+            если `raw=True`.
         - `raw` - если True, то items отправляются на сервер в виде json
             в первозданном виде, без обычных преобразований.
             По умолчанию False.
