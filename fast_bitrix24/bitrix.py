@@ -209,8 +209,8 @@ class Bitrix(BitrixAsync):
 
             if loop.is_running():
                 return loop.create_task(coroutine(*args, **kwargs))
-            else:
-                return loop.run_until_complete(coroutine(*args, **kwargs))
+
+            return loop.run_until_complete(coroutine(*args, **kwargs))
 
         return sync_wrapper
 
