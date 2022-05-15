@@ -89,27 +89,32 @@ class TestAcquire:
 
     @pytest.mark.asyncio
     async def test_acquire_speed(self):
+        CYCLES = 100
+        POOL_SIZE = 50
+        INTERMITTENT_TIME = 0
+        RPS = 100
 
-        i = 100
-        bitrix = get_custom_bitrix(50, 2)
+        i = CYCLES
+        bitrix = get_custom_bitrix(POOL_SIZE, RPS)
 
         start = monotonic()
 
-        while i > 50:
+        while i > POOL_SIZE:
             async with bitrix.srh.acquire():
                 i -= 1
 
         elapsed = monotonic() - start
         assert elapsed < 1
 
-        await sleep(10)
+        await sleep(INTERMITTENT_TIME)
 
         while i:
             async with bitrix.srh.acquire():
                 i -= 1
 
         elapsed = monotonic() - start
-        assert 10 + 15 < elapsed < 10 + 15 + 1
+        expected = INTERMITTENT_TIME + (CYCLES - POOL_SIZE) / RPS
+        assert expected - elapsed < 1
 
 
 class MockStaticResponse(object):
@@ -184,7 +189,7 @@ class TestMocks:
 
             return MockStaticResponse(response)
 
-        bitrix = BitrixAsync("http://www.google.com/")
+        bitrix = get_custom_bitrix(10_000, 10_000)
         bitrix.srh = MockSRH(post_callback)
 
         result = await bitrix.get_all("abc")
@@ -215,15 +220,23 @@ class TestMocks:
 
             return MockStaticResponse(response)
 
-        bitrix = BitrixAsync("http://www.google.com/")
+        POOL_SIZE = 50
+        RPS = 100
+        PAGE_SIZE = 50
+        SIZE = POOL_SIZE * PAGE_SIZE + POOL_SIZE * 2
+        print(SIZE)
+
+        COMPUTATION_TIME = 2
+        timeout = max(SIZE / 50 - POOL_SIZE, 0) / RPS + COMPUTATION_TIME
+        print(timeout)
+        assert 0 < timeout < 3  # мы не хотим, чтобы тест шел вечно
+
+        bitrix = get_custom_bitrix(POOL_SIZE, RPS)
         bitrix.srh = MockSRH(post_callback)
 
-        SIZE = 4000
 
         bitrix_task = create_task(bitrix.get_by_ID("abc", list(range(SIZE))))
         restore_pool_task = create_task(bitrix.srh.restore_pool())
-
-        timeout = (SIZE / 50 - BITRIX_POOL_SIZE) / BITRIX_RPS + 1
 
         await wait({bitrix_task, restore_pool_task}, timeout=timeout)
 
@@ -242,11 +255,12 @@ class TestMocks:
         tasks = set()
 
         SIZE = 70
+        srh.requests_per_second = 100
 
         for _ in range(SIZE):
             tasks |= {ensure_future(mock_request(srh))}
 
-        timeout = (SIZE - BITRIX_POOL_SIZE) / BITRIX_RPS + 1
+        timeout = (SIZE - srh.pool_size) / srh.requests_per_second + 1
 
         start = monotonic()
 
