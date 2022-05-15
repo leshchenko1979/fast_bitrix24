@@ -10,10 +10,10 @@ def get_test():
     test_webhook = os.getenv('FAST_BITRIX24_TEST_WEBHOOK')
     if test_webhook:
         return Bitrix(test_webhook)
-    else:
-        raise RuntimeError(
-            'Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set '
-            'to the webhook of your test Bitrix24 account.')
+
+    raise RuntimeError(
+        'Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set '
+        'to the webhook of your test Bitrix24 account.')
 
 
 @pytest.fixture(scope='session')
@@ -21,10 +21,10 @@ def get_test_async():
     test_webhook = os.getenv('FAST_BITRIX24_TEST_WEBHOOK')
     if test_webhook:
         return BitrixAsync(test_webhook)
-    else:
-        raise RuntimeError(
-            'Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set '
-            'to the webhook of your test Bitrix24 account.')
+
+    raise RuntimeError(
+        'Environment variable FAST_BITRIX24_TEST_WEBHOOK should be set '
+        'to the webhook of your test Bitrix24 account.')
 
 
 @pytest.fixture(scope='session')

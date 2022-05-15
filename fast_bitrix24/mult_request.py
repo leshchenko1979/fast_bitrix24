@@ -117,8 +117,8 @@ class MultipleServerRequestHandler:
             return tqdm(
                 total=(self.real_len or len(self.item_list)), initial=self.real_start
             )
-        else:
-            return MutePBar()
+
+        return MutePBar()
 
 
 class MutePBar:

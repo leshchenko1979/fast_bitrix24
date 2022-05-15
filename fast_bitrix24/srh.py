@@ -145,8 +145,8 @@ class ServerRequestHandler:
         except ClientResponseError as error:
             if error.status // 100 == 5:  # ошибки вида 5XX
                 raise ServerError("The server returned an error") from error
-            else:
-                raise
+
+            raise
 
     def success(self):
         """Увеличить счетчик удачных попыток."""

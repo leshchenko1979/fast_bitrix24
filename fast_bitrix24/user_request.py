@@ -162,7 +162,10 @@ class GetAllUserRequest(UserRequestAbstract):
     def dedup_results(self):
         # дедупликация через сериализацию, превращение в set и десериализацию
         self.results = (
-            [pickle.loads(y) for y in {pickle.dumps(x) for x in self.results}]
+            [
+                pickle.loads(y)  # nosec B301
+                for y in {pickle.dumps(x) for x in self.results}  # nosec B301
+            ]
             if self.results
             else []
         )
