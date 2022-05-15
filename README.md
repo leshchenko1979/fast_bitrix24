@@ -3,6 +3,7 @@ API wrapper для Питона для быстрого получения да�
 
 [![Статистика загрузок](https://img.shields.io/pypi/dm/fast-bitrix24.svg)](https://pypistats.org/packages/fast-bitrix24)
 ![Статистика тестов](https://github.com/leshchenko1979/fast_bitrix24/workflows/tests/badge.svg)
+[![codecov](https://codecov.io/gh/leshchenko1979/fast_bitrix24/branch/master/graph/badge.svg?token=UEQ3KITRSX)](https://codecov.io/gh/leshchenko1979/fast_bitrix24)
 [![Sourcery](https://img.shields.io/badge/Sourcery-enabled-brightgreen)](https://sourcery.ai)
 [![CodeFactor](https://www.codefactor.io/repository/github/leshchenko1979/fast_bitrix24/badge)](https://www.codefactor.io/repository/github/leshchenko1979/fast_bitrix24)
 
