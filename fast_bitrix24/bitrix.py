@@ -1,6 +1,7 @@
 """Высокоуровневый API для доступа к Битрикс24"""
 
 from contextlib import asynccontextmanager, contextmanager
+from multiprocessing.sharedctypes import Value
 from typing import Iterable, Union
 
 import aiohttp
@@ -176,9 +177,9 @@ class Bitrix(BitrixAbstract):
         к Битрикс24."""
 
         if not isinstance(max_concurrent_requests, int):
-            raise "slow() argument should be only int"
+            raise TypeError("slow() argument should be only int")
         if max_concurrent_requests < 1:
-            raise "slow() argument should be >= 1"
+            raise ValueError("slow() argument should be >= 1")
 
         mcr_max_backup, self.srh.mcr_max = self.srh.mcr_max, max_concurrent_requests
         self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
@@ -324,9 +325,9 @@ class BitrixAsync(BitrixAbstract):
         к Битрикс24."""
 
         if not isinstance(max_concurrent_requests, int):
-            raise "slow() argument should be only int"
+            raise TypeError("slow() argument should be only int")
         if max_concurrent_requests < 1:
-            raise "slow() argument should be >= 1"
+            raise ValueError("slow() argument should be >= 1")
 
         mcr_max_backup, self.srh.mcr_max = self.srh.mcr_max, max_concurrent_requests
         self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
