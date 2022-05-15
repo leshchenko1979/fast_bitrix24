@@ -1,4 +1,3 @@
-import asyncio
 import time
 from asyncio import Event, sleep
 from collections import deque
@@ -92,17 +91,6 @@ class ServerRequestHandler:
             webhook += "/"
 
         return webhook
-
-    def run(self, coroutine):
-        """Запускает `coroutine`, оборачивая его в `run_async()`."""
-
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            asyncio.set_event_loop(asyncio.new_event_loop())
-            loop = asyncio.get_event_loop()
-
-        return loop.run_until_complete(self.run_async(coroutine))
 
     async def run_async(self, coroutine):
         """Запускает `coroutine`, создавая и прекращая сессию
