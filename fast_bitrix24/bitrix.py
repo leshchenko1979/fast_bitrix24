@@ -139,7 +139,7 @@ class BitrixAsync:
         ).run()
 
     async def call(
-        self, method: str, items: Union[dict, Iterable] = None, /, raw=False
+        self, method: str, items: Union[dict, Iterable] = None, *, raw=False
     ):
         """
         Вызвать метод REST API по списку элементов.
