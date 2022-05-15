@@ -1,18 +1,21 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Tests - all OS, all Python versions
+name: tests
 
 on:
-  workflow_dispatch
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
   build:
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, 3.10]
         os: [ubuntu-latest, windows-latest]
-      max-parallel: 2
+      # max-parallel: 2
 
     runs-on: ${{ matrix.os}}
 
@@ -28,7 +31,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        pip install flake8 pytest pytest-asyncio
+        pip install flake8 pytest pytest-asyncio pytest-cov
         pip install -r requirements.txt
     - name: Lint with flake8
       run: |
@@ -40,4 +43,6 @@ jobs:
       env:
         FAST_BITRIX24_TEST_WEBHOOK: ${{ secrets.FAST_BITRIX24_TEST_WEBHOOK }}
       run: |
-        pytest
+        pytest --cov .
+    - name: Upload coverage reports to Codecov with GitHub Action
+      uses: codecov/codecov-action@v3
