@@ -2,7 +2,7 @@ import pickle
 import re
 import warnings
 from collections import ChainMap
-from typing import Any, Iterable, Union
+from beartype.typing import Dict, Any, Iterable, Union
 from beartype import beartype
 
 import icontract
@@ -24,7 +24,7 @@ class UserRequestAbstract:
         self,
         bitrix,
         method: str,
-        params: Union[dict[str, Any], None] = None,
+        params: Union[Dict[str, Any], None] = None,
         mute=False,
     ):
         self.bitrix = bitrix
@@ -177,7 +177,7 @@ class GetByIDUserRequest(UserRequestAbstract):
         self,
         bitrix,
         method: str,
-        params: Union[dict[str, Any], None],
+        params: Union[Dict[str, Any], None],
         ID_list: Iterable[Union[int, str]],
         ID_field_name: str,
     ):
@@ -222,7 +222,7 @@ class GetByIDUserRequest(UserRequestAbstract):
 
 class CallUserRequest(GetByIDUserRequest):
     @beartype
-    def __init__(self, bitrix, method: str, item_list: Union[dict, Iterable[dict]]):
+    def __init__(self, bitrix, method: str, item_list: Union[Dict, Iterable[Dict]]):
         self.item_list = item_list
         super().__init__(bitrix, method, None, None, "__order")
 
@@ -265,7 +265,7 @@ class RawCallUserRequest(UserRequestAbstract):
     """
 
     @beartype
-    def __init__(self, bitrix, method: str, item: Union[dict, None]):
+    def __init__(self, bitrix, method: str, item: Union[Dict, None]):
         super().__init__(bitrix, method, item)
 
     def standardized_params(self, p):
@@ -283,7 +283,7 @@ class RawCallUserRequest(UserRequestAbstract):
 class BatchUserRequest(UserRequestAbstract):
     @beartype
     @icontract.require(lambda params: params, "Params for a batch call can't be empty")
-    def __init__(self, bitrix, params: dict):
+    def __init__(self, bitrix, params: Dict):
         super().__init__(bitrix, "batch", params)
 
     def standardized_method(self, method):
