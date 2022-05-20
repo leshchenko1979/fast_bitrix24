@@ -1,3 +1,4 @@
+from icontract import ViolationError
 import pytest
 
 from .fixtures import (
@@ -156,25 +157,25 @@ class TestErrors:
     def test_get_all(self, get_test):
         b = get_test
 
-        with pytest.raises(TypeError):
+        with pytest.raises(Exception):
             b.get_all("")
 
-        with pytest.raises(TypeError):
+        with pytest.raises(Exception):
             b.get_all(123)
 
-        with pytest.raises(TypeError):
+        with pytest.raises(Exception):
             b.get_all("some_method", {"select": None})
 
-        with pytest.raises(TypeError):
+        with pytest.raises(Exception):
             b.get_all("some_method", {"filter": 3})
 
     def test_get_by_ID(self, get_test):
         b = get_test
 
-        with pytest.raises(TypeError, match="should be iterable"):
+        with pytest.raises(Exception):
             b.get_by_ID("_", 123)
 
-        with pytest.raises(TypeError, match="should contain only ints or strs"):
+        with pytest.raises(Exception):
             b.get_by_ID("_", [["a"]])
 
     def test_call(self, get_test, monkeypatch):
@@ -188,7 +189,7 @@ class TestErrors:
 
         b.call("_", raw=True)
 
-        with pytest.raises(TypeError, match="iterable"):
+        with pytest.raises(Exception):
             b.call("_", {})
 
 @pytest.mark.skip("Нет тестового аккаунта Битрикс")

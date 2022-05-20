@@ -2,7 +2,8 @@ import pickle
 import re
 import warnings
 from collections import ChainMap
-from typing import Iterable
+from beartype.typing import Dict, Any, Iterable, Union
+from beartype import beartype
 
 import icontract
 
@@ -16,8 +17,16 @@ from .srh import ServerRequestHandler
 BITRIX_PAGE_SIZE = 50
 
 
-class UserRequestAbstract(object):
-    def __init__(self, bitrix, method: str, params: dict = None, mute=False):
+class UserRequestAbstract:
+    @beartype
+    @icontract.require(lambda method: method, "Method cannot be empty")
+    def __init__(
+        self,
+        bitrix,
+        method: str,
+        params: Union[Dict[str, Any], None] = None,
+        mute=False,
+    ):
         self.bitrix = bitrix
         self.srh: ServerRequestHandler = bitrix.srh
         self.method = method
@@ -27,34 +36,18 @@ class UserRequestAbstract(object):
         self.mute = mute
         self.check_special_limitations()
 
-    def standardized_method(self, method):
-        if not method:
-            raise TypeError("Method cannot be empty")
-
-        if not isinstance(method, str):
-            raise TypeError("Method should be a str")
-
-        method = method.lower().strip()
-
-        if method == "batch":
-            raise ValueError("Method cannot be 'batch'. Use call_batch() instead.")
-
-        return method
+    @staticmethod
+    @icontract.ensure(
+        lambda result: result != "batch",
+        "Method cannot be 'batch'. Use call_batch() instead.",
+    )
+    def standardized_method(method: str):
+        return method.lower().strip()
 
     def standardized_params(self, p):
-        if p is None:
-            return None
-
-        if not isinstance(p, dict):
-            raise TypeError("Params agrument should be a dict")
-
-        for key, __ in p.items():
-            if not isinstance(key, str):
-                raise TypeError("Keys in params argument should be strs")
-
-        p = {key.upper().strip(): value for key, value in p.items()}
-
-        self.check_expected_clause_types(p)
+        if p is not None:
+            p = {key.upper().strip(): value for key, value in p.items()}
+            self.check_expected_clause_types(p)
 
         return p
 
@@ -179,8 +172,14 @@ class GetAllUserRequest(UserRequestAbstract):
 
 
 class GetByIDUserRequest(UserRequestAbstract):
+    @beartype
     def __init__(
-        self, bitrix, method: str, params: dict, ID_list: Iterable, ID_field_name: str
+        self,
+        bitrix,
+        method: str,
+        params: Union[Dict[str, Any], None],
+        ID_list: Iterable[Union[int, str]],
+        ID_field_name: str,
     ):
         self.ID_list = ID_list
         self.ID_field_name = ID_field_name.strip()
@@ -193,11 +192,6 @@ class GetByIDUserRequest(UserRequestAbstract):
                 "within the 'params' argument"
             )
 
-        try:
-            iter(self.ID_list)
-        except TypeError:
-            raise TypeError("get_by_ID(): 'ID_list' should be iterable")
-
         if self.bitrix.verbose:
             try:
                 len(self.ID_list)
@@ -205,12 +199,6 @@ class GetByIDUserRequest(UserRequestAbstract):
                 raise TypeError(
                     "get_by_ID(): 'ID_list' should be a Sequence "
                     "if a progress bar is to be displayed"
-                )
-
-        for ID in self.ID_list:
-            if not isinstance(ID, (str, int)):
-                raise TypeError(
-                    "get_by_ID(): 'ID_list' should contain only ints or strs"
                 )
 
     async def run(self) -> dict:
@@ -233,23 +221,12 @@ class GetByIDUserRequest(UserRequestAbstract):
 
 
 class CallUserRequest(GetByIDUserRequest):
-    def __init__(self, bitrix, method: str, item_list: Iterable):
+    @beartype
+    def __init__(self, bitrix, method: str, item_list: Union[Dict, Iterable[Dict]]):
         self.item_list = item_list
         super().__init__(bitrix, method, None, None, "__order")
 
     def check_special_limitations(self):
-        try:
-            if not (
-                isinstance(self.item_list, dict)
-                or all(isinstance(item, dict) for item in self.item_list)
-            ):
-                raise TypeError
-        except TypeError:
-            raise TypeError(
-                "call() accepts either an iterable of params dicts or "
-                "a single params dict"
-            )
-
         if self.bitrix.verbose:
             try:
                 len(self.item_list)
@@ -287,7 +264,8 @@ class RawCallUserRequest(UserRequestAbstract):
     (https://github.com/leshchenko1979/fast_bitrix24/issues/156).
     """
 
-    def __init__(self, bitrix, method: str, item: dict):
+    @beartype
+    def __init__(self, bitrix, method: str, item: Union[Dict, None]):
         super().__init__(bitrix, method, item)
 
     def standardized_params(self, p):
@@ -303,16 +281,15 @@ class RawCallUserRequest(UserRequestAbstract):
 
 
 class BatchUserRequest(UserRequestAbstract):
-    def __init__(self, bitrix, params):
+    @beartype
+    @icontract.require(lambda params: params, "Params for a batch call can't be empty")
+    def __init__(self, bitrix, params: Dict):
         super().__init__(bitrix, "batch", params)
 
     def standardized_method(self, method):
         return "batch"
 
     def check_special_limitations(self):
-        if not self.st_params:
-            raise ValueError("Params for a batch call can't be empty")
-
         if {"HALT", "CMD"} != self.st_params.keys():
             raise ValueError(
                 "Params for a batch call should contain only 'halt' and 'cmd' "
@@ -328,7 +305,8 @@ class BatchUserRequest(UserRequestAbstract):
 
 
 class ListAndGetUserRequest(object):
-    def __init__(self, bitrix, method_branch, ID_field_name="ID"):
+    @beartype
+    def __init__(self, bitrix, method_branch: str, ID_field_name: str = "ID"):
         self.bitrix = bitrix
         self.srh: ServerRequestHandler = bitrix.srh
         self.method_branch = method_branch
