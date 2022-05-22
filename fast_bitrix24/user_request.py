@@ -179,13 +179,14 @@ class GetByIDUserRequest(UserRequestAbstract):
         bitrix,
         method: str,
         params: Union[Dict[str, Any], None],
-        ID_list: Iterable[Union[int, str]],
+        ID_list: Union[Iterable[Union[int, str]], None],
         ID_field_name: str,
     ):
         self.ID_list = ID_list
         self.ID_field_name = ID_field_name.strip()
         super().__init__(bitrix, method, params)
 
+    @icontract.require(lambda self: self.ID_list, "get_by_ID(): ID_list can't be empty")
     def check_special_limitations(self):
         if self.st_params and "ID" in self.st_params.keys():
             raise ValueError(
@@ -227,6 +228,7 @@ class CallUserRequest(GetByIDUserRequest):
         self.item_list = item_list
         super().__init__(bitrix, method, None, None, "__order")
 
+    @icontract.require(lambda self: self.item_list, "call(): item_list can't be empty")
     def check_special_limitations(self):
         if self.bitrix.verbose:
             try:
@@ -279,7 +281,7 @@ class RawCallUserRequest(UserRequestAbstract):
 
 class BatchUserRequest(UserRequestAbstract):
     @beartype
-    @icontract.require(lambda params: params, "Params for a batch call can't be empty")
+    @icontract.require(lambda params: params, "call_batch(): params can't be empty")
     def __init__(self, bitrix, params: Dict):
         super().__init__(bitrix, "batch", params)
 
@@ -289,12 +291,12 @@ class BatchUserRequest(UserRequestAbstract):
     def check_special_limitations(self):
         if {"HALT", "CMD"} != self.st_params.keys():
             raise ValueError(
-                "Params for a batch call should contain only 'halt' and 'cmd' "
+                "call_batch(): params should contain only 'halt' and 'cmd' "
                 "clauses at the highest level"
             )
 
         if not isinstance(self.st_params["CMD"], dict):
-            raise ValueError("'cmd' clause should contain a dict")
+            raise ValueError("call_batch(): 'cmd' clause should contain a dict")
 
 
 class ListAndGetUserRequest(object):
@@ -307,10 +309,12 @@ class ListAndGetUserRequest(object):
 
     async def run(self):
         if not isinstance(self.method_branch, str):
-            raise TypeError('"method_branch" should be a str')
+            raise TypeError('list_and_get(): "method_branch" should be a str')
 
         if re.search(r"(\.list|\.get)$", self.method_branch.strip().lower()):
-            raise ValueError('"method_branch" should not end in ".list" or ".get"')
+            raise ValueError(
+                'list_and_get(): "method_branch" should not end in ".list" or ".get"'
+            )
 
         IDs = await self.srh.run_async(
             GetAllUserRequest(
@@ -325,7 +329,7 @@ class ListAndGetUserRequest(object):
             ID_list = [x[self.ID_field_name] for x in IDs]
         except (TypeError, KeyError):
             raise ValueError(
-                "Seems like list_and_get() cannot be used "
+                "list_and_get(): seems like list_and_get() cannot be used "
                 f'with method branch "{self.method_branch}"'
             )
 
