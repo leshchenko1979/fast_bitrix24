@@ -3,7 +3,6 @@ from itertools import chain
 
 from beartype.typing import Dict, List, Union
 
-
 class ServerResponseParser:
     def __init__(self, response: dict):
         self.response = response

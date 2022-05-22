@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from typing import Iterable, Union
 
 import aiohttp
+from beartype import beartype
+import icontract
 
 from . import correct_asyncio
 from .srh import ServerRequestHandler
@@ -17,6 +19,7 @@ from .user_request import (
     ListAndGetUserRequest,
     RawCallUserRequest,
 )
+from .logger import log, logger
 
 
 class BitrixAsync:
@@ -46,6 +49,7 @@ class BitrixAsync:
         self.srh = ServerRequestHandler(webhook, respect_velocity_policy, client)
         self.verbose = verbose
 
+    @log
     async def get_all(self, method: str, params: dict = None) -> Union[list, dict]:
         """
         Получить полный список сущностей по запросу `method`.
@@ -67,6 +71,7 @@ class BitrixAsync:
 
         return await self.srh.run_async(GetAllUserRequest(self, method, params).run())
 
+    @log
     async def get_by_ID(
         self,
         method: str,
@@ -108,6 +113,7 @@ class BitrixAsync:
             GetByIDUserRequest(self, method, params, ID_list, ID_field_name).run()
         )
 
+    @log
     async def list_and_get(self, method_branch: str, ID_field_name="ID") -> dict:
         """
         Скачать список всех ID при помощи метода *.list,
@@ -138,6 +144,7 @@ class BitrixAsync:
             self, method_branch, ID_field_name=ID_field_name
         ).run()
 
+    @log
     async def call(
         self, method: str, items: Union[dict, Iterable] = None, *, raw=False
     ):
@@ -160,6 +167,7 @@ class BitrixAsync:
         request_cls = RawCallUserRequest if raw else CallUserRequest
         return await self.srh.run_async(request_cls(self, method, items).run())
 
+    @log
     async def call_batch(self, params: dict) -> dict:
         """
         Вызвать метод `batch`.
@@ -174,19 +182,26 @@ class BitrixAsync:
         return await self.srh.run_async(BatchUserRequest(self, params).run())
 
     @contextmanager
+    @beartype
+    @icontract.require(lambda max_concurrent_requests: max_concurrent_requests >= 1)
     def slow(self, max_concurrent_requests: int = 1):
         """Временно ограничивает количество одновременно выполняемых запросов
         к Битрикс24."""
 
-        if not isinstance(max_concurrent_requests, int):
-            raise TypeError("slow() argument should be only int")
-        if max_concurrent_requests < 1:
-            raise ValueError("slow() argument should be >= 1")
+        logger.info(
+            "Slow mode enabled: {'max_concurrent_requests': %s}",
+            max_concurrent_requests,
+        )
 
         mcr_max_backup, self.srh.mcr_max = self.srh.mcr_max, max_concurrent_requests
         self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
 
         yield True
+
+        logger.info(
+            "Slow mode disabled: {'max_concurrent_requests': %s}",
+            mcr_max_backup,
+        )
 
         self.srh.mcr_max = mcr_max_backup
         self.srh.mcr_cur_limit = min(self.srh.mcr_max, self.srh.mcr_cur_limit)
