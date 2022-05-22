@@ -27,26 +27,6 @@ class MockSRH(ServerRequestHandler):
         return self.response[self.element_no]
 
 
-def print_decorator(func):
-    """Используется для получения буквального ответа от сервера.
-
-    Пример использования:
-
-    bitrix.srh.single_request = print_decorator(bitrix.srh.single_request)
-    response = bitrix.call("crm.lead.fields", raw=True)
-    assert False
-
-    После этого в логе pytest будет выведен ответ от сервера.
-    """
-
-    async def wrapper(*args, **kwargs):
-        result = await func(*args, **kwargs)
-        print(result)
-        return result
-
-    return wrapper
-
-
 def test_single_success():
     from tests.real_responses.crm_lead_fields_success import response
 
@@ -59,6 +39,7 @@ def test_single_success():
     assert isinstance(results, list)
 
 
+@pytest.mark.asyncio
 async def test_batch_success(bitrix):
     from tests.real_responses.crm_lead_list_several_pages_success import \
         response
@@ -68,6 +49,7 @@ async def test_batch_success(bitrix):
     assert isinstance(results, list)
 
 
+@pytest.mark.asyncio
 async def test_batch_single_page_error(bitrix):
     from tests.real_responses.crm_get_batch_mix_success_and_errors import \
         response
@@ -77,6 +59,7 @@ async def test_batch_single_page_error(bitrix):
         await bitrix.get_by_ID("crm.lead.get", [0, 1, 35943])
 
 
+@pytest.mark.asyncio
 async def test_call_single_success(bitrix):
     from tests.real_responses.call_single_success import response
 
@@ -85,6 +68,7 @@ async def test_call_single_success(bitrix):
     assert isinstance(results, dict)
 
 
+@pytest.mark.asyncio
 async def test_call_several_success(bitrix):
     from tests.real_responses.call_several_success import response
 

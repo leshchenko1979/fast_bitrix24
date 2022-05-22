@@ -1,3 +1,5 @@
+import os
+
 from icontract import ViolationError
 import pytest
 
@@ -15,7 +17,10 @@ from fast_bitrix24 import Bitrix
 from fast_bitrix24.server_response import ServerResponseParser
 
 
-@pytest.mark.skip("Нет тестового аккаунта для проверки")
+@pytest.mark.skipif(
+    not os.getenv("FAST_BITRIX24_TEST_WEBHOOK"),
+    reason="Нет аккаунта, на котором можно проверить",
+)
 class TestBasic:
     def test_simple_add_lead(self, get_test):
         b = get_test
@@ -193,7 +198,10 @@ class TestErrors:
             b.call("_", {})
 
 
-@pytest.mark.skip("Нет тестового аккаунта Битрикс")
+@pytest.mark.skipif(
+    not os.getenv("FAST_BITRIX24_TEST_WEBHOOK"),
+    reason="Нет аккаунта, на котором можно проверить",
+)
 class TestLongRequests:
     def test_long_task_description(self, get_test):
         b = get_test
@@ -203,7 +211,10 @@ class TestLongRequests:
         b.get_by_ID("crm.lead.delete", [lead_no])
 
 
-@pytest.mark.skip("Нет тестового аккаунта Битрикс")
+@pytest.mark.skipif(
+    not os.getenv("FAST_BITRIX24_TEST_WEBHOOK"),
+    reason="Нет аккаунта, на котором можно проверить",
+)
 class TestParamsEncoding:
     def test_mobile_phone(self, get_test):
         b = get_test

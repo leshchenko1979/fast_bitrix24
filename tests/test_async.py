@@ -1,3 +1,4 @@
+import os
 from asyncio import create_task, ensure_future, gather, sleep, wait
 from collections import namedtuple
 from contextlib import asynccontextmanager
@@ -16,7 +17,10 @@ from .fixtures import (
 )
 
 
-@pytest.mark.skip("Нет аккаунта, на котором можно проверить")
+@pytest.mark.skipif(
+    not os.getenv("FAST_BITRIX24_TEST_WEBHOOK"),
+    reason="Нет аккаунта, на котором можно проверить",
+)
 class TestAsync:
     @pytest.mark.asyncio
     async def test_simple_async_calls(self, create_100_leads_async):
@@ -67,8 +71,8 @@ async def assert_time_acquire(bitrix, acquire_amount, time_expected):
     assert time_expected <= t2 - t1 < time_expected + 0.2
 
 
+@pytest.mark.asyncio
 class TestAcquire:
-    @pytest.mark.asyncio
     async def test_acquire_sequential(self):
 
         await assert_time_acquire(get_custom_bitrix(1, 1), 1, 0)
@@ -78,7 +82,6 @@ class TestAcquire:
 
         await assert_time_acquire(get_custom_bitrix(1, 1, False), 100, 0)
 
-    @pytest.mark.asyncio
     async def test_acquire_intermittent(self):
 
         bitrix = get_custom_bitrix(10, 10)
@@ -87,7 +90,6 @@ class TestAcquire:
         await sleep(0.3)
         await assert_time_acquire(bitrix, 10, 0.7)
 
-    @pytest.mark.asyncio
     async def test_acquire_speed(self):
         CYCLES = 100
         POOL_SIZE = 50
@@ -162,8 +164,8 @@ class MockSRH(ServerRequestHandler):
             await sleep(1 / self.session.rps)
 
 
+@pytest.mark.asyncio
 class TestMocks:
-    @pytest.mark.asyncio
     async def test_mock(self):
 
         bitrix = BitrixAsync("http://www.google.com/")
@@ -173,7 +175,6 @@ class TestMocks:
 
         assert await bitrix.get_all("abc") == ["OK"]
 
-    @pytest.mark.asyncio
     async def test_mock_get_all(self):
 
         record_ID = iter(range(1_000_000))
@@ -200,7 +201,6 @@ class TestMocks:
         assert bitrix.srh.session.num_requests == 3
         assert len(result) == 5000
 
-    @pytest.mark.asyncio
     async def test_get_by_ID(self):
 
         ParsedCommand = namedtuple("ParsedCommand", ["metod", "params"])
@@ -248,7 +248,6 @@ class TestMocks:
 
         assert len(result) == SIZE
 
-    @pytest.mark.asyncio
     async def test_limit_request_velocity(self):
         async def mock_request(srh: ServerRequestHandler):
             async with srh.limit_request_velocity():

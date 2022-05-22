@@ -43,6 +43,6 @@ jobs:
       env:
         FAST_BITRIX24_TEST_WEBHOOK: ${{ secrets.FAST_BITRIX24_TEST_WEBHOOK }}
       run: |
-        pytest --cov --asyncio-mode=strict .
+        pytest --cov --asyncio-mode=auto .
     - name: Upload coverage reports to Codecov with GitHub Action
       uses: codecov/codecov-action@v3
