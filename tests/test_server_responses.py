@@ -1,5 +1,5 @@
-from typing import Union
 import pytest
+from beartype.typing import Union, Dict, List
 from fast_bitrix24.bitrix import BitrixAsync
 from fast_bitrix24.server_response import ServerResponseParser
 from fast_bitrix24.srh import ServerRequestHandler
@@ -11,7 +11,7 @@ def bitrix():
 
 
 class MockSRH(ServerRequestHandler):
-    def __init__(self, response: Union[dict, list[dict]]):
+    def __init__(self, response: Union[Dict, List[Dict]]):
         self.response = response if isinstance(response, list) else [response]
         self.element_no = -1
 
@@ -55,7 +55,8 @@ def test_single_success():
 
 
 async def test_batch_success(bitrix):
-    from tests.real_responses.crm_lead_list_several_pages_success import response
+    from tests.real_responses.crm_lead_list_several_pages_success import \
+        response
 
     bitrix.srh = MockSRH(response)
     results = await bitrix.get_all("crm.lead.list")
@@ -63,7 +64,8 @@ async def test_batch_success(bitrix):
 
 
 async def test_batch_single_page_error(bitrix):
-    from tests.real_responses.crm_get_batch_mix_success_and_errors import response
+    from tests.real_responses.crm_get_batch_mix_success_and_errors import \
+        response
 
     bitrix.srh = MockSRH(response)
     with pytest.raises(RuntimeError):
