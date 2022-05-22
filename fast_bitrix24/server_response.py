@@ -1,6 +1,7 @@
 import contextlib
 from itertools import chain
-from typing import Union
+
+from beartype.typing import Dict, List, Union
 
 
 class ServerResponseParser:
@@ -26,7 +27,7 @@ class ServerResponseParser:
     def result_error(self):
         return self.response.get("result_error")
 
-    def extract_results(self) -> Union[dict, list[dict]]:
+    def extract_results(self) -> Union[Dict, List[Dict]]:
         """Вернуть результаты запроса.
 
         Если определено, что запрос был батчевым, то разобрать результаты батчей
