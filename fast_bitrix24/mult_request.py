@@ -1,11 +1,9 @@
 from asyncio import FIRST_COMPLETED, ensure_future, wait
-from itertools import chain
-import icontract
 
 from more_itertools import chunked
 from tqdm import tqdm
 
-from .server_response import ServerResponse
+from .server_response import ServerResponseParser
 from .srh import BITRIX_MAX_BATCH_SIZE, ServerRequestHandler
 from .utils import http_build_query
 
@@ -77,37 +75,23 @@ class MultipleServerRequestHandler:
             except StopIteration:
                 break
 
-    def process_done_tasks(self, done):
+    def process_done_tasks(self, done) -> int:
         """Извлечь результаты из списка законченных задач
         и вернуть кол-во извлеченных элементов."""
 
         extracted_len = 0
         for done_task in done:
             batch_response = done_task.result()
-            unwrapped_result = ServerResponse(batch_response.result).result
-            extracted_len += self.extract_result_from_batch_response(unwrapped_result)
+            extracted = ServerResponseParser(batch_response).extract_results()
+
+            if isinstance(extracted, list):
+                self.results.extend(extracted)
+            elif isinstance(extracted, dict):
+                self.results.update(extracted)
+
+            extracted_len += len(extracted)
 
         return extracted_len
-
-    def extract_result_from_batch_response(self, unwrapped_result):
-        """Добавляет `unwrapped_result` в `self.results` и возвращает
-        длину добавленного списка результатов"""
-
-        if not unwrapped_result:
-            return 0
-
-        result_list = list(unwrapped_result.values())
-
-        # метод `crm.stagehistory.list` возвращает dict["items", list] --
-        # разворачиваем его в список
-        if isinstance(result_list[0], dict) and "items" in result_list[0]:
-            result_list = [x["items"] for x in result_list]
-
-        if type(result_list[0]) == list:
-            result_list = list(chain(*result_list))
-
-        self.results.extend(result_list)
-        return len(result_list)
 
     def get_pbar(self):
         """Возвращает прогресс бар `tqdm()` или пустышку,
@@ -140,7 +124,3 @@ class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
 
     def batch_command_label(self, i, item):
         return item[self.ID_field]
-
-    def extract_result_from_batch_response(self, unwrapped_result):
-        self.results.update(unwrapped_result)
-        return len(unwrapped_result)

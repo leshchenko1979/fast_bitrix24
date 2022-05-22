@@ -10,7 +10,6 @@ from aiohttp.client_exceptions import (
     ServerDisconnectedError,
 )
 
-from .server_response import ServerResponse
 from .utils import _url_valid
 
 BITRIX_POOL_SIZE = 50
@@ -119,7 +118,7 @@ class ServerRequestHandler:
             if not self.active_runs and self.session and not self.session.closed:
                 await self.session.close()
 
-    async def single_request(self, method, params=None) -> ServerResponse:
+    async def single_request(self, method, params=None) -> dict:
         """Делает единичный запрос к серверу,
         с повторными попытками при необходимости."""
 
@@ -133,14 +132,14 @@ class ServerRequestHandler:
             except (ClientPayloadError, ServerDisconnectedError, ServerError) as err:
                 self.failure(err)
 
-    async def request_attempt(self, method, params=None) -> ServerResponse:
+    async def request_attempt(self, method, params=None) -> dict:
         """Делает попытку запроса к серверу, ожидая при необходимости."""
 
         try:
             async with self.acquire(), self.session.post(
                 url=self.webhook + method, json=params
             ) as response:
-                return ServerResponse(await response.json(encoding="utf-8"))
+                return await response.json(encoding="utf-8")
 
         except ClientResponseError as error:
             if error.status // 100 == 5:  # ошибки вида 5XX

@@ -12,7 +12,7 @@ from .fixtures import (
 )
 
 from fast_bitrix24 import Bitrix
-from fast_bitrix24.server_response import ServerResponse
+from fast_bitrix24.server_response import ServerResponseParser
 
 
 @pytest.mark.skip("Нет тестового аккаунта для проверки")
@@ -182,7 +182,7 @@ class TestErrors:
         b = get_test
 
         async def stub(*args, **kwargs):
-            return ServerResponse({"result": "ok"})
+            return {"result": "ok"}
 
         monkeypatch.setattr(b.srh, "request_attempt", stub)
         assert b.srh.request_attempt is stub
@@ -191,6 +191,7 @@ class TestErrors:
 
         with pytest.raises(Exception):
             b.call("_", {})
+
 
 @pytest.mark.skip("Нет тестового аккаунта Битрикс")
 class TestLongRequests:
