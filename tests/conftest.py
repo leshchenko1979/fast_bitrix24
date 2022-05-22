@@ -5,12 +5,12 @@ import pytest
 from fast_bitrix24 import Bitrix, BitrixAsync
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def bx_dummy_async():
     return BitrixAsync("https://google.com/path")
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def bx_dummy():
     return Bitrix("https://google.com/path")
 
