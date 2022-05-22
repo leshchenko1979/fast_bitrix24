@@ -190,10 +190,16 @@ class ServerRequestHandler:
                 self.mcr_cur_limit / DECREASE_CONNECTIONS_FACTOR, 1
             )
 
+            logger.debug(
+                f"Concurrent requests decreased: {{'mcr_cur_limit': {self.mcr_cur_limit}}}"
+            )
+
             if self.successive_results < NUM_FAILURES_NO_TIMEOUT:
                 power = -self.successive_results - NUM_FAILURES_NO_TIMEOUT - 1
                 delay = INITIAL_TIMEOUT * BACKOFF_FACTOR**power
+
                 logger.debug(f"Delaying request: {{'delay': {delay}}}")
+
                 await sleep(delay)
 
         elif self.successive_results > 0:
@@ -202,8 +208,9 @@ class ServerRequestHandler:
                 self.mcr_cur_limit * RESTORE_CONNECTIONS_FACTOR, self.mcr_max
             )
 
-        logger.debug("Concurrent requests limit set to %s", self.mcr_cur_limit)
-
+            logger.debug(
+                f"Concurrent requests increased: {{'mcr_cur_limit': {self.mcr_cur_limit}}}"
+            )
 
     @asynccontextmanager
     async def limit_concurrent_requests(self):
