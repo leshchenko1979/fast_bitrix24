@@ -1,20 +1,4 @@
-from fast_bitrix24.server_response import ServerResponseParser
 from fast_bitrix24.utils import http_build_query
-
-
-def test_server_response():
-    RAW = {
-        "result": 25,
-        "time": {
-            "start": 1649929692.302662,
-            "finish": 1649929692.547846,
-            "duration": 0.24518418312072754,
-            "processing": 0.14425015449523926,
-            "date_start": "2022-04-14T12:48:12+03:00",
-            "date_finish": "2022-04-14T12:48:12+03:00",
-        },
-    }
-    assert ServerResponseParser(RAW).result == 25
 
 
 class TestHttpBuildQuery:

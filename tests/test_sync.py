@@ -1,21 +1,6 @@
 import os
 
-from icontract import ViolationError
 import pytest
-
-from .fixtures import (
-    create_100_leads,
-    create_100_leads_async,
-    create_a_lead,
-    get_test,
-    get_test_async,
-    create_a_deal,
-    create_100_tasks,
-)
-
-from fast_bitrix24 import Bitrix
-from fast_bitrix24.server_response import ServerResponseParser
-
 
 @pytest.mark.skipif(
     not os.getenv("FAST_BITRIX24_TEST_WEBHOOK"),
@@ -159,8 +144,8 @@ class TestBasic:
 
 
 class TestErrors:
-    def test_get_all(self, get_test):
-        b = get_test
+    def test_get_all(self, bx_dummy):
+        b = bx_dummy
 
         with pytest.raises(Exception):
             b.get_all("")
@@ -174,8 +159,8 @@ class TestErrors:
         with pytest.raises(Exception):
             b.get_all("some_method", {"filter": 3})
 
-    def test_get_by_ID(self, get_test):
-        b = get_test
+    def test_get_by_ID(self, bx_dummy):
+        b = bx_dummy
 
         with pytest.raises(Exception):
             b.get_by_ID("_", 123)
@@ -183,8 +168,8 @@ class TestErrors:
         with pytest.raises(Exception):
             b.get_by_ID("_", [["a"]])
 
-    def test_call(self, get_test, monkeypatch):
-        b = get_test
+    def test_call(self, bx_dummy, monkeypatch):
+        b = bx_dummy
 
         async def stub(*args, **kwargs):
             return {"result": "ok"}

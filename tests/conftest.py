@@ -6,6 +6,16 @@ from fast_bitrix24 import Bitrix, BitrixAsync
 
 
 @pytest.fixture(scope='session')
+def bx_dummy_async():
+    return BitrixAsync("https://google.com/path")
+
+
+@pytest.fixture(scope='session')
+def bx_dummy():
+    return Bitrix("https://google.com/path")
+
+
+@pytest.fixture(scope='session')
 def get_test():
     test_webhook = os.getenv('FAST_BITRIX24_TEST_WEBHOOK')
     if test_webhook:

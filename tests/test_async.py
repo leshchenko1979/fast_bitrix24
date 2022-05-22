@@ -8,14 +8,6 @@ import pytest
 from fast_bitrix24 import BitrixAsync
 from fast_bitrix24.srh import BITRIX_POOL_SIZE, BITRIX_RPS, ServerRequestHandler
 
-from .fixtures import (
-    create_100_leads,
-    create_100_leads_async,
-    create_a_lead,
-    get_test,
-    get_test_async,
-)
-
 
 @pytest.mark.skipif(
     not os.getenv("FAST_BITRIX24_TEST_WEBHOOK"),
