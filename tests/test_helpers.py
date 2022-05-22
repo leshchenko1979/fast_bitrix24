@@ -1,4 +1,4 @@
-from fast_bitrix24.server_response import ServerResponse
+from fast_bitrix24.server_response import ServerResponseParser
 from fast_bitrix24.utils import http_build_query
 
 
@@ -14,7 +14,7 @@ def test_server_response():
             "date_finish": "2022-04-14T12:48:12+03:00",
         },
     }
-    assert ServerResponse(RAW).result == 25
+    assert ServerResponseParser(RAW).result == 25
 
 
 class TestHttpBuildQuery:

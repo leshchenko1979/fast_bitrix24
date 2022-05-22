@@ -1,38 +1,95 @@
 import contextlib
+from itertools import chain
+from typing import Union
 
 
-class ServerResponse:
-    def __init__(self, response):
+class ServerResponseParser:
+    def __init__(self, response: dict):
         self.response = response
-        self.check_for_errors()
 
-    def check_for_errors(self):
-        if self.result_error:
-            raise RuntimeError(
-                f"The server reply contained an error: {self.result_error}"
-            )
+    def more_results_expected(self) -> bool:
+        return self.total and self.total > 50 and self.total != len(self.result)
 
-    def __getattr__(self, item):
+    @property
+    def result(self):
+        return self.response["result"]
+
+    @property
+    def total(self):
+        return self.response["total"]
+
+    @property
+    def error_description(self):
+        return self.response["error_description"]
+
+    @property
+    def result_error(self):
+        return self.response.get("result_error")
+
+    def extract_results(self) -> Union[dict, list[dict]]:
+        """Вернуть результаты запроса.
+
+        Если определено, что запрос был батчевым, то разобрать результаты батчей
+        и собрать их в плоский список.
+
+        Returns:
+            Any: Результаты запроса, по возможности превращенные в плоский список.
+        """
+        if self.is_batch():
+            if self.result.get("result_error"):
+                raise RuntimeError(self.result["result_error"])
+            return self.extract_from_batch_response(self.result["result"])
+        else:
+            if self.result_error:
+                raise RuntimeError(self.result_error)
+            return self.extract_from_single_response(self.result)
+
+    def is_batch(self) -> bool:
+        return "result" in self.response and "result" in self.response["result"]
+
+    @staticmethod
+    def extract_from_single_response(result: dict):
+        # если результат вызова содержит только словарь {'tasks': список},
+        # то вернуть этот список.
+        # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
+
+        # для небатчевых запросов
+        with contextlib.suppress(KeyError, TypeError):
+            task_list = result["tasks"]
+            if isinstance(task_list, list):
+                return task_list
+
+        # метод `crm.stagehistory.list` возвращает dict["items", list] --
+        # разворачиваем его в список
+        if isinstance(result, dict) and "items" in result:
+            return result["items"]
+
+        return result
+
+    def extract_from_batch_response(self, result) -> list:
+
+        if not result:
+            return []
 
         # если результат вызова содержит только словарь {'tasks': список},
         # то вернуть этот список.
         # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
-        if item == "result":
 
-            # для небатчевых запросов
-            with contextlib.suppress(KeyError, TypeError):
-                task_list = self.response["result"]["tasks"]
-                if isinstance(task_list, list):
-                    return task_list
+        # для батчей
+        with contextlib.suppress(KeyError, TypeError, AttributeError):
+            return {
+                batch_ID: batch_result["tasks"]
+                for batch_ID, batch_result in result.items()
+            }
 
-            # для батчей
-            with contextlib.suppress(KeyError, TypeError, AttributeError):
-                return {
-                    batch_ID: batch_result["tasks"]
-                    for batch_ID, batch_result in self.response["result"].items()
-                }
+        if isinstance(next(iter(result.values())), list):
+            result_list = [
+                self.extract_from_single_response(element)
+                for element in result.values()
+            ]
 
-        return self.response[item] if item in self.response else None
+            result_list = list(chain(*result_list))
 
-    def more_results_expected(self):
-        return self.total and self.total > 50 and self.total != len(self.result)
+            return result_list
+
+        return result

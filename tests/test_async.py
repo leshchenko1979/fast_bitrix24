@@ -145,7 +145,9 @@ class MockSession(object):
 
 class MockSRH(ServerRequestHandler):
     def __init__(self, post_callback):
-        super().__init__("http://www.google.com/", respect_velocity_policy=True, client=None)
+        super().__init__(
+            "http://www.google.com/", respect_velocity_policy=True, client=None
+        )
         self.post_callback = post_callback
 
     @asynccontextmanager
@@ -165,7 +167,9 @@ class TestMocks:
     async def test_mock(self):
 
         bitrix = BitrixAsync("http://www.google.com/")
-        bitrix.srh = MockSRH(lambda *args: MockStaticResponse({"result": ["OK"]}))
+        bitrix.srh = MockSRH(
+            lambda *args: MockStaticResponse({"result": ["OK"], "total": 1})
+        )
 
         assert await bitrix.get_all("abc") == ["OK"]
 
@@ -233,7 +237,6 @@ class TestMocks:
 
         bitrix = get_custom_bitrix(POOL_SIZE, RPS)
         bitrix.srh = MockSRH(post_callback)
-
 
         bitrix_task = create_task(bitrix.get_by_ID("abc", list(range(SIZE))))
         restore_pool_task = create_task(bitrix.srh.restore_pool())

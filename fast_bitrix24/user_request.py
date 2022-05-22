@@ -11,7 +11,7 @@ from .mult_request import (
     MultipleServerRequestHandler,
     MultipleServerRequestHandlerPreserveIDs,
 )
-from .server_response import ServerResponse
+from .server_response import ServerResponseParser
 from .srh import ServerRequestHandler
 
 BITRIX_PAGE_SIZE = 50
@@ -86,6 +86,10 @@ class UserRequestAbstract:
     def check_special_limitations(self):
         raise NotImplementedError
 
+    async def run(self):
+        response = await self.srh.single_request(self.method, self.params)
+        return ServerResponseParser(response).extract_results()
+
 
 class GetAllUserRequest(UserRequestAbstract):
     def check_special_limitations(self):
@@ -126,14 +130,11 @@ class GetAllUserRequest(UserRequestAbstract):
             self.params = order_clause
 
     async def make_first_request(self):
-        self.first_response = await self.srh.single_request(self.method, self.params)
+        self.first_response = ServerResponseParser(
+            await self.srh.single_request(self.method, self.params)
+        )
         self.total = self.first_response.total
-        self.results = self.first_response.result
-
-        # метод `crm.stagehistory.list` возвращает dict["items", list] --
-        # разворачиваем его в список
-        if isinstance(self.results, dict) and "items" in self.results:
-            self.results = self.results["items"]
+        self.results = self.first_response.extract_results()
 
     @icontract.require(lambda self: isinstance(self.results, list))
     async def make_remaining_requests(self):
@@ -275,10 +276,6 @@ class RawCallUserRequest(UserRequestAbstract):
     def check_special_limitations(self):
         pass
 
-    async def run(self):
-        response = await self.srh.single_request(self.method, self.params)
-        return response.result
-
 
 class BatchUserRequest(UserRequestAbstract):
     @beartype
@@ -298,10 +295,6 @@ class BatchUserRequest(UserRequestAbstract):
 
         if not isinstance(self.st_params["CMD"], dict):
             raise ValueError("'cmd' clause should contain a dict")
-
-    async def run(self):
-        response = await self.srh.single_request(self.method, self.params)
-        return ServerResponse(response.result).result
 
 
 class ListAndGetUserRequest(object):
