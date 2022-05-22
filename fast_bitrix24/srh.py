@@ -11,6 +11,7 @@ from aiohttp.client_exceptions import (
 )
 
 from .utils import _url_valid
+from .logger import logger
 
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
@@ -136,10 +137,14 @@ class ServerRequestHandler:
         """Делает попытку запроса к серверу, ожидая при необходимости."""
 
         try:
-            async with self.acquire(), self.session.post(
-                url=self.webhook + method, json=params
-            ) as response:
-                return await response.json(encoding="utf-8")
+            async with self.acquire():
+                logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
+                async with self.session.post(
+                    url=self.webhook + method, json=params
+                ) as response:
+                    json = await response.json(encoding="utf-8")
+                    logger.debug("Response: %s", json)
+                    return json
 
         except ClientResponseError as error:
             if error.status // 100 == 5:  # ошибки вида 5XX
@@ -181,20 +186,24 @@ class ServerRequestHandler:
         и количество одновременных запросов, и наоборот."""
 
         if self.successive_results < 0:
-
             self.mcr_cur_limit = max(
                 self.mcr_cur_limit / DECREASE_CONNECTIONS_FACTOR, 1
             )
 
             if self.successive_results < NUM_FAILURES_NO_TIMEOUT:
                 power = -self.successive_results - NUM_FAILURES_NO_TIMEOUT - 1
-                await sleep(INITIAL_TIMEOUT * BACKOFF_FACTOR**power)
+                delay = INITIAL_TIMEOUT * BACKOFF_FACTOR**power
+                logger.debug(f"Delaying request: {{'delay': {delay}}}")
+                await sleep(delay)
 
         elif self.successive_results > 0:
 
             self.mcr_cur_limit = min(
                 self.mcr_cur_limit * RESTORE_CONNECTIONS_FACTOR, self.mcr_max
             )
+
+        logger.debug("Concurrent requests limit set to %s", self.mcr_cur_limit)
+
 
     @asynccontextmanager
     async def limit_concurrent_requests(self):
