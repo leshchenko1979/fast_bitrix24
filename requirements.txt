@@ -3,4 +3,4 @@ asyncio
 tqdm
 more_itertools
 icontract
-beartype
+beartype>=0.10.0
