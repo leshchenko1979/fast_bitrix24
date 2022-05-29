@@ -192,7 +192,9 @@ class GetByIDUserRequest(UserRequestAbstract):
         "get_by_ID() doesn't support parameter 'ID' within the 'params' argument",
     )
     @icontract.require(
-        lambda self: not self.bitrix.verbose or "__len__" in dir(self.ID_list),
+        lambda self: not self.bitrix.verbose
+        or not self.ID_list
+        or "__len__" in dir(self.ID_list),
         "get_by_ID(): 'ID_list' should be a Sequence "
         "if a progress bar is to be displayed",
     )
@@ -225,7 +227,8 @@ class CallUserRequest(GetByIDUserRequest):
 
     @icontract.require(lambda self: self.item_list, "call(): item_list can't be empty")
     @icontract.require(
-        lambda self: not self.bitrix.verbose or "__len__" in dir(self.ID_list),
+        lambda self: not self.bitrix.verbose
+        or not self.ID_list or "__len__" in dir(self.ID_list),
         "call(): 'ID_list' should be a Sequence "
         "if a progress bar is to be displayed",
     )
@@ -245,7 +248,7 @@ class CallUserRequest(GetByIDUserRequest):
     def prepare_item_list(self):
         # добавим порядковый номер
         self.item_list = [
-            ChainMap(item, {self.ID_field_name: f"order{str(i):010}"})
+            ChainMap(item, {self.ID_field_name: f"order{i:010}"})
             for i, item in enumerate(self.item_list)
         ]
 
