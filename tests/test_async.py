@@ -13,8 +13,8 @@ from fast_bitrix24.srh import BITRIX_POOL_SIZE, BITRIX_RPS, ServerRequestHandler
     not os.getenv("FAST_BITRIX24_TEST_WEBHOOK"),
     reason="Нет аккаунта, на котором можно проверить",
 )
+@pytest.mark.asyncio
 class TestAsync:
-    @pytest.mark.asyncio
     async def test_simple_async_calls(self, create_100_leads_async):
 
         b: BitrixAsync = create_100_leads_async
@@ -25,7 +25,6 @@ class TestAsync:
         await b.call("crm.lead.get", {"ID": leads[0]["ID"]})
         await b.call_batch({"halt": 0, "cmd": {0: "crm.lead.list"}})
 
-    @pytest.mark.asyncio
     async def test_simultaneous_calls(self, create_100_leads_async):
         b = create_100_leads_async
 

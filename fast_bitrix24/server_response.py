@@ -82,6 +82,7 @@ class ServerResponseParser:
                 for batch_ID, batch_result in result.items()
             }
 
+        # если внутри - списки, то вернуть их в одном плоском списке
         if isinstance(next(iter(result.values())), list):
             result_list = [
                 self.extract_from_single_response(element)
@@ -92,4 +93,5 @@ class ServerResponseParser:
 
             return result_list
 
+        # иначе (если внутри - dict), то вернуть в сам dict
         return result
