@@ -245,7 +245,7 @@ class CallUserRequest(GetByIDUserRequest):
     def prepare_item_list(self):
         # добавим порядковый номер
         self.item_list = [
-            ChainMap(item, {self.ID_field_name: f"order{str(i):}"})
+            ChainMap(item, {self.ID_field_name: f"order{str(i):010}"})
             for i, item in enumerate(self.item_list)
         ]
 

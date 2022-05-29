@@ -45,7 +45,7 @@ class MultipleServerRequestHandler:
             yield ensure_future(self.srh.single_request("batch", batch))
 
     def batch_command_label(self, i, item):
-        return f"cmd{i}"
+        return f"cmd{i:010}"
 
     async def run(self):
         self.top_up_tasks()
