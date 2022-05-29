@@ -92,13 +92,13 @@ class UserRequestAbstract:
 
 
 class GetAllUserRequest(UserRequestAbstract):
+    @icontract.require(
+        lambda self: not self.st_params
+        or set(self.st_params.keys()).isdisjoint({"START", "LIMIT", "ORDER"}),
+        "get_all() doesn't support parameters " "'start', 'limit' or 'order'",
+    )
     def check_special_limitations(self):
-        if self.st_params and not set(self.st_params.keys()).isdisjoint(
-            {"START", "LIMIT", "ORDER"}
-        ):
-            raise ValueError(
-                "get_all() doesn't support parameters " "'start', 'limit' or 'order'"
-            )
+        return True
 
     async def run(self):
         self.add_order_parameter()
@@ -187,24 +187,19 @@ class GetByIDUserRequest(UserRequestAbstract):
         super().__init__(bitrix, method, params)
 
     @icontract.require(lambda self: self.ID_list, "get_by_ID(): ID_list can't be empty")
+    @icontract.require(
+        lambda self: not (self.st_params and "ID" in self.st_params.keys()),
+        "get_by_ID() doesn't support parameter 'ID' within the 'params' argument",
+    )
+    @icontract.require(
+        lambda self: not self.bitrix.verbose or "__len__" in dir(self.ID_list),
+        "get_by_ID(): 'ID_list' should be a Sequence "
+        "if a progress bar is to be displayed",
+    )
     def check_special_limitations(self):
-        if self.st_params and "ID" in self.st_params.keys():
-            raise ValueError(
-                "get_by_ID() doesn't support parameter 'ID' "
-                "within the 'params' argument"
-            )
-
-        if self.bitrix.verbose:
-            try:
-                len(self.ID_list)
-            except TypeError:
-                raise TypeError(
-                    "get_by_ID(): 'ID_list' should be a Sequence "
-                    "if a progress bar is to be displayed"
-                )
+        return True
 
     async def run(self) -> dict:
-
         self.prepare_item_list()
 
         results = await MultipleServerRequestHandlerPreserveIDs(
@@ -229,15 +224,13 @@ class CallUserRequest(GetByIDUserRequest):
         super().__init__(bitrix, method, None, None, "__order")
 
     @icontract.require(lambda self: self.item_list, "call(): item_list can't be empty")
+    @icontract.require(
+        lambda self: not self.bitrix.verbose or "__len__" in dir(self.ID_list),
+        "call(): 'ID_list' should be a Sequence "
+        "if a progress bar is to be displayed",
+    )
     def check_special_limitations(self):
-        if self.bitrix.verbose:
-            try:
-                len(self.item_list)
-            except TypeError:
-                raise TypeError(
-                    "call(): 'items' should be a Sequence "
-                    "if a progress bar is to be displayed"
-                )
+        return True
 
     async def run(self):
 
@@ -252,7 +245,7 @@ class CallUserRequest(GetByIDUserRequest):
     def prepare_item_list(self):
         # добавим порядковый номер
         self.item_list = [
-            ChainMap(item, {self.ID_field_name: f"order{str(i)}"})
+            ChainMap(item, {self.ID_field_name: f"order{str(i):}"})
             for i, item in enumerate(self.item_list)
         ]
 
@@ -276,7 +269,7 @@ class RawCallUserRequest(UserRequestAbstract):
         return p
 
     def check_special_limitations(self):
-        pass
+        return True
 
 
 class BatchUserRequest(UserRequestAbstract):
@@ -288,18 +281,20 @@ class BatchUserRequest(UserRequestAbstract):
     def standardized_method(self, method):
         return "batch"
 
+    @icontract.require(
+        lambda self: self.st_params.keys() == {"HALT", "CMD"},
+        "call_batch(): params should contain only 'halt' and 'cmd' "
+        "clauses at the highest level",
+    )
+    @icontract.require(
+        lambda self: isinstance(self.st_params["CMD"], dict),
+        "call_batch(): 'cmd' clause should contain a dict",
+    )
     def check_special_limitations(self):
-        if {"HALT", "CMD"} != self.st_params.keys():
-            raise ValueError(
-                "call_batch(): params should contain only 'halt' and 'cmd' "
-                "clauses at the highest level"
-            )
-
-        if not isinstance(self.st_params["CMD"], dict):
-            raise ValueError("call_batch(): 'cmd' clause should contain a dict")
+        return True
 
 
-class ListAndGetUserRequest(object):
+class ListAndGetUserRequest:
     @beartype
     def __init__(self, bitrix, method_branch: str, ID_field_name: str = "ID"):
         self.bitrix = bitrix
@@ -307,15 +302,13 @@ class ListAndGetUserRequest(object):
         self.method_branch = method_branch
         self.ID_field_name = ID_field_name
 
+    @icontract.require(
+        lambda self: not re.search(
+            r"(\.list|\.get)$", self.method_branch.strip().lower()
+        ),
+        'list_and_get(): "method_branch" should not end in ".list" or ".get"',
+    )
     async def run(self):
-        if not isinstance(self.method_branch, str):
-            raise TypeError('list_and_get(): "method_branch" should be a str')
-
-        if re.search(r"(\.list|\.get)$", self.method_branch.strip().lower()):
-            raise ValueError(
-                'list_and_get(): "method_branch" should not end in ".list" or ".get"'
-            )
-
         IDs = await self.srh.run_async(
             GetAllUserRequest(
                 self.bitrix,
