@@ -1,4 +1,5 @@
 from asyncio import FIRST_COMPLETED, ensure_future, wait
+from beartype.typing import Dict, List, Union
 
 from more_itertools import chunked
 from tqdm import tqdm
@@ -20,7 +21,7 @@ class MultipleServerRequestHandler:
         self.real_start = real_start
         self.mute = mute
 
-        self.results = []
+        self.results = None
         self.task_iterator = self.generate_a_task()
         self.tasks = set()
 
@@ -44,10 +45,10 @@ class MultipleServerRequestHandler:
         for batch in batches:
             yield ensure_future(self.srh.single_request("batch", batch))
 
-    def batch_command_label(self, i, item):
+    def batch_command_label(self, i: int, item) -> str:
         return f"cmd{i:010}"
 
-    async def run(self):
+    async def run(self) -> Union[Dict, List]:
         self.top_up_tasks()
 
         with self.get_pbar() as pbar:
@@ -64,7 +65,7 @@ class MultipleServerRequestHandler:
 
         return self.results
 
-    def top_up_tasks(self):
+    def top_up_tasks(self) -> None:
         """Добавляем в self.tasks столько задач, сколько свободных слотов для
         запросов есть сейчас в self.srh."""
 
@@ -75,7 +76,7 @@ class MultipleServerRequestHandler:
             except StopIteration:
                 break
 
-    def process_done_tasks(self, done) -> int:
+    def process_done_tasks(self, done: list) -> int:
         """Извлечь результаты из списка законченных задач
         и вернуть кол-во извлеченных элементов."""
 
@@ -84,7 +85,9 @@ class MultipleServerRequestHandler:
             batch_response = done_task.result()
             extracted = ServerResponseParser(batch_response).extract_results()
 
-            if isinstance(extracted, list):
+            if self.results is None:
+                self.results = extracted
+            elif isinstance(extracted, list):
                 self.results.extend(extracted)
             elif isinstance(extracted, dict):
                 self.results.update(extracted)
@@ -120,7 +123,6 @@ class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
     def __init__(self, bitrix, method, item_list, ID_field):
         super().__init__(bitrix, method, item_list)
         self.ID_field = ID_field
-        self.results = {}
 
     def batch_command_label(self, i, item):
         return item[self.ID_field]
