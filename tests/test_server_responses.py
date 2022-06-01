@@ -65,3 +65,14 @@ def test_call_several_success(bx_dummy):
     assert isinstance(results, tuple)
     assert len(results) == 3
     assert isinstance(results[0], dict)
+
+
+def test_call_list_empty(bx_dummy):
+    from tests.real_responses.batch_list_empty import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.call(
+        "crm.lead.list", ({"filter": {"PHONE": "+0000877578564"}, "select": ["ID"]},)
+    )
+    assert isinstance(results, list)
+    assert len(results) == 0

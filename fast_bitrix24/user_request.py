@@ -241,7 +241,13 @@ class CallUserRequest(GetByIDUserRequest):
         if is_single_item:
             self.item_list = [self.item_list]
 
-        results = tuple((await super().run()).values())
+        raw_results = await super().run()
+
+        if isinstance(raw_results, dict):
+            results = tuple(raw_results.values())
+        else:
+            # бывают случаи, чт возвращается список
+            results = raw_results
 
         return results[0] if is_single_item else results
 
