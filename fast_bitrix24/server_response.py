@@ -12,15 +12,15 @@ class ServerResponseParser:
 
     @property
     def result(self):
-        return self.response["result"]
+        return self.response.get("result")
 
     @property
     def total(self):
-        return self.response["total"]
+        return self.response.get("total")
 
     @property
     def error_description(self):
-        return self.response["error_description"]
+        return self.response.get("error_description")
 
     @property
     def result_error(self):
