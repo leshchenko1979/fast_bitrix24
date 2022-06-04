@@ -70,7 +70,7 @@ contacts = b.get_by_ID(
 
 ### Метод `list_and_get(self, method_branch: str, ID_field_name='ID') -> dict`
 Скачать список всех ID при помощи метода `method_branch + '.list'`,
-а затем значения всех полей всех элементов при помощи метода `method_branch + '.get'`. `method_branch` - группа методов, в которой есть подметоды `*.list` и `*.get`, например `crm.lead` или `tasks.task`.
+а затем значения всех полей всех элементов при помощи метода `method_branch + '.get'`. `method_branch` - группа методов, в которой есть подметоды `*.list` и `*.get`, например `crm.lead`.
 
 Например:
 ```python

@@ -63,14 +63,14 @@ b = Bitrix(webhook)
 
 ### `get_all()`
 
-Чтобы получить полностью список сущностей, используйте метод `get_all()`:
+Чтобы получить полностью список сущностей, используйте метод [`get_all()`](API.md#метод-getallself-method-str-params-dict--none---list--dict):
 
 ```python
 # список лидов
 leads = b.get_all('crm.lead.list')
 ```
 
-Метод `get_all()` возвращает список, где каждый элемент списка является словарем, описывающим одну сущность из запрошенного списка.
+Метод [`get_all()`](API.md#метод-getallself-method-str-params-dict--none---list--dict) возвращает список, где каждый элемент списка является словарем, описывающим одну сущность из запрошенного списка.
 
 Вы также можете использовать параметр `params`, чтобы кастомизировать запрос:
 
@@ -84,10 +84,10 @@ deals = b.get_all(
 })
 ```
 
-Если у вас есть необходимость быстро выгрузить большие объемы информации (значения всех полей в длинных списках - в 20+ тыс. элементов), то используйте метод `list_and_get()` (см. [документацию по методу](https://github.com/leshchenko1979/fast_bitrix24#метод-list_and_getself-method_branch-str---dict)).
+Если у вас есть необходимость быстро выгрузить большие объемы информации (значения всех полей в длинных списках - в 20+ тыс. элементов), то используйте метод [`list_and_get()`](https://github.com/leshchenko1979/fast_bitrix24#метод-list_and_getself-method_branch-str---dict).
 
 ### `get_by_ID()`
-Если у вас есть список ID сущностей, то вы можете получить их свойства при помощи метода `get_by_ID()`
+Если у вас есть список ID сущностей, то вы можете получить их свойства при помощи метода [`get_by_ID()`](API.md#метод-getbyidself-method-str-idlist-iterable-idfieldname-str--id-params-dict--none---dict)
 и использовании методов вида `*.get`:
 
 ```python
@@ -104,10 +104,10 @@ contacts = b.get_by_ID(
     'crm.deal.contact.items.get',
     [d['ID'] for d in deals])
 ```
-Метод `get_by_ID()` возвращает словарь с элементами вида `ID: result`, где `result` - ответ сервера относительно этого `ID`.
+Метод [`get_by_ID()`](API.md#метод-getbyidself-method-str-idlist-iterable-idfieldname-str--id-params-dict--none---dict) возвращает словарь с элементами вида `ID: result`, где `result` - ответ сервера относительно этого `ID`.
 
 ### `call()`
-Чтобы создавать, изменять или удалять список сущностей, используйте метод `call()`:
+Чтобы создавать, изменять или удалять список сущностей, используйте метод [`call()`](API.md#метод-callself-method-str-items-dict--iterabledict--any--none--raw-bool--false---dict--listdict--any):
 
 ```python
 # вставим в начало названия всех сделок их ID
@@ -123,7 +123,7 @@ tasks = [
 
 b.call('crm.deal.update', tasks)
 ```
-Метод `call()` возвращает список ответов сервера по каждому элементу переданного списка.
+Метод [`call()`](API.md#метод-callself-method-str-items-dict--iterabledict--any--none--raw-bool--false---dict--listdict--any) возвращает список ответов сервера по каждому элементу переданного списка.
 
 ### call(raw=True)
 Рекомендуется использовать метод `call(raw=True)` в следующих случаях:
@@ -140,7 +140,7 @@ b.call('crm.lead.update', params, raw=True)
 ```
 
 ### `call_batch()`
-Если вы хотите вызвать пакетный метод, используйте `call_batch()`:
+Если вы хотите вызвать пакетный метод, используйте [`call_batch()`](API.md#метод-callbatchself-params-dict---dict):
 
 ```python
 results = b.call_batch ({
