@@ -228,7 +228,8 @@ class CallUserRequest(GetByIDUserRequest):
     @icontract.require(lambda self: self.item_list, "call(): item_list can't be empty")
     @icontract.require(
         lambda self: not self.bitrix.verbose
-        or not self.ID_list or "__len__" in dir(self.ID_list),
+        or not self.ID_list
+        or "__len__" in dir(self.ID_list),
         "call(): 'ID_list' should be a Sequence "
         "if a progress bar is to be displayed",
     )
@@ -277,30 +278,15 @@ class RawCallUserRequest(UserRequestAbstract):
         """Пропускаем все проверки и изменения параметров."""
         return p
 
+    def standardized_method(self, method: str):
+        """Пропускаем все проверки и изменения методов."""
+        return method
+
     def check_special_limitations(self):
         return True
 
-
-class BatchUserRequest(UserRequestAbstract):
-    @beartype
-    @icontract.require(lambda params: params, "call_batch(): params can't be empty")
-    def __init__(self, bitrix, params: Dict):
-        super().__init__(bitrix, "batch", params)
-
-    def standardized_method(self, method):
-        return "batch"
-
-    @icontract.require(
-        lambda self: self.st_params.keys() == {"HALT", "CMD"},
-        "call_batch(): params should contain only 'halt' and 'cmd' "
-        "clauses at the highest level",
-    )
-    @icontract.require(
-        lambda self: isinstance(self.st_params["CMD"], dict),
-        "call_batch(): 'cmd' clause should contain a dict",
-    )
-    def check_special_limitations(self):
-        return True
+    async def run(self):
+        return await self.srh.single_request(self.method, self.params)
 
 
 class ListAndGetUserRequest:

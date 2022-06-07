@@ -233,7 +233,7 @@ class TestErrors:
         b = bx_dummy
 
         async def stub(*args, **kwargs):
-            return {"result": "ok"}
+            return {"result": {"result": {"ok"}}}
 
         monkeypatch.setattr(b.srh, "request_attempt", stub)
         assert b.srh.request_attempt is stub

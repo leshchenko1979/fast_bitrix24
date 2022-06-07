@@ -3,6 +3,7 @@ from itertools import chain
 
 from beartype.typing import Dict, List, Union
 
+
 class ServerResponseParser:
     def __init__(self, response: dict):
         self.response = response
@@ -26,6 +27,15 @@ class ServerResponseParser:
     def result_error(self):
         return self.response.get("result_error")
 
+    def extract_errors(self):
+        if self.is_batch():
+            if self.result.get("result_error"):
+                return self.result["result_error"]
+        elif self.result_error:
+            return self.result_error
+
+        return None
+
     def extract_results(self) -> Union[Dict, List[Dict]]:
         """Вернуть результаты запроса.
 
@@ -35,13 +45,13 @@ class ServerResponseParser:
         Returns:
             Any: Результаты запроса, по возможности превращенные в плоский список.
         """
+        errors = self.extract_errors()
+        if errors:
+            raise RuntimeError(errors)
+
         if self.is_batch():
-            if self.result.get("result_error"):
-                raise RuntimeError(self.result["result_error"])
             return self.extract_from_batch_response(self.result["result"])
         else:
-            if self.result_error:
-                raise RuntimeError(self.result_error)
             return self.extract_from_single_response(self.result)
 
     def is_batch(self) -> bool:

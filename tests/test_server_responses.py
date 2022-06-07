@@ -84,3 +84,34 @@ def test_get_all_non_list_method(bx_dummy):
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_all("user.fields")
     assert isinstance(results, dict)
+
+
+def test_batch_and_call_raw(bx_dummy):
+    from tests.real_responses.call_batch import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.call_batch(
+        {
+            "halt": 0,
+            "cmd": {
+                "statuses": "crm.status.entity.items?entityId=STATUS",
+                "sources": "crm.status.entity.items?entityId=SOURCE",
+            },
+        }
+    )
+    assert isinstance(results, dict)
+    assert results.keys() == {"statuses", "sources"}
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.call("batch",
+        {
+            "halt": 0,
+            "cmd": {
+                "statuses": "crm.status.entity.items?entityId=STATUS",
+                "sources": "crm.status.entity.items?entityId=SOURCE",
+            },
+        },
+        raw=True
+    )
+    assert isinstance(results, dict)
+    assert results.keys() == {"result", "time"}
