@@ -45,8 +45,7 @@ class ServerResponseParser:
         Returns:
             Any: Результаты запроса, по возможности превращенные в плоский список.
         """
-        errors = self.extract_errors()
-        if errors:
+        if errors := self.extract_errors():
             raise RuntimeError(errors)
 
         if self.is_batch():
