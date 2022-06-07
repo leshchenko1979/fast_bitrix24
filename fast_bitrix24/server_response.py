@@ -92,8 +92,12 @@ class ServerResponseParser:
                 for batch_ID, batch_result in result.items()
             }
 
+        first_item = next(iter(result.values()))
+
+        stagehistory_results = isinstance(first_item, dict) and "items" in first_item
+
         # если внутри - списки, то вернуть их в одном плоском списке
-        if isinstance(next(iter(result.values())), list):
+        if isinstance(first_item, list) or stagehistory_results:
             result_list = [
                 self.extract_from_single_response(element)
                 for element in result.values()
