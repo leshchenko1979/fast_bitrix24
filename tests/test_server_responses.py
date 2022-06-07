@@ -39,7 +39,9 @@ def test_batch_success(bx_dummy, recwarn):
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_all("crm.lead.list")
     assert isinstance(results, list)
-    assert len(recwarn) == 0
+    print(w.message for w in recwarn.list)
+    with pytest.raises(Exception):
+        recwarn.pop(RuntimeWarning)
 
 
 def test_batch_single_page_error(bx_dummy):
@@ -85,7 +87,9 @@ def test_get_all_non_list_method(bx_dummy, recwarn):
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_all("user.fields")
     assert isinstance(results, dict)
-    assert len(recwarn) == 0
+    print(w.message for w in recwarn.list)
+    with pytest.raises(Exception):
+        recwarn.pop(RuntimeWarning)
 
 
 def test_batch_and_call_raw(bx_dummy):
@@ -132,5 +136,7 @@ def test_stagehistory(bx_dummy, recwarn):
         },
     )
 
-    assert len(recwarn) == 0
     assert isinstance(results, list)
+    print(w.message for w in recwarn.list)
+    with pytest.raises(Exception):
+        recwarn.pop(RuntimeWarning)
