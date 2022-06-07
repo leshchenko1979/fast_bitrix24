@@ -33,12 +33,13 @@ def test_single_success():
     assert isinstance(results, list)
 
 
-def test_batch_success(bx_dummy):
+def test_batch_success(bx_dummy, recwarn):
     from tests.real_responses.crm_lead_list_several_pages_success import response
 
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_all("crm.lead.list")
     assert isinstance(results, list)
+    assert len(recwarn) == 0
 
 
 def test_batch_single_page_error(bx_dummy):
@@ -78,12 +79,13 @@ def test_call_list_empty(bx_dummy):
     assert len(results) == 0
 
 
-def test_get_all_non_list_method(bx_dummy):
+def test_get_all_non_list_method(bx_dummy, recwarn):
     from tests.real_responses.user_fields import response
 
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_all("user.fields")
     assert isinstance(results, dict)
+    assert len(recwarn) == 0
 
 
 def test_batch_and_call_raw(bx_dummy):
@@ -103,7 +105,8 @@ def test_batch_and_call_raw(bx_dummy):
     assert results.keys() == {"statuses", "sources"}
 
     bx_dummy.srh = MockSRH(response)
-    results = bx_dummy.call("batch",
+    results = bx_dummy.call(
+        "batch",
         {
             "halt": 0,
             "cmd": {
@@ -111,7 +114,23 @@ def test_batch_and_call_raw(bx_dummy):
                 "sources": "crm.status.entity.items?entityId=SOURCE",
             },
         },
-        raw=True
+        raw=True,
     )
     assert isinstance(results, dict)
     assert results.keys() == {"result", "time"}
+
+
+def test_stagehistory(bx_dummy, recwarn):
+    from tests.real_responses.stagehistory import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_all(
+        "crm.stagehistory.list",
+        {
+            "entityTypeId": 2,
+            "filter": {"STAGE_ID": "UC_KW9988"},
+        },
+    )
+
+    assert len(recwarn) == 0
+    assert isinstance(results, list)
