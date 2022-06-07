@@ -6,20 +6,20 @@ from contextlib import contextmanager
 from typing import Iterable, Union
 
 import aiohttp
-from beartype import beartype
 import icontract
+from beartype import beartype
 
 from . import correct_asyncio
+from .logger import log, logger
+from .server_response import ServerResponseParser
 from .srh import ServerRequestHandler
 from .user_request import (
-    BatchUserRequest,
     CallUserRequest,
     GetAllUserRequest,
     GetByIDUserRequest,
     ListAndGetUserRequest,
     RawCallUserRequest,
 )
-from .logger import log, logger
 
 
 class BitrixAsync:
@@ -179,7 +179,15 @@ class BitrixAsync:
         команды, а значение - ответ сервера по этой команде.
         """
 
-        return await self.srh.run_async(BatchUserRequest(self, params).run())
+        response = ServerResponseParser(
+            await self.srh.run_async(RawCallUserRequest(self, "batch", params).run())
+        )
+
+        errors = response.extract_errors()
+        if errors:
+            raise RuntimeError(errors)
+
+        return response.result["result"]
 
     @contextmanager
     @beartype
