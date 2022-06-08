@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+
 @pytest.mark.skipif(
     not os.getenv("FAST_BITRIX24_TEST_WEBHOOK"),
     reason="Нет аккаунта, на котором можно проверить",
@@ -137,7 +138,9 @@ class TestsWithLiveServer:
         def test_case(self, get_test):
             b = get_test
 
-            with pytest.raises(RuntimeError, match="Could not find value for parameter"):
+            with pytest.raises(
+                RuntimeError, match="Could not find value for parameter"
+            ):
                 b.call("disk.file.get", [{"ID": 1}])
 
             with pytest.raises(RuntimeError, match="Could not find entity with id"):
@@ -149,7 +152,6 @@ class TestsWithLiveServer:
                 "crm.lead.add", {"fields": {"NAME": "Bob", "COMMENTS": "x" * 10000}}
             )
             b.get_by_ID("crm.lead.delete", [lead_no])
-
 
     class TestParamsEncoding:
         def test_mobile_phone(self, get_test):
@@ -204,6 +206,7 @@ class TestsWithLiveServer:
 
             assert len(product_rows) == len(result_rows)
 
+
 class TestErrors:
     def test_get_all(self, bx_dummy):
         b = bx_dummy
@@ -242,3 +245,5 @@ class TestErrors:
 
         with pytest.raises(Exception):
             b.call("_", {})
+
+        b.call("_", [1, {"a": 2}], raw=True)
