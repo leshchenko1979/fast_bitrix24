@@ -140,3 +140,22 @@ def test_stagehistory(bx_dummy, recwarn):
     print(w.message for w in recwarn.list)
     with pytest.raises(Exception):
         recwarn.pop(RuntimeWarning)
+
+
+def test_single_add(bx_dummy):
+    from tests.real_responses.single_add import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.call(
+        "tasks.task.add",
+        {
+            "fields": {
+                "TITLE": "АГ",
+                "DESCRIPTION": "Сложно сказать, почему потускнели светлые лики икон",
+                "RESPONSIBLE_ID": 1,
+                "TAGS": "скпэ22-4",
+                "DEADLINE": "2022/07/30",
+            }
+        },
+    )
+    assert isinstance(results, dict)

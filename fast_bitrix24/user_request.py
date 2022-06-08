@@ -260,7 +260,7 @@ class CallUserRequest(GetByIDUserRequest):
         ]
 
 
-class RawCallUserRequest(UserRequestAbstract):
+class RawCallUserRequest():
     """Отправляем на сервер один элемент, не обрабатывая его и не заворачивая в батчи.
 
     Нужно для устревших методов, которые принимают на вход список
@@ -271,22 +271,13 @@ class RawCallUserRequest(UserRequestAbstract):
     """
 
     @beartype
-    def __init__(self, bitrix, method: str, item: Union[Dict, None]):
-        super().__init__(bitrix, method, item)
-
-    def standardized_params(self, p):
-        """Пропускаем все проверки и изменения параметров."""
-        return p
-
-    def standardized_method(self, method: str):
-        """Пропускаем все проверки и изменения методов."""
-        return method
-
-    def check_special_limitations(self):
-        return True
+    def __init__(self, bitrix, method: str, item):
+        self.srh = bitrix.srh
+        self.method = method
+        self.item = item
 
     async def run(self):
-        return await self.srh.single_request(self.method, self.params)
+        return await self.srh.single_request(self.method, self.item)
 
 
 class ListAndGetUserRequest:
