@@ -48,8 +48,7 @@ class ServerResponseParser:
             return self.extract_from_single_response(self.result)
 
     def raise_for_errors(self):
-        errors = self.extract_errors()
-        if errors:
+        if errors := self.extract_errors():
             raise ErrorInServerResponseException(errors)
 
     def extract_errors(self):
