@@ -55,7 +55,7 @@ class ServerResponseParser:
             return self.extract_from_single_response(self.result)
 
     def is_batch(self) -> bool:
-        return "result" in self.response and "result" in self.response["result"]
+        return isinstance(self.result, dict) and "result" in self.result
 
     @staticmethod
     def extract_from_single_response(result: dict):
