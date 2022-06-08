@@ -171,3 +171,6 @@ leads = b.get_all('crm.lead.list')
 ```
 #### Параметры
 * `max_concurrent_requests: int = 1` - макимальное количество одновременных запросов к серверу (по умолчанию 1).
+
+## Класс `ErrorInServerResponseException(Exception)`
+Это исключение поднимается, когда ответ сервера содержал ошибки.

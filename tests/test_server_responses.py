@@ -3,7 +3,7 @@ import logging
 import pytest
 from beartype.typing import Dict, List, Union
 from fast_bitrix24.logger import logger
-from fast_bitrix24.server_response import ServerResponseParser
+from fast_bitrix24.server_response import ErrorInServerResponseException, ServerResponseParser
 from fast_bitrix24.srh import ServerRequestHandler
 
 logger.addHandler(logging.StreamHandler())
@@ -48,7 +48,7 @@ def test_batch_single_page_error(bx_dummy):
     from tests.real_responses.crm_get_batch_mix_success_and_errors import response
 
     bx_dummy.srh = MockSRH(response)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ErrorInServerResponseException):
         bx_dummy.get_by_ID("crm.lead.get", [0, 1, 35943])
 
 
