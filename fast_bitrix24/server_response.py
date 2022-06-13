@@ -70,16 +70,13 @@ class ServerResponseParser:
         # то вернуть этот список.
         # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
 
-        # для небатчевых запросов
-        with contextlib.suppress(KeyError, TypeError):
-            task_list = result["tasks"]
-            if isinstance(task_list, list):
-                return task_list
-
         # метод `crm.stagehistory.list` возвращает dict["items", list] --
         # разворачиваем его в список
-        if isinstance(result, dict) and "items" in result:
-            return result["items"]
+
+        if isinstance(result, dict) and result.keys() & {"tasks", "items"}:
+            contents = result[list(result.keys())[0]]
+            if isinstance(contents, list):
+                return contents
 
         return result
 
@@ -88,23 +85,20 @@ class ServerResponseParser:
         if not result:
             return []
 
-        # если результат вызова содержит только словарь {'tasks': список},
+        # если результат вызова содержит только словарь c ключом
+        # "tasks" или "items" и списком у него внутри,
         # то вернуть этот список.
         # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
 
-        # для батчей
-        with contextlib.suppress(KeyError, TypeError, AttributeError):
-            return {
-                batch_ID: batch_result["tasks"]
-                for batch_ID, batch_result in result.items()
-            }
-
         first_item = next(iter(result.values()))
 
-        stagehistory_results = isinstance(first_item, dict) and "items" in first_item
+        nested_keys = {"tasks", "items"}
+        nested_results = (
+            isinstance(first_item, dict) and first_item.keys() & nested_keys
+        )
 
         # если внутри - списки, то вернуть их в одном плоском списке
-        if isinstance(first_item, list) or stagehistory_results:
+        if isinstance(first_item, list) or nested_results:
             result_list = [
                 self.extract_from_single_response(element)
                 for element in result.values()

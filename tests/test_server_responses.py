@@ -3,7 +3,10 @@ import logging
 import pytest
 from beartype.typing import Dict, List, Union
 from fast_bitrix24.logger import logger
-from fast_bitrix24.server_response import ErrorInServerResponseException, ServerResponseParser
+from fast_bitrix24.server_response import (
+    ErrorInServerResponseException,
+    ServerResponseParser,
+)
 from fast_bitrix24.srh import ServerRequestHandler
 
 logger.addHandler(logging.StreamHandler())
@@ -159,3 +162,15 @@ def test_single_add(bx_dummy):
         },
     )
     assert isinstance(results, dict)
+
+
+def test_get_all_tasks(bx_dummy):
+    from tests.real_responses.get_all_tasks import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_all(
+        "tasks.task.list",
+        {"filter": {"status": -1}, "select": ["ID", "STATUS", "STATUS_COMPLETE"]},
+    )
+    assert isinstance(results, list)
+    assert len(results) == 1570
