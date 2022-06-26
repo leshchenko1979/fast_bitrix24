@@ -14,7 +14,7 @@ from .utils import _url_valid
 from .logger import logger
 
 BITRIX_POOL_SIZE = 50
-BITRIX_RPS = 2.0
+BITRIX_RPS = 2.0  # RPS - requests per second
 BITRIX_MAX_BATCH_SIZE = 50
 BITRIX_MAX_CONCURRENT_REQUESTS = 50
 
@@ -37,7 +37,7 @@ class ServerRequestHandler:
     Используется для контроля скорости доступа к серверам Битрикс.
 
     Основная цель - вести учет количества запросов, которые можно передать
-    серверу Битрикс без получения ошибки `5XX`.
+    серверу Битрикс без получения 429 или `5XX` ошибки.
 
     Используется как контекстный менеджер, оборачивающий несколько
     последовательных запросов к серверу.
@@ -147,8 +147,9 @@ class ServerRequestHandler:
                     return json
 
         except ClientResponseError as error:
+            logger.debug(f"Server error: {error}")
             if error.status // 100 == 5:  # ошибки вида 5XX
-                raise ServerError("The server returned an error") from error
+                raise ServerError() from error
 
             raise
 
