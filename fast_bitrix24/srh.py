@@ -1,17 +1,18 @@
 import time
-from asyncio import Event, sleep
+from asyncio import Event, sleep, TimeoutError
 from collections import deque
 from contextlib import asynccontextmanager
 
 import aiohttp
 from aiohttp.client_exceptions import (
+    ClientConnectionError,
     ClientPayloadError,
     ClientResponseError,
-    ServerDisconnectedError,
+    ServerTimeoutError,
 )
 
-from .utils import _url_valid
 from .logger import logger
+from .utils import _url_valid
 
 BITRIX_POOL_SIZE = 50
 BITRIX_RPS = 2.0
@@ -130,7 +131,12 @@ class ServerRequestHandler:
                 self.success()
                 return result
 
-            except (ClientPayloadError, ServerDisconnectedError, ServerError) as err:
+            except (
+                ClientPayloadError,
+                ClientConnectionError,
+                ServerError,
+                TimeoutError,
+            ) as err:
                 self.failure(err)
 
     async def request_attempt(self, method, params=None) -> dict:
