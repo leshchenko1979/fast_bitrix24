@@ -223,6 +223,9 @@ class TestErrors:
         with pytest.raises(Exception):
             b.get_all("some_method", {"filter": 3})
 
+        with pytest.raises(Exception):
+            b.get_all("task.elapseditem.getlist", {"filter": 3})
+
     def test_get_by_ID(self, bx_dummy):
         b = bx_dummy
 

@@ -97,6 +97,12 @@ class GetAllUserRequest(UserRequestAbstract):
         or set(self.st_params.keys()).isdisjoint({"START", "LIMIT", "ORDER"}),
         "get_all() doesn't support parameters " "'start', 'limit' or 'order'",
     )
+    @icontract.require(
+        lambda self: not self.st_method.startswith("tasks.elapseditem."),
+        "get_all() shouldn't be used with 'tasks.elapseditem.*' method group. "
+        "Use call(raw=True) instead. Read more: "
+        "https://github.com/leshchenko1979/fast_bitrix24/issues/199",
+    )
     def check_special_limitations(self):
         return True
 
@@ -260,7 +266,7 @@ class CallUserRequest(GetByIDUserRequest):
         ]
 
 
-class RawCallUserRequest():
+class RawCallUserRequest:
     """Отправляем на сервер один элемент, не обрабатывая его и не заворачивая в батчи.
 
     Нужно для устревших методов, которые принимают на вход список
