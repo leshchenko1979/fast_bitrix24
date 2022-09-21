@@ -78,7 +78,7 @@ class BitrixAsync:
         ID_list: Iterable,
         ID_field_name: str = "ID",
         params: dict = None,
-    ) -> list:
+    ) -> dict:
         """
         Получить список сущностей по запросу `method` и списку ID.
 
