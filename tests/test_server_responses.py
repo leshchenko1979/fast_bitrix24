@@ -174,3 +174,11 @@ def test_get_all_tasks(bx_dummy):
     )
     assert isinstance(results, list)
     assert len(results) == 1570
+
+
+def test_crm_dealcategory_stage_list(bx_dummy):
+    from tests.real_responses.crm_dealcategory_stage_list import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_by_ID("crm.dealcategory.stage.list", ["2", "4", "8", 0])
+    assert isinstance(results, dict)

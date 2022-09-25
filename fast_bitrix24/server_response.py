@@ -1,4 +1,3 @@
-import contextlib
 from itertools import chain
 
 from beartype.typing import Dict, List, Union
@@ -9,8 +8,9 @@ class ErrorInServerResponseException(Exception):
 
 
 class ServerResponseParser:
-    def __init__(self, response: dict):
+    def __init__(self, response: dict, get_by_ID: bool = False):
         self.response = response
+        self.get_by_ID = get_by_ID
 
     def more_results_expected(self) -> bool:
         return self.total and self.total > 50 and self.total != len(self.result)
@@ -42,10 +42,13 @@ class ServerResponseParser:
         """
         self.raise_for_errors()
 
-        if self.is_batch():
-            return self.extract_from_batch_response(self.result["result"])
-        else:
+        if not self.is_batch():
             return self.extract_from_single_response(self.result)
+
+        if self.get_by_ID:
+            return self.extract_from_single_response(self.result["result"])
+        else:
+            return self.extract_from_batch_response(self.result["result"])
 
     def raise_for_errors(self):
         errors = self.extract_errors()
