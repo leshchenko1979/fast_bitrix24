@@ -11,7 +11,14 @@ from .utils import http_build_query
 
 class MultipleServerRequestHandler:
     def __init__(
-        self, bitrix, method, item_list, real_len=None, real_start=0, mute=False
+        self,
+        bitrix,
+        method,
+        item_list,
+        real_len=None,
+        real_start=0,
+        mute=False,
+        get_by_ID=False,
     ):
         self.bitrix = bitrix
         self.srh: ServerRequestHandler = bitrix.srh
@@ -20,6 +27,7 @@ class MultipleServerRequestHandler:
         self.real_len = real_len
         self.real_start = real_start
         self.mute = mute
+        self.get_by_ID = get_by_ID
 
         self.results = None
         self.task_iterator = self.generate_a_task()
@@ -82,8 +90,9 @@ class MultipleServerRequestHandler:
 
         extracted_len = 0
         for done_task in done:
-            batch_response = done_task.result()
-            extracted = ServerResponseParser(batch_response).extract_results()
+            extracted = ServerResponseParser(
+                done_task.result(), self.get_by_ID
+            ).extract_results()
 
             if self.results is None:
                 self.results = extracted
@@ -120,8 +129,8 @@ class MutePBar:
 
 
 class MultipleServerRequestHandlerPreserveIDs(MultipleServerRequestHandler):
-    def __init__(self, bitrix, method, item_list, ID_field):
-        super().__init__(bitrix, method, item_list)
+    def __init__(self, bitrix, method, item_list, ID_field, get_by_ID):
+        super().__init__(bitrix, method, item_list, get_by_ID=get_by_ID)
         self.ID_field = ID_field
 
     def batch_command_label(self, i, item):

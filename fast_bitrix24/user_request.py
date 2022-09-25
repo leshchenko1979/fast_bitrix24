@@ -211,7 +211,11 @@ class GetByIDUserRequest(UserRequestAbstract):
         self.prepare_item_list()
 
         results = await MultipleServerRequestHandlerPreserveIDs(
-            self.bitrix, self.method, self.item_list, ID_field=self.ID_field_name
+            self.bitrix,
+            self.method,
+            self.item_list,
+            ID_field=self.ID_field_name,
+            get_by_ID=True,
         ).run()
 
         return results
@@ -248,12 +252,20 @@ class CallUserRequest(GetByIDUserRequest):
         if is_single_item:
             self.item_list = [self.item_list]
 
-        raw_results = await super().run()
+        self.prepare_item_list()
+
+        raw_results = await MultipleServerRequestHandlerPreserveIDs(
+            self.bitrix,
+            self.method,
+            self.item_list,
+            ID_field=self.ID_field_name,
+            get_by_ID=False,
+        ).run()
 
         if isinstance(raw_results, dict):
             results = tuple(raw_results.values())
         else:
-            # бывают случаи, чт возвращается список
+            # бывают случаи, что возвращается список
             results = raw_results
 
         return results[0] if is_single_item else results

@@ -1,3 +1,16 @@
+request = {
+    "method": "batch",
+    "params": {
+        "halt": 0,
+        "cmd": {
+            "2": "crm.dealcategory.stage.list?ID=2&",
+            "4": "crm.dealcategory.stage.list?ID=4&",
+            "8": "crm.dealcategory.stage.list?ID=8&",
+            0: "crm.dealcategory.stage.list?ID=0&",
+        },
+    },
+}
+
 response = {
     "result": {
         "result": {
