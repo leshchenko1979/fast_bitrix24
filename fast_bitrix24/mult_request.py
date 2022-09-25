@@ -121,10 +121,10 @@ class MutePBar:
     def __enter__(self):
         return self
 
-    def __exit__(*args):
+    def __exit__(self):
         pass
 
-    def update(*args):
+    def update(self):
         pass
 
 
