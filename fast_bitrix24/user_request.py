@@ -54,7 +54,7 @@ class UserRequestAbstract:
     def check_expected_clause_types(self, p):
         EXPECTED_TYPES = {
             "SELECT": list,
-            "HELT": int,
+            "HALT": int,
             "CMD": dict,
             "LIMIT": int,
             "ORDER": dict,
