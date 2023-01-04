@@ -69,14 +69,14 @@ class ServerResponseParser:
 
     @staticmethod
     def extract_from_single_response(result: dict):
-        # если результат вызова содержит только словарь {'tasks': список},
+        # если результат вызова содержит только словарь {ключ: список},
         # то вернуть этот список.
         # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
 
         # метод `crm.stagehistory.list` возвращает dict["items", list] --
         # разворачиваем его в список
 
-        if isinstance(result, dict) and result.keys() & {"tasks", "items"}:
+        if isinstance(result, dict) and len(result) == 1:
             contents = result[list(result.keys())[0]]
             if isinstance(contents, list):
                 return contents
