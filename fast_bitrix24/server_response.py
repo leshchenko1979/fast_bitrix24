@@ -76,32 +76,35 @@ class ServerResponseParser:
         # метод `crm.stagehistory.list` возвращает dict["items", list] --
         # разворачиваем его в список
 
-        if isinstance(result, dict) and len(result) == 1:
-            contents = result[list(result.keys())[0]]
+        if ServerResponseParser.is_nested(result):
+            contents = ServerResponseParser.extract_from_nested(result)
             if isinstance(contents, list):
                 return contents
 
         return result
+
+    @staticmethod
+    def is_nested(result) -> bool:
+        return isinstance(result, dict) and len(result) == 1
+
+    @staticmethod
+    def extract_from_nested(result):
+        return next(iter(result.values()))
+
 
     def extract_from_batch_response(self, result) -> list:
 
         if not result:
             return []
 
-        # если результат вызова содержит только словарь c ключом
-        # "tasks" или "items" и списком у него внутри,
-        # то вернуть этот список.
+        # если результат вызова содержит только словарь c одним ключом
+        # и списком у него внутри, то вернуть этот список.
         # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
 
         first_item = next(iter(result.values()))
 
-        nested_keys = {"tasks", "items"}
-        nested_results = (
-            isinstance(first_item, dict) and first_item.keys() & nested_keys
-        )
-
         # если внутри - списки, то вернуть их в одном плоском списке
-        if isinstance(first_item, list) or nested_results:
+        if self.is_nested(first_item) or isinstance(first_item, list):
             result_list = [
                 self.extract_from_single_response(element)
                 for element in result.values()
