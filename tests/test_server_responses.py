@@ -190,3 +190,12 @@ def test_catalog_document_element_list(bx_dummy):
     results = bx_dummy.get_all("catalog.document.element.list")
 
     assert len(results) == 95
+
+
+def test_crm_stagehistory_list(bx_dummy):
+    from tests.real_responses.crm_stagehistory_list import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_all("crm.stagehistory.list")
+
+    assert len(results) == 9

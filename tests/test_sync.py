@@ -249,4 +249,7 @@ class TestErrors:
         with pytest.raises(Exception):
             b.call("_", {})
 
+        with pytest.raises(Exception):
+            b.call("_", {"select": ["*"]})
+
         b.call("_", [1, {"a": 2}], raw=True)
