@@ -1,5 +1,5 @@
 from logging import DEBUG, NullHandler, getLogger
-from __version__ import __version__
+from .__version__ import __version__
 
 logger = getLogger("fast_bitrix24")
 logger.setLevel(DEBUG)
