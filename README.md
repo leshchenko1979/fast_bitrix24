@@ -274,6 +274,26 @@ async def main():
 asyncio.run(main())
 ```
 
+## Я использую вашу библиотеку из ноутбуков или из Spyder и получаю ошибки. Что делать?
+
+Ваша вреда выполнения самостоятельно управляет примитивами asyncio ([см. больше](https://stackoverflow.com/questions/56154176/runtimeerror-asyncio-run-cannot-be-called-from-a-running-event-loop-in-spyd)).
+
+Используйте асинхронный клиент. То есть, вместо кода:
+
+```python
+from fast_bitrix24 import Bitrix
+b = Bitrix(webhook)
+leads = b.get_all('crm.lead.list')
+```
+
+используйте код:
+
+```python
+from fast_bitrix24 import BitrixAsync
+b = BitrixAsync(webhook)
+leads = await b.get_all('crm.lead.list')
+```
+
 ## Как связаться с автором
 - telegram: https://t.me/+U7hfrV7h53bRvKAS
 - создать новый github issue: https://github.com/leshchenko1979/fast_bitrix24/issues/new
