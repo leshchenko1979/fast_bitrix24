@@ -1,5 +1,5 @@
 import setuptools
-from fast_bitrix24.__version__ import __version__
+from fast_bitrix24 import __version__
 
 with open("README.md", "r", encoding='utf-8') as fh:
     long_description = fh.read()
