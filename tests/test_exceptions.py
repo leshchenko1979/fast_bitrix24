@@ -3,6 +3,7 @@ import sys
 
 import aiohttp.client_exceptions as exc
 import pytest
+
 from fast_bitrix24 import Bitrix
 
 
@@ -19,4 +20,4 @@ async def test_retries(exception):
 
     # должна исчерпать все попытки и выдать RuntimeError
     with pytest.raises(RuntimeError):
-        await srh.single_request(None)
+        await srh.single_request("abc")
