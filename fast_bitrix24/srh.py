@@ -1,6 +1,4 @@
-import time
-from asyncio import Event, sleep, TimeoutError
-from collections import deque
+from asyncio import Event, TimeoutError, sleep
 from contextlib import asynccontextmanager
 
 import aiohttp
@@ -8,16 +6,17 @@ from aiohttp.client_exceptions import (
     ClientConnectionError,
     ClientPayloadError,
     ClientResponseError,
-    ServerTimeoutError,
 )
 
+from .leaky_bucket import LeakyBucketLimiter
 from .logger import logger
 from .utils import _url_valid
 
-BITRIX_POOL_SIZE = 50
-BITRIX_RPS = 2.0
 BITRIX_MAX_BATCH_SIZE = 50
 BITRIX_MAX_CONCURRENT_REQUESTS = 50
+
+BITRIX_MAX_REQUEST_RUNNING_TIME = 480
+BITRIX_MEASUREMENT_PERIOD = 10 * 60
 
 MAX_RETRIES = 10
 
@@ -31,6 +30,14 @@ NUM_FAILURES_NO_TIMEOUT = 3
 
 class ServerError(Exception):
     pass
+
+
+RETRIED_ERRORS = (
+    ClientPayloadError,
+    ClientConnectionError,
+    ServerError,
+    TimeoutError,
+)
 
 
 class ServerRequestHandler:
@@ -48,18 +55,12 @@ class ServerRequestHandler:
         self.webhook = self.standardize_webhook(webhook)
         self.respect_velocity_policy = respect_velocity_policy
 
-        self.requests_per_second = BITRIX_RPS
-        self.pool_size = BITRIX_POOL_SIZE
-
         self.active_runs = 0
 
         # если пользователь при инициализации передал клиента со своими настройками,
         # то будем использовать его клиента
         self.client_provided_by_user = bool(client)
         self.session = client
-
-        # rr - requests register - список отправленных запросов к серверу
-        self.rr = deque()
 
         # лимит количества одновременных запросов,
         # установленный конструктором или пользователем
@@ -75,6 +76,9 @@ class ServerRequestHandler:
         # если положительное - количество последовательных удачных запросов
         # если отрицательное - количество последовательно полученных ошибок
         self.successive_results = 0
+
+        # rate limiters by method
+        self.limiters: dict[str, LeakyBucketLimiter] = {}
 
     @staticmethod
     def standardize_webhook(webhook):
@@ -120,36 +124,37 @@ class ServerRequestHandler:
             if not self.active_runs and self.session and not self.session.closed:
                 await self.session.close()
 
-    async def single_request(self, method, params=None) -> dict:
+    async def single_request(self, method: str, params=None) -> dict:
         """Делает единичный запрос к серверу,
         с повторными попытками при необходимости."""
 
         while True:
 
             try:
-                result = await self.request_attempt(method, params)
+                result = await self.request_attempt(method.strip().lower(), params)
                 self.success()
                 return result
 
-            except (
-                ClientPayloadError,
-                ClientConnectionError,
-                ServerError,
-                TimeoutError,
-            ) as err:
+            except RETRIED_ERRORS as err:  # all other exceptions will propagate
                 self.failure(err)
 
     async def request_attempt(self, method, params=None) -> dict:
         """Делает попытку запроса к серверу, ожидая при необходимости."""
 
         try:
-            async with self.acquire():
+            async with self.acquire(method):
                 logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
+
                 async with self.session.post(
                     url=self.webhook + method, json=params
                 ) as response:
                     json = await response.json(encoding="utf-8")
+
                     logger.debug("Response: %s", json)
+
+                    request_run_time = json["time"]["operating"]
+                    self.limiters[method].register(request_run_time)
+
                     return json
 
         except ClientResponseError as error:
@@ -175,15 +180,21 @@ class ServerRequestHandler:
             ) from err
 
     @asynccontextmanager
-    async def acquire(self):
+    async def acquire(self, method: str):
         """Ожидает, пока не станет безопасно делать запрос к серверу."""
 
         await self.autothrottle()
 
         async with self.limit_concurrent_requests():
             if self.respect_velocity_policy:
-                async with self.limit_request_velocity():
+                if method not in self.limiters:
+                    self.limiters[method] = LeakyBucketLimiter(
+                        BITRIX_MAX_REQUEST_RUNNING_TIME, BITRIX_MEASUREMENT_PERIOD
+                    )
+
+                async with self.limiters[method].acquire():
                     yield
+
             else:
                 yield
 
@@ -220,7 +231,7 @@ class ServerRequestHandler:
 
     @asynccontextmanager
     async def limit_concurrent_requests(self):
-        """Не позволяет оновременно выполнять
+        """Не позволяет одновременно выполнять
         более `self.mcr_cur_limit` запросов."""
 
         while self.concurrent_requests > self.mcr_cur_limit:
@@ -235,30 +246,3 @@ class ServerRequestHandler:
         finally:
             self.concurrent_requests -= 1
             self.request_complete.set()
-
-    @asynccontextmanager
-    async def limit_request_velocity(self):
-        """Ограничивает скорость запросов к серверу."""
-
-        # если пул заполнен, ждать
-        while len(self.rr) >= self.pool_size:
-            time_from_last_request = time.monotonic() - self.rr[0]
-            time_to_wait = 1 / self.requests_per_second - time_from_last_request
-            if time_to_wait > 0:
-                await sleep(time_to_wait)
-            else:
-                break
-
-        # зарегистрировать запрос в очереди
-        start_time = time.monotonic()
-        self.rr.appendleft(start_time)
-
-        # отдать управление
-        try:
-            yield
-
-        # подчистить пул
-        finally:
-            trim_time = start_time - self.pool_size / self.requests_per_second
-            while self.rr[-1] < trim_time:
-                self.rr.pop()
