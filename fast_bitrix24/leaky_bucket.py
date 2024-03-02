@@ -15,18 +15,14 @@ class LeakyBucketLimiter:
     When the consumer has hit the limit, he will have to wait.
     """
 
-    # request register. left - most recent, right - least recent
-    request_register: collections.deque[RequestRecord]
-
-    # how much time fits into the bucket before it starts failing
-    max_request_running_time: float
-
-    # over what period of time should the max_request_running_time be measured
-    measurement_period: float
-
     def __init__(self, max_request_running_time: float, measurement_period: float):
+        # how much time fits into the bucket before it starts failing
         self.max_request_running_time = max_request_running_time
+
+        # over what period of time should the max_request_running_time be measured
         self.measurement_period = measurement_period
+
+        # request register. left - most recent, right - least recent
         self.request_register = collections.deque()
 
     @contextlib.asynccontextmanager

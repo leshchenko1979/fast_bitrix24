@@ -78,7 +78,7 @@ class ServerRequestHandler:
         self.successive_results = 0
 
         # rate limiters by method
-        self.limiters: dict[str, LeakyBucketLimiter] = {}
+        self.limiters = {}  # dict[str, LeakyBucketLimiter]
 
     @staticmethod
     def standardize_webhook(webhook):
