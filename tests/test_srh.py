@@ -25,4 +25,4 @@ async def test_request_attempt():
 
     # Assert the expected behavior
     assert result == {'time': {'operating': 1000}}
-    assert "method" in handler.throttlers
+    assert "method" in handler.method_throttlers

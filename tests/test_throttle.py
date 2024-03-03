@@ -4,7 +4,49 @@ import time
 
 import pytest
 
-from fast_bitrix24.throttle import SlidingWindowThrottler, RequestRecord
+from fast_bitrix24.throttle import LeakyBucketThrottler, SlidingWindowThrottler
+
+
+# Test the acquire method of the LeakyBucketThrottler class
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "pool_size, requests_per_second, sleep_time, test_id",
+    [
+        (5, 1.0, 0, "acquire_happy_path_no_wait"),
+        (5, 1.0, 1, "acquire_happy_path_with_wait"),
+        (1, 0.1, 10, "acquire_edge_long_wait"),
+    ],
+)
+async def test_leaky_bucket(
+    pool_size, requests_per_second, sleep_time, test_id, monkeypatch
+):
+    # Set up mocks
+    start_time = time.monotonic()
+
+    def fake_time():
+        return start_time
+
+    monkeypatch.setattr(time, "monotonic", fake_time)
+
+    sleep_log = []
+
+    async def fake_sleep(duration):
+        sleep_log.append(duration)
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+    # Arrange
+    throttler = LeakyBucketThrottler(pool_size, requests_per_second)
+    for _ in range(pool_size):
+        throttler.add_request_record()
+        await asyncio.sleep(sleep_time)
+
+    # Act
+    async with throttler.acquire() as _:
+        pass
+
+    # Assert
+    assert len(throttler._request_history) <= pool_size
 
 
 @pytest.mark.parametrize(
@@ -57,10 +99,10 @@ def test_needed_sleep_time(
         (10, 20, [5, 5.1, 5], 9.9, "happy-2"),
         # Edge cases
         (10, 20, [10], 10, "edge-1"),
-        (10, 20, [10, 0.1],  9.9, "edge-2"),
+        (10, 20, [10, 0.1], 9.9, "edge-2"),
     ],
 )
-async def test_leaky_bucket_limiter(
+async def test_sliding_window(
     max_request_running_time,
     measurement_period,
     request_durations,

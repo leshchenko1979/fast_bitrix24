@@ -8,9 +8,12 @@ from aiohttp.client_exceptions import (
     ClientResponseError,
 )
 
-from .throttle import SlidingWindowThrottler
+from .throttle import SlidingWindowThrottler, LeakyBucketThrottler
 from .logger import logger
 from .utils import _url_valid
+
+BITRIX_POOL_SIZE = 50
+BITRIX_RPS = 2.0
 
 BITRIX_MAX_BATCH_SIZE = 50
 BITRIX_MAX_CONCURRENT_REQUESTS = 50
@@ -78,7 +81,9 @@ class ServerRequestHandler:
         self.successive_results = 0
 
         # rate throttlers by method
-        self.throttlers = {}  # dict[str, LeakyBucketLimiter]
+        self.method_throttlers = {}  # dict[str, LeakyBucketLimiter]
+
+        self.leaky_bucket_throttler = LeakyBucketThrottler(BITRIX_POOL_SIZE, BITRIX_RPS)
 
     @staticmethod
     def standardize_webhook(webhook):
@@ -153,7 +158,8 @@ class ServerRequestHandler:
                     logger.debug("Response: %s", json)
 
                     request_run_time = json["time"]["operating"]
-                    self.throttlers[method].add_request_record(request_run_time)
+                    self.method_throttlers[method].add_request_record(request_run_time)
+                    self.leaky_bucket_throttler.add_request_record()
 
                     return json
 
@@ -185,14 +191,14 @@ class ServerRequestHandler:
 
         await self.autothrottle()
 
-        async with self.limit_concurrent_requests():
+        async with self.limit_concurrent_requests(), self.leaky_bucket_throttler.acquire():
             if self.respect_velocity_policy:
-                if method not in self.throttlers:
-                    self.throttlers[method] = SlidingWindowThrottler(
+                if method not in self.method_throttlers:
+                    self.method_throttlers[method] = SlidingWindowThrottler(
                         BITRIX_MAX_REQUEST_RUNNING_TIME, BITRIX_MEASUREMENT_PERIOD
                     )
 
-                async with self.throttlers[method].acquire():
+                async with self.method_throttlers[method].acquire():
                     yield
 
             else:
