@@ -2,11 +2,12 @@ import pickle
 import re
 import warnings
 from collections import ChainMap
-from beartype.typing import Dict, Any, Iterable, Union
-from beartype import beartype
 
 import icontract
+from beartype import beartype
+from beartype.typing import Any, Dict, Iterable, Union
 
+from . import logger
 from .mult_request import (
     MultipleServerRequestHandler,
     MultipleServerRequestHandlerPreserveIDs,
@@ -210,15 +211,13 @@ class GetByIDUserRequest(UserRequestAbstract):
     async def run(self) -> dict:
         self.prepare_item_list()
 
-        results = await MultipleServerRequestHandlerPreserveIDs(
+        return await MultipleServerRequestHandlerPreserveIDs(
             self.bitrix,
             self.method,
             self.item_list,
             ID_field=self.ID_field_name,
             get_by_ID=True,
         ).run()
-
-        return results
 
     def prepare_item_list(self):
         if self.params:
@@ -305,6 +304,10 @@ class ListAndGetUserRequest:
         self.srh: ServerRequestHandler = bitrix.srh
         self.method_branch = method_branch
         self.ID_field_name = ID_field_name
+
+        logger.warning(
+            "list_and_get(): 'ListAndGetUserRequest' is deprecated. Use 'get_all()' instead."
+        )
 
     @icontract.require(
         lambda self: not re.search(
