@@ -153,7 +153,7 @@ class ServerRequestHandler:
                     logger.debug("Response: %s", json)
 
                     request_run_time = json["time"]["operating"]
-                    self.throttlers[method].register(request_run_time)
+                    self.throttlers[method].add_request_record(request_run_time)
 
                     return json
 

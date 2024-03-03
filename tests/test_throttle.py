@@ -39,13 +39,13 @@ def test_needed_sleep_time(
         ):
             when, duration = requests.pop(0)
             monkeypatch.setattr("time.monotonic", lambda: when)
-            throttler.register(duration)
+            throttler.add_request_record(duration)
         else:
             call_point, expected = measurements.pop(0)
             monkeypatch.setattr("time.monotonic", lambda: call_point)
-            print("Request record:", throttler.request_register)
+            print("Request record:", throttler._request_history)
             print("Time", call_point)
-            assert math.isclose(throttler.get_needed_sleep_time(), expected)
+            assert math.isclose(throttler._calculate_needed_sleep_time(), expected)
 
 
 @pytest.mark.asyncio
@@ -90,11 +90,11 @@ async def test_leaky_bucket_limiter(
     for duration in request_durations:
         async with throttler.acquire():
             pass
-        throttler.register(duration)
+        throttler.add_request_record(duration)
         start_time += duration
         await asyncio.sleep(duration)
 
     # Assert
     assert math.isclose(
-        throttler.get_needed_sleep_time(), expected_sleep_time
+        throttler._calculate_needed_sleep_time(), expected_sleep_time
     ), f"Test failed for {test_id}"
