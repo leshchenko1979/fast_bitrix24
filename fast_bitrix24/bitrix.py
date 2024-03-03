@@ -29,7 +29,7 @@ class BitrixAsync:
         self,
         webhook: str,
         verbose: bool = True,
-        respect_velocity_policy: bool = False,
+        respect_velocity_policy: bool = True,
         client: aiohttp.ClientSession = None,
     ):
         """
@@ -39,7 +39,7 @@ class BitrixAsync:
         - `webhook: str` - URL вебхука, полученного от сервера Битрикс
         - `verbose: bool = True` - показывать ли прогрессбар при выполнении
         запроса
-        - `respect_velocity_policy: bool = False` - соблюдать ли политику
+        - `respect_velocity_policy: bool = True` - соблюдать ли политику
         Битрикса о скорости запросов
         - `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов
         объект aiohttp.ClientSession, инициализированнный и настроенный
