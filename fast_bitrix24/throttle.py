@@ -7,7 +7,7 @@ import time
 RequestRecord = collections.namedtuple("RequestRecord", "when, duration")
 
 
-class LeakyBucketLimiter:
+class SlidingWindowThrottler:
     """The class emulates a leaky bucket where the consumer may only run requests
     until he has used up X seconds of request running time in total
     during a period of Y seconds.

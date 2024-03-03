@@ -8,7 +8,7 @@ from aiohttp.client_exceptions import (
     ClientResponseError,
 )
 
-from .leaky_bucket import LeakyBucketLimiter
+from .throttle import SlidingWindowThrottler
 from .logger import logger
 from .utils import _url_valid
 
@@ -77,8 +77,8 @@ class ServerRequestHandler:
         # если отрицательное - количество последовательно полученных ошибок
         self.successive_results = 0
 
-        # rate limiters by method
-        self.limiters = {}  # dict[str, LeakyBucketLimiter]
+        # rate throttlers by method
+        self.throttlers = {}  # dict[str, LeakyBucketLimiter]
 
     @staticmethod
     def standardize_webhook(webhook):
@@ -153,7 +153,7 @@ class ServerRequestHandler:
                     logger.debug("Response: %s", json)
 
                     request_run_time = json["time"]["operating"]
-                    self.limiters[method].register(request_run_time)
+                    self.throttlers[method].register(request_run_time)
 
                     return json
 
@@ -187,12 +187,12 @@ class ServerRequestHandler:
 
         async with self.limit_concurrent_requests():
             if self.respect_velocity_policy:
-                if method not in self.limiters:
-                    self.limiters[method] = LeakyBucketLimiter(
+                if method not in self.throttlers:
+                    self.throttlers[method] = SlidingWindowThrottler(
                         BITRIX_MAX_REQUEST_RUNNING_TIME, BITRIX_MEASUREMENT_PERIOD
                     )
 
-                async with self.limiters[method].acquire():
+                async with self.throttlers[method].acquire():
                     yield
 
             else:

@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from fast_bitrix24.leaky_bucket import LeakyBucketLimiter, RequestRecord
+from fast_bitrix24.throttle import SlidingWindowThrottler, RequestRecord
 
 
 @pytest.mark.parametrize(
@@ -31,7 +31,7 @@ def test_needed_sleep_time(
     measurements,
     monkeypatch,
 ):
-    limiter = LeakyBucketLimiter(max_request_running_time, measurement_period)
+    throttler = SlidingWindowThrottler(max_request_running_time, measurement_period)
 
     while requests or measurements:
         if (requests and measurements and requests[0][0] < measurements[0][0]) or (
@@ -39,13 +39,13 @@ def test_needed_sleep_time(
         ):
             when, duration = requests.pop(0)
             monkeypatch.setattr("time.monotonic", lambda: when)
-            limiter.register(duration)
+            throttler.register(duration)
         else:
             call_point, expected = measurements.pop(0)
             monkeypatch.setattr("time.monotonic", lambda: call_point)
-            print("Request record:", limiter.request_register)
+            print("Request record:", throttler.request_register)
             print("Time", call_point)
-            assert math.isclose(limiter.get_needed_sleep_time(), expected)
+            assert math.isclose(throttler.get_needed_sleep_time(), expected)
 
 
 @pytest.mark.asyncio
@@ -84,17 +84,17 @@ async def test_leaky_bucket_limiter(
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
     # Arrange
-    limiter = LeakyBucketLimiter(max_request_running_time, measurement_period)
+    throttler = SlidingWindowThrottler(max_request_running_time, measurement_period)
 
     # Act
     for duration in request_durations:
-        async with limiter.acquire():
+        async with throttler.acquire():
             pass
-        limiter.register(duration)
+        throttler.register(duration)
         start_time += duration
         await asyncio.sleep(duration)
 
     # Assert
     assert math.isclose(
-        limiter.get_needed_sleep_time(), expected_sleep_time
+        throttler.get_needed_sleep_time(), expected_sleep_time
     ), f"Test failed for {test_id}"
