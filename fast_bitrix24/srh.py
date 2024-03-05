@@ -12,9 +12,6 @@ from .throttle import SlidingWindowThrottler, LeakyBucketThrottler
 from .logger import logger
 from .utils import _url_valid
 
-BITRIX_POOL_SIZE = 50
-BITRIX_RPS = 2.0
-
 BITRIX_MAX_BATCH_SIZE = 50
 BITRIX_MAX_CONCURRENT_REQUESTS = 50
 
@@ -54,7 +51,14 @@ class ServerRequestHandler:
     последовательных запросов к серверу.
     """
 
-    def __init__(self, webhook, respect_velocity_policy, client):
+    def __init__(
+        self,
+        webhook: str,
+        respect_velocity_policy: bool,
+        request_pool_size: int,
+        requests_per_second: float,
+        client,
+    ):
         self.webhook = self.standardize_webhook(webhook)
         self.respect_velocity_policy = respect_velocity_policy
 
@@ -83,7 +87,9 @@ class ServerRequestHandler:
         # rate throttlers by method
         self.method_throttlers = {}  # dict[str, LeakyBucketLimiter]
 
-        self.leaky_bucket_throttler = LeakyBucketThrottler(BITRIX_POOL_SIZE, BITRIX_RPS)
+        self.leaky_bucket_throttler = LeakyBucketThrottler(
+            request_pool_size, requests_per_second
+        )
 
     @staticmethod
     def standardize_webhook(webhook):
