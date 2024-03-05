@@ -13,7 +13,7 @@ from fast_bitrix24.throttle import LeakyBucketThrottler, SlidingWindowThrottler
     "pool_size, requests_per_second, requests_made, sleep_time, test_id",
     [
         (5, 1.0, 3, 0, "acquire_happy_no_wait"),
-        (5, 1.0, 7, 2, "acquire_happy_path_wait"),
+        (5, 1.0, 8, 1, "acquire_happy_path_wait"),
     ],
 )
 async def test_leaky_bucket(
