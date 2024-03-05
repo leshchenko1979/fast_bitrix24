@@ -17,7 +17,7 @@ class MockSRH(ServerRequestHandler):
         self.response = response if isinstance(response, list) else [response]
         self.element_no = -1
 
-        super().__init__("https://google.com/path", False, None)
+        super().__init__("https://google.com/path", False, 50, 2, None)
 
     async def single_request(self, *args, **kwargs):
         self.element_no += 1

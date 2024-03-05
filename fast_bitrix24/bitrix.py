@@ -30,10 +30,12 @@ class BitrixAsync:
         webhook: str,
         verbose: bool = True,
         respect_velocity_policy: bool = True,
+        request_pool_size: int = 50,
+        requests_per_second: float = 2.0,
         client: aiohttp.ClientSession = None,
     ):
         """
-        Создает объект класса BitrixAsync.
+        Создает объект для запросов к Битрикс24.
 
         Параметры:
         - `webhook: str` - URL вебхука, полученного от сервера Битрикс
@@ -41,12 +43,22 @@ class BitrixAsync:
         запроса
         - `respect_velocity_policy: bool = True` - соблюдать ли политику
         Битрикса о скорости запросов
+        - `request_pool_size: int = 50` - размер пула запросов, который
+        можно отправить на сервер без ожидания
+        - `requests_per_second: float = 2.0` - максимальная скорость запросов,
+        которая будет использоваться после переполнения пула
         - `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов
         объект aiohttp.ClientSession, инициализированнный и настроенный
         пользователем.
         """
 
-        self.srh = ServerRequestHandler(webhook, respect_velocity_policy, client)
+        self.srh = ServerRequestHandler(
+            webhook=webhook,
+            respect_velocity_policy=respect_velocity_policy,
+            request_pool_size=request_pool_size,
+            requests_per_second=requests_per_second,
+            client=client,
+        )
         self.verbose = verbose
 
     @log

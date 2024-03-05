@@ -4,14 +4,24 @@
 
 Внутри объекта ведётся учёт скорости отправки запросов к серверу, поэтому важно, чтобы все запросы приложения в отношении одного аккаунта с одного IP-адреса отправлялись из одного экземпляра `Bitrix`.
 
-### Метод ` __init__(self, webhook: str, verbose: bool = True, respect_velocity_policy: bool = True, client: aiohttp.ClientSession = None):`
-Создаёт экземпляр объекта `Bitrix`.
+### Метод ` __init__(self, webhook: str, verbose: bool = True, respect_velocity_policy: bool = True, request_pool_size: int = 50, requests_per_second: float = 2.0, client: aiohttp.ClientSession = None):`
+Создаёт клиента для доступа к Битрикс24.
 
 #### Параметры
-* `webhook: str` - URL вебхука, полученного от сервера Битрикс.
-* `verbose: bool = True` - показывать прогрессбар при выполнении запроса.
-* `respect_velocity_policy: bool = True` - соблюдать политику Битрикса о скорости запросов.
-* `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов клиента, инициализированного и настроенного пользователем.
+- `webhook: str` - URL вебхука, полученного от сервера Битрикс.
+- `verbose: bool = True` - показывать прогрессбар при выполнении запроса.
+- `respect_velocity_policy: bool = True` - соблюдать политику Битрикса о скорости запросов.
+- `request_pool_size: int = 50` - размер пула запросов, который
+можно отправить на сервер без ожидания
+- `requests_per_second: float = 2.0` - максимальная скорость запросов,
+которая будет использоваться после переполнения пула
+- `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов клиента, инициализированного и настроенного пользователем.
+
+Параметры `request_pool_size` и `requests_per_second` установлены согласно ограничениям Битрикс24.
+
+Вы можете повысить их, если у вас Энтерпрайз (https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=93&LESSON_ID=7885).
+
+Либо, если хотите снизить скорость запросов к серверу, вы можете понизить значение этих параметров.
 
 ### Метод `get_all(self, method: str, params: dict = None) -> list | dict`
 Получить полный список сущностей по запросу `method`.
