@@ -10,15 +10,14 @@ from fast_bitrix24.throttle import LeakyBucketThrottler, SlidingWindowThrottler
 # Test the acquire method of the LeakyBucketThrottler class
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "pool_size, requests_per_second, sleep_time, test_id",
+    "pool_size, requests_per_second, requests_made, sleep_time, test_id",
     [
-        (5, 1.0, 0, "acquire_happy_path_no_wait"),
-        (5, 1.0, 1, "acquire_happy_path_with_wait"),
-        (1, 0.1, 10, "acquire_edge_long_wait"),
+        (5, 1.0, 3, 0, "acquire_happy_no_wait"),
+        (5, 1.0, 7, 2, "acquire_happy_path_wait"),
     ],
 )
 async def test_leaky_bucket(
-    pool_size, requests_per_second, sleep_time, test_id, monkeypatch
+    pool_size, requests_per_second, requests_made, sleep_time, test_id, monkeypatch
 ):
     # Set up mocks
     start_time = time.monotonic()
@@ -37,16 +36,15 @@ async def test_leaky_bucket(
 
     # Arrange
     throttler = LeakyBucketThrottler(pool_size, requests_per_second)
-    for _ in range(pool_size):
+    for _ in range(requests_made):
         throttler.add_request_record()
-        await asyncio.sleep(sleep_time)
 
     # Act
     async with throttler.acquire() as _:
         pass
 
     # Assert
-    assert len(throttler._request_history) <= pool_size
+    assert sum(sleep_log) == sleep_time
 
 
 @pytest.mark.parametrize(
