@@ -184,16 +184,14 @@ def test_crm_dealcategory_stage_list(bx_dummy):
     assert isinstance(results, dict)
 
 
-@pytest.mark.skip(
-    reason="Ошибка возникает только при заворачивании в батч более одного элемента, "
-    "но это должно вылечиться тем, что мы перестанем такое заворачивать в батч"
-)
-def test_crm_dealcategory_stage_list_2(bx_dummy):
-    from tests.real_responses.crm_dealcategory_stage_list_2 import response
+def test_crm_dealcategory_stage_list_batch_of_one(bx_dummy):
+    from tests.real_responses.crm_dealcategory_stage_list_batch_of_one import response
 
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_by_ID("crm.dealcategory.stage.list", [0])
-    assert isinstance(results, dict)
+
+    # should return a list of dicts
+    assert isinstance(results, list) and isinstance(results[0], dict)
 
 
 def test_catalog_document_element_list(bx_dummy):
