@@ -30,31 +30,28 @@ class MultipleServerRequestHandler:
         self.get_by_ID = get_by_ID
 
         self.results = None
-        self.task_iterator = self.generate_a_task()
+        self.task_iterator = self.generate_tasks()
         self.tasks = set()
 
-    def generate_a_task(self):
-        """Объединяем элементы item_list в батчи и по одной создаем и
-        возвращаем задачи asyncio с запросами к серверу для каждого батча."""
+    def generate_tasks(self):
+        """Group items in batches and create asyncio tasks for each batch"""
 
         batches = (
-            {
-                "halt": 0,
-                "cmd": {
-                    self.batch_command_label(
-                        i, item
-                    ): f"{self.method}?{http_build_query(item)}"
-                    for i, item in enumerate(next_batch)
-                },
-            }
-            for next_batch in chunked(self.item_list, BITRIX_MAX_BATCH_SIZE)
+            self.package_batch(chunk)
+            for chunk in chunked(self.item_list, BITRIX_MAX_BATCH_SIZE)
         )
 
         for batch in batches:
             yield ensure_future(self.srh.single_request("batch", batch))
 
-    def batch_command_label(self, i: int, item) -> str:
-        return f"cmd{i:010}"
+    def package_batch(self, chunk):
+        return {
+            "halt": 0,
+            "cmd": {
+                f"cmd{i:010}": f"{self.method}?{http_build_query(item)}"
+                for i, item in enumerate(chunk)
+            },
+        }
 
     async def run(self) -> Union[Dict, List]:
         self.top_up_tasks()
