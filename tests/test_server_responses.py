@@ -183,6 +183,17 @@ def test_crm_dealcategory_stage_list(bx_dummy):
     results = bx_dummy.get_by_ID("crm.dealcategory.stage.list", ["2", "4", "8", 0])
     assert isinstance(results, dict)
 
+
+def test_crm_dealcategory_stage_list_batch_of_one(bx_dummy):
+    from tests.real_responses.crm_dealcategory_stage_list_batch_of_one import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_by_ID("crm.dealcategory.stage.list", [0])
+
+    # should return a list of dicts
+    assert isinstance(results, list) and isinstance(results[0], dict)
+
+
 def test_catalog_document_element_list(bx_dummy):
     from tests.real_responses.catalog_document_element_list import response
 
