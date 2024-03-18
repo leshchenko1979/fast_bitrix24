@@ -210,3 +210,31 @@ def test_crm_stagehistory_list(bx_dummy):
     results = bx_dummy.get_all("crm.stagehistory.list")
 
     assert len(results) == 9
+
+
+def test_socialnetwork_api_workgroup_list(bx_dummy):
+    from tests.real_responses.socialnetwork_api_workgroup_list import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_all(
+        "socialnetwork.api.workgroup.list",
+        {
+            "select": [
+                "ID",
+                "NAME",
+                "DESCRIPTION",
+                "DATE_CREATE",
+                "DATE_UPDATE",
+                "DATE_ACTIVITY",
+                "SUBJECT_ID",
+                "KEYWORDS",
+                "IMAGE_ID",
+                "NUMBER_OF_MEMBERS",
+                "INITIATE_PERMS",
+                "SPAM_PERMS",
+                "SUBJECT_NAME",
+            ]
+        },
+    )
+
+    assert len(results) == 50
