@@ -50,6 +50,14 @@ class UserRequestAbstract:
             p = {key.upper().strip(): value for key, value in p.items()}
             self.check_expected_clause_types(p)
 
+        if "FILTER" in p and None in p["FILTER"].values():
+            warnings.warn(
+                "Using None as filter value confuses Bitrix. "
+                "Try using an empty string, 'null' or 'false'.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         return p
 
     def check_expected_clause_types(self, p):
@@ -176,6 +184,7 @@ class GetAllUserRequest(UserRequestAbstract):
                 f"Number of results returned ({len(self.results)}) "
                 f"doesn't equal 'total' from the server reply ({self.total})",
                 RuntimeWarning,
+                stacklevel=4,
             )
 
 
@@ -305,8 +314,12 @@ class ListAndGetUserRequest:
         self.method_branch = method_branch
         self.ID_field_name = ID_field_name
 
-        logger.warning(
-            "list_and_get(): 'ListAndGetUserRequest' is deprecated. Use 'get_all()' instead."
+        warnings.warn(
+            "list_and_get() is deprecated. It's not efficient to use it "
+            "now that exceeding Bitrix request rate limitations gets users "
+            "heavily penalised. Use 'get_all()' instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
 
     @icontract.require(
