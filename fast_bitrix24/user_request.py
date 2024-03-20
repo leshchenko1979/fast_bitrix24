@@ -57,7 +57,7 @@ class UserRequestAbstract:
                 "Using None as filter value confuses Bitrix. "
                 "Try using an empty string, 'null' or 'false'.",
                 UserWarning,
-                stacklevel=2,
+                stacklevel=12,
             )
 
         return p
@@ -116,9 +116,11 @@ class GetAllUserRequest(UserRequestAbstract):
     )
     def check_special_limitations(self):
         if not self.st_method.endswith(".list"):
-            logger.logger.warning(
+            warnings.warn(
                 "get_all() should be used only with methods that end with '.list'. "
-                "Use get_by_ID() or call() instead."
+                "Use get_by_ID() or call() instead.",
+                UserWarning,
+                stacklevel=8,
             )
 
         return True
@@ -192,7 +194,7 @@ class GetAllUserRequest(UserRequestAbstract):
                 f"Number of results returned ({len(self.results)}) "
                 f"doesn't equal 'total' from the server reply ({self.total})",
                 RuntimeWarning,
-                stacklevel=4,
+                stacklevel=6,
             )
 
 
@@ -327,7 +329,7 @@ class ListAndGetUserRequest:
             "now that exceeding Bitrix request rate limitations gets users "
             "heavily penalised. Use 'get_all()' instead.",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
 
     @icontract.require(
