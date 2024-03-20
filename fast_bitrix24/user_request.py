@@ -104,6 +104,11 @@ class GetAllUserRequest(UserRequestAbstract):
         "Use call(raw=True) instead. Read more: "
         "https://github.com/leshchenko1979/fast_bitrix24/issues/199",
     )
+    @icontract.require(
+        lambda self: self.st_method.endswith(".list"),
+        "get_all() should be used only with methods that end with '.list'. "
+        "Use get_by_ID() or call() instead.",
+    )
     def check_special_limitations(self):
         return True
 
