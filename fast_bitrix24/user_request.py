@@ -46,9 +46,11 @@ class UserRequestAbstract:
         return method.lower().strip()
 
     def standardized_params(self, p):
-        if p is not None:
-            p = {key.upper().strip(): value for key, value in p.items()}
-            self.check_expected_clause_types(p)
+        if p is None:
+            return
+
+        p = {key.upper().strip(): value for key, value in p.items()}
+        self.check_expected_clause_types(p)
 
         if "FILTER" in p and None in p["FILTER"].values():
             warnings.warn(
