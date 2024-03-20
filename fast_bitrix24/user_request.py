@@ -7,7 +7,6 @@ import icontract
 from beartype import beartype
 from beartype.typing import Any, Dict, Iterable, Union
 
-from . import logger
 from .mult_request import (
     MultipleServerRequestHandler,
     MultipleServerRequestHandlerPreserveIDs,
@@ -116,9 +115,10 @@ class GetAllUserRequest(UserRequestAbstract):
     )
     def check_special_limitations(self):
         if not self.st_method.endswith(".list"):
-            logger.logger.warning(
+            warnings.warn(
                 "get_all() should be used only with methods that end with '.list'. "
-                "Use get_by_ID() or call() instead."
+                "Use get_by_ID() or call() instead.",
+                UserWarning,
             )
 
         return True
