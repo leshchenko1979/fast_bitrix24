@@ -105,6 +105,12 @@ class GetAllUserRequest(UserRequestAbstract):
         "https://github.com/leshchenko1979/fast_bitrix24/issues/199",
     )
     def check_special_limitations(self):
+        if not self.st_method.endswith(".list"):
+            logger.logger.warning(
+                "get_all() should be used only with methods that end with '.list'. "
+                "Use get_by_ID() or call() instead."
+            )
+
         return True
 
     async def run(self):
