@@ -13,8 +13,17 @@ from .mult_request import (
 )
 from .server_response import ServerResponseParser
 from .srh import ServerRequestHandler
+from .utils import get_warning_stack_level
+
 
 BITRIX_PAGE_SIZE = 50
+
+TOP_MOST_LIBRARY_MODULES = [
+    "fast_bitrix24\\bitrix",
+    "fast_bitrix24\\logger",
+    "fast_bitrix24/bitrix",
+    "fast_bitrix24/logger",
+]
 
 
 class UserRequestAbstract:
@@ -56,7 +65,7 @@ class UserRequestAbstract:
                 "Using None as filter value confuses Bitrix. "
                 "Try using an empty string, 'null' or 'false'.",
                 UserWarning,
-                stacklevel=12,
+                stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
             )
 
         return p
@@ -119,7 +128,7 @@ class GetAllUserRequest(UserRequestAbstract):
                 "get_all() should be used only with methods that end with '.list'. "
                 "Use get_by_ID() or call() instead.",
                 UserWarning,
-                stacklevel=8,
+                stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
             )
 
         return True
@@ -193,7 +202,7 @@ class GetAllUserRequest(UserRequestAbstract):
                 f"Number of results returned ({len(self.results)}) "
                 f"doesn't equal 'total' from the server reply ({self.total})",
                 RuntimeWarning,
-                stacklevel=6,
+                stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
             )
 
 
@@ -328,7 +337,7 @@ class ListAndGetUserRequest:
             "now that exceeding Bitrix request rate limitations gets users "
             "heavily penalised. Use 'get_all()' instead.",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
         )
 
     @icontract.require(
