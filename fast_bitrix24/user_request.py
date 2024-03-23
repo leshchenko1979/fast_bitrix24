@@ -7,7 +7,6 @@ import icontract
 from beartype import beartype
 from beartype.typing import Any, Dict, Iterable, Union
 
-from . import logger
 from .mult_request import (
     MultipleServerRequestHandler,
     MultipleServerRequestHandlerPreserveIDs,
