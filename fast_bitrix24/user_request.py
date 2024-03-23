@@ -113,8 +113,8 @@ class UserRequestAbstract:
 class GetAllUserRequest(UserRequestAbstract):
     @icontract.require(
         lambda self: not self.st_params
-        or set(self.st_params.keys()).isdisjoint({"START", "LIMIT", "ORDER"}),
-        "get_all() doesn't support parameters " "'start', 'limit' or 'order'",
+        or set(self.st_params.keys()).isdisjoint({"START", "ORDER"}),
+        "get_all() doesn't support parameters 'start' or 'order'",
     )
     @icontract.require(
         lambda self: not self.st_method.startswith("tasks.elapseditem."),
@@ -127,6 +127,13 @@ class GetAllUserRequest(UserRequestAbstract):
             warnings.warn(
                 "get_all() should be used only with methods that end with '.list'. "
                 "Use get_by_ID() or call() instead.",
+                UserWarning,
+                stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
+            )
+
+        if "LIMIT" in self.st_params:
+            warnings.warn(
+                "Bitrix servers don't seem to support the 'LIMIT' parameter.",
                 UserWarning,
                 stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
             )
