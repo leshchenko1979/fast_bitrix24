@@ -163,9 +163,7 @@ class ServerRequestHandler:
 
                     logger.debug("Response: %s", json)
 
-                    request_run_time = json["time"]["operating"]
-                    self.method_throttlers[method].add_request_record(request_run_time)
-                    self.leaky_bucket_throttler.add_request_record()
+                    self.add_throttler_records(method, params, json)
 
                     return json
 
@@ -174,6 +172,18 @@ class ServerRequestHandler:
                 raise ServerError("The server returned an error") from error
 
             raise
+
+    def add_throttler_records(self, method, params: dict, json: dict):
+        if "result_time" in json:
+            for cmd_name, cmd_url in params["cmd"].items():
+                item_method = cmd_url.split("?")[0]
+                item_time = json["result_time"][cmd_name]
+                self.method_throttlers[item_method].add_request_record(item_time)
+        else:
+            request_run_time = json["time"]["operating"]
+            self.method_throttlers[method].add_request_record(request_run_time)
+
+        self.leaky_bucket_throttler.add_request_record()
 
     def success(self):
         """Увеличить счетчик удачных попыток."""
