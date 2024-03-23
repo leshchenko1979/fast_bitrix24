@@ -131,9 +131,21 @@ class GetAllUserRequest(UserRequestAbstract):
                 stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
             )
 
-        if "LIMIT" in self.st_params:
+        if self.st_params and "LIMIT" in self.st_params:
             warnings.warn(
                 "Bitrix servers don't seem to support the 'LIMIT' parameter.",
+                UserWarning,
+                stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
+            )
+
+        if (
+            self.st_params
+            and "SELECT" in self.st_params
+            and "*" in self.st_params["SELECT"]
+        ):
+            warnings.warn(
+                "You are selecting all fields. Beware that this is time-consuming and "
+                "may lead to penalties from the Bitrix server.",
                 UserWarning,
                 stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
             )
