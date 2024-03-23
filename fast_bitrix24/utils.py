@@ -1,5 +1,4 @@
 import sys
-import traceback
 from typing import List, Union
 from urllib.parse import quote, urlparse
 

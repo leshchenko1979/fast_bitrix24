@@ -2,7 +2,7 @@ from asyncio import FIRST_COMPLETED, ensure_future, wait
 from beartype.typing import Dict, List, Union
 
 from more_itertools import chunked
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .server_response import ServerResponseParser
 from .srh import BITRIX_MAX_BATCH_SIZE, ServerRequestHandler
