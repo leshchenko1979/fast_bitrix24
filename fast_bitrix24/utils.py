@@ -67,14 +67,10 @@ def get_warning_stack_level(module_filenames: Union[str, List[str]]) -> int:
     if isinstance(module_filenames, str):
         module_filenames = [module_filenames]
 
-    # Remove '.py' extension from filenames
-    module_filenames = [f[:-3] if f.endswith(".py") else f for f in module_filenames]
-
     # Append '.py' to filenames
-    module_filenames += [f"{f}.py" for f in module_filenames]
-
-    # Make tuple of filenames
-    module_filenames = tuple(module_filenames)
+    module_filenames = tuple(
+        f if f.endswith(".py") else f"{f}.py" for f in module_filenames
+    )
 
     # Get filenames from stack
     stack_filenames = []
