@@ -179,7 +179,7 @@ class ServerRequestHandler:
                 item_method = cmd_url.split("?")[0]
                 item_time = json["result_time"][cmd_name]
                 self.method_throttlers[item_method].add_request_record(item_time)
-        else:
+        elif "operating" in json["time"]:
             request_run_time = json["time"]["operating"]
             self.method_throttlers[method].add_request_record(request_run_time)
 
