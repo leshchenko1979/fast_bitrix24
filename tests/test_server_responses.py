@@ -83,6 +83,12 @@ def test_call_list_empty(bx_dummy):
     assert isinstance(results, list)
     assert len(results) == 0
 
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.call(
+        "crm.lead.list", {"filter": {"PHONE": "+0000877578564"}, "select": ["ID"]})
+    assert isinstance(results, list)
+    assert len(results) == 0
+
 
 def test_get_all_non_list_method(bx_dummy, recwarn):
     from tests.real_responses.user_fields import response

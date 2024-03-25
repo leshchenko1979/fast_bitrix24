@@ -313,7 +313,7 @@ class CallUserRequest(GetByIDUserRequest):
             # бывают случаи, что возвращается список
             results = raw_results
 
-        return results[0] if is_single_item else results
+        return results[0] if results and is_single_item else results
 
     def prepare_item_list(self):
         # добавим порядковый номер
