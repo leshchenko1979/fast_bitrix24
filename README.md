@@ -55,10 +55,10 @@ from fast_bitrix24 import Bitrix
 
 # замените на ваш вебхук для доступа к Bitrix24
 webhook = "https://your_domain.bitrix24.ru/rest/1/your_code/"
-b = Bitrix(webhook)
+bx = Bitrix(webhook)
 ```
 
-Методы полученного объекта `b` в дальнейшем используются для взаимодействия с сервером Битрикс24.
+Методы полученного объекта `bx` в дальнейшем используются для взаимодействия с сервером Битрикс24.
 
 ## Примеры использования
 
@@ -68,7 +68,7 @@ b = Bitrix(webhook)
 
 ```python
 # список лидов
-leads = b.get_all('crm.lead.list')
+leads = bx.get_all('crm.lead.list')
 ```
 
 Метод [`get_all()`](API.md#метод-getallself-method-str-params-dict--none---list--dict) возвращает список, где каждый элемент списка является словарем, описывающим одну сущность из запрошенного списка.
@@ -77,7 +77,7 @@ leads = b.get_all('crm.lead.list')
 
 ```python
 # список сделок в работе, включая пользовательские поля
-deals = b.get_all(
+deals = bx.get_all(
     'crm.deal.list',
     params={
         'select': ['*', 'UF_*'],
@@ -99,7 +99,7 @@ deals = b.get_all(
 }
 '''
 
-contacts = b.get_by_ID(
+contacts = bx.get_by_ID(
     'crm.deal.contact.items.get',
     [d['ID'] for d in deals])
 ```
@@ -120,7 +120,7 @@ tasks = [
     for d in deals
 ]
 
-b.call('crm.deal.update', tasks)
+bx.call('crm.deal.update', tasks)
 ```
 Метод [`call()`](API.md#метод-callself-method-str-items-dict--iterabledict--any--none--raw-bool--false---dict--listdict--any) возвращает список ответов сервера по каждому элементу переданного списка.
 
@@ -129,16 +129,16 @@ b.call('crm.deal.update', tasks)
 
 Подобный вызов можно использовать в отладочных целях, но кроме того, придется его использовать для отправки запросов, которые:
 - в параметрах имеют `None` (None применяется для стирания значения полей, а упаковка в батчи мешает передавать `None`),
-- используют устревшие методы Битрикс24, которые принимают на вход список (см. [#157](https://github.com/leshchenko1979/fast_bitrix24/issues/157)).
+- используют устревшие методы Битрикс24, которые принимают на вход список (см. [#157](https://githubx.com/leshchenko1979/fast_bitrix24/issues/157)).
 
 
 ```python
 # стереть DESCRIPTION в лиде 123
 params = {"ID": 123, "fields": {"DESCRIPTION": None}}
-b.call('crm.lead.update', params, raw=True)
+bx.call('crm.lead.update', params, raw=True)
 
 # добавить комментарий к задаче
-b.call(
+bx.call(
     'task.commentitem.add',
     [123, {"POST_MESSAGE": "Комментарий к задаче"}],
     raw=True
@@ -149,7 +149,7 @@ b.call(
 Если вы хотите вызвать пакетный метод, используйте [`call_batch()`](API.md#метод-callbatchself-params-dict---dict):
 
 ```python
-results = b.call_batch ({
+results = bx.call_batch ({
     'halt': 0,
     'cmd': {
         'deals': 'crm.deal.list', # берем список сделок
@@ -163,11 +163,11 @@ results = b.call_batch ({
 Если требуется использование бибилиотеки в асинхронном коде, то вместо клиента `Bitrix()` создавайте клиент класса `BitrixAsync()`:
 ```python
 from fast_bitrix24 import BitrixAsync
-b = BitrixAsync(webhook)
+bx = BitrixAsync(webhook)
 ```
 Все методы у него - синхронные аналоги методов из `Bitrix()`, описанных выше:
 ```python
-leads = await b.get_all('crm.lead.list')
+leads = await bx.get_all('crm.lead.list')
 ```
 ## Как это работает
 1. Перед обращением к серверу во всех методах класса `Bitrix` происходит проверка корректности самых популярных параметров, передаваемых к серверу, и поднимаются исключения `TypeError` и `ValueError` при наличии ошибок.
@@ -219,8 +219,8 @@ logging.getLogger('fast_bitrix24').addHandler(logging.StreamHandler())
 Оберните вызов `call()` в `slow`:
 
 ```python
-with b.slow():
-    results = b.call('crm.lead.add', tasks)
+with bx.slow():
+    results = bx.call('crm.lead.add', tasks)
 ```
 
 [См. подробнее](API.md#контекстный-менеджер-slowmaxconcurrentrequests-int--1) о `slow`.
@@ -231,7 +231,7 @@ with b.slow():
 ```python
 method = 'crm.lead.add'
 params = {'fields': {'TITLE': 'Чпок'}}
-b.call(method, params)
+bx.call(method, params)
 ```
 Результатом будет ответ сервера по этому одному элементу.
 
@@ -243,7 +243,7 @@ b.call(method, params)
 Все обращения к серверу происходят асинхронно и список результатов отсортирован в том порядке, в котором сервер возвращал ответы. Если вам требуется сортировка, то вам нужно делать ее самостоятельно, например:
 
 ```python
-deals = b.get_all('crm.deal.list')
+deals = bx.get_all('crm.deal.list')
 deals.sort(key = lambda d: int(d['ID']))
 ```
 
@@ -255,7 +255,7 @@ deals.sort(key = lambda d: int(d['ID']))
 ### Я получаю ошибку сертификата SSL. Что делать?
 Если вы получаете `SSLCertVerificationError` / `CERTIFICATE_VERIFY_FAILED`, попробуйте отключить верификацию сертификата SSL:
 ```python
-b = BitrixAsync(webhook, ssl=False)
+bx = BitrixAsync(webhook, ssl=False)
 ```
 
 ## Я использую вашу библиотеку из ноутбуков или из Spyder и получаю ошибки. Что делать?
@@ -266,16 +266,16 @@ b = BitrixAsync(webhook, ssl=False)
 
 ```python
 from fast_bitrix24 import Bitrix
-b = Bitrix(webhook)
-leads = b.get_all('crm.lead.list')
+bx = Bitrix(webhook)
+leads = bx.get_all('crm.lead.list')
 ```
 
 используйте код:
 
 ```python
 from fast_bitrix24 import BitrixAsync
-b = BitrixAsync(webhook)
-leads = await b.get_all('crm.lead.list')
+bx = BitrixAsync(webhook)
+leads = await bx.get_all('crm.lead.list')
 ```
 
 ## У меня Энтерпрайз. Как мне настроить более высокую скорость запросов?
@@ -284,7 +284,7 @@ leads = await b.get_all('crm.lead.list')
 
 ```python
 from fast_bitrix24 import Bitrix
-b = Bitrix(webhook, request_pool_size=250, requests_per_second=5)
+bx = Bitrix(webhook, request_pool_size=250, requests_per_second=5)
 ```
 
 ## Как связаться с автором
