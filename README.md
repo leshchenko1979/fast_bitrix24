@@ -253,25 +253,9 @@ deals.sort(key = lambda d: int(d['ID']))
 Нарушение политики Битриска по скорости запросов влечет за собой штрафы, поэтому мы рекомендуем соблюдать её (параметр `respect_velocity_policy=True`).
 
 ### Я получаю ошибку сертификата SSL. Что делать?
-Если вы получаете `SSLCertVerificationError` / `CERTIFICATE_VERIFY_FAILED`, попробуйте отключить верификацию сертификата SSL. При инициализации передайте в `BitrixAsync` параметр `client`,  где будет инициализированный вами экземпляр `aiohttp.ClientSession`, у которого будет отключена верификация SSL:
+Если вы получаете `SSLCertVerificationError` / `CERTIFICATE_VERIFY_FAILED`, попробуйте отключить верификацию сертификата SSL:
 ```python
-import aiohttp
-import asyncio
-
-from fast_bitrix24 import BitrixAsync
-
-
-async def main():
-    # Инициализировать HTTP-клиента без верификации SSL и передать его в `BitrixAsync`
-    connector = aiohttp.TCPConnector(ssl=False)
-    async with aiohttp.ClientSession(connector=connector) as client:
-        b = BitrixAsync(webhook, client=client)
-
-        # Далее ваши вызовы Битрикса
-        ...
-
-
-asyncio.run(main())
+b = BitrixAsync(webhook, ssl=False)
 ```
 
 ## Я использую вашу библиотеку из ноутбуков или из Spyder и получаю ошибки. Что делать?
