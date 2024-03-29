@@ -12,7 +12,7 @@ async def test_request_attempt():
     mock_response.json.return_value = {'time': {'operating': 1000}}
 
     @contextlib.asynccontextmanager
-    async def mock_post(url, json):
+    async def mock_post(url, json, ssl):
         yield mock_response
 
     mock_session = AsyncMock()
