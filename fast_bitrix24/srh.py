@@ -58,6 +58,7 @@ class ServerRequestHandler:
         request_pool_size: int,
         requests_per_second: float,
         client,
+        ssl: bool = True,
     ):
         self.webhook = self.standardize_webhook(webhook)
         self.respect_velocity_policy = respect_velocity_policy
@@ -68,6 +69,7 @@ class ServerRequestHandler:
         # то будем использовать его клиента
         self.client_provided_by_user = bool(client)
         self.session = client
+        self.ssl = ssl
 
         # лимит количества одновременных запросов,
         # установленный конструктором или пользователем
@@ -119,8 +121,12 @@ class ServerRequestHandler:
     async def handle_sessions(self):
         """Открывает и закрывает сессию в зависимости от наличия
         активных запросов."""
+
+        # если клиент был задан пользователем, то ожидаем,
+        # что пользователь сам откроет и закроет сессию
+
         if self.client_provided_by_user:
-            yield True
+            yield
             return
 
         if not self.active_runs and (not self.session or self.session.closed):
@@ -128,7 +134,7 @@ class ServerRequestHandler:
         self.active_runs += 1
 
         try:
-            yield True
+            yield
 
         finally:
             self.active_runs -= 1
@@ -157,7 +163,7 @@ class ServerRequestHandler:
                 logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
 
                 async with self.session.post(
-                    url=self.webhook + method, json=params
+                    url=self.webhook + method, json=params, ssl=self.ssl
                 ) as response:
                     json = await response.json(encoding="utf-8")
 

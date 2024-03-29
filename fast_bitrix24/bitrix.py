@@ -33,6 +33,7 @@ class BitrixAsync:
         request_pool_size: int = 50,
         requests_per_second: float = 2.0,
         client: aiohttp.ClientSession = None,
+        ssl: bool = True,
     ):
         """
         Создает объект для запросов к Битрикс24.
@@ -47,9 +48,11 @@ class BitrixAsync:
         можно отправить на сервер без ожидания
         - `requests_per_second: float = 2.0` - максимальная скорость запросов,
         которая будет использоваться после переполнения пула
+        - `ssl: bool = True` - использовать ли проверку SSL-сертификата
+        при HTTP-соединениях с сервером Битрикс.
         - `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов
         объект aiohttp.ClientSession, инициализированнный и настроенный
-        пользователем.
+        пользователем. Ожидаеется, что пользователь сам откроет и закроет сессию.
         """
 
         self.srh = ServerRequestHandler(
@@ -57,6 +60,7 @@ class BitrixAsync:
             respect_velocity_policy=respect_velocity_policy,
             request_pool_size=request_pool_size,
             requests_per_second=requests_per_second,
+            ssl=ssl,
             client=client,
         )
         self.verbose = verbose
