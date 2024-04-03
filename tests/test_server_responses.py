@@ -85,7 +85,8 @@ def test_call_list_empty(bx_dummy):
 
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.call(
-        "crm.lead.list", {"filter": {"PHONE": "+0000877578564"}, "select": ["ID"]})
+        "crm.lead.list", {"filter": {"PHONE": "+0000877578564"}, "select": ["ID"]}
+    )
     assert isinstance(results, list)
     assert len(results) == 0
 
@@ -207,6 +208,15 @@ def test_catalog_document_element_list(bx_dummy):
     results = bx_dummy.get_all("catalog.document.element.list")
 
     assert len(results) == 95
+
+
+def test_crm_item_productrow_list(bx_dummy):
+    from tests.real_responses.crm_item_productrow_list import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_all("crm.item.productrow.list")
+
+    assert len(results) == 2
 
 
 def test_crm_stagehistory_list(bx_dummy):

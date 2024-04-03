@@ -25,6 +25,13 @@ TOP_MOST_LIBRARY_MODULES = [
     "fast_bitrix24/logger",
 ]
 
+# методы, возвращающие только списки
+GET_ALL_ENDINGS = (".list", ".getlist", ".fields", ".getavaliableforpayment", ".types")
+
+# методы, возвращающие как списки, так и отдельные сущности
+AMBIGUOUS_ENDINGS = (".get", )
+
+ALL_ENDINGS = (*GET_ALL_ENDINGS, *AMBIGUOUS_ENDINGS)
 
 class UserRequestAbstract:
     @beartype
@@ -123,10 +130,11 @@ class GetAllUserRequest(UserRequestAbstract):
         "https://github.com/leshchenko1979/fast_bitrix24/issues/199",
     )
     def check_special_limitations(self):
-        if not self.st_method.endswith((".list", ".getlist")):
+        if not self.st_method.endswith(ALL_ENDINGS):
             warnings.warn(
-                "get_all() should be used only with methods that end with '.list' or '.getlist'. "
-                "You are using '{self.st_method}'. Use get_by_ID() or call() instead.",
+                "get_all() should be used only with methods that end with "
+                f"the following: {ALL_ENDINGS}. You are using '{self.st_method}'. "
+                "Use get_by_ID() or call() instead.",
                 UserWarning,
                 stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
             )
@@ -289,7 +297,13 @@ class CallUserRequest(GetByIDUserRequest):
         "if a progress bar is to be displayed",
     )
     def check_special_limitations(self):
-        return True
+        if self.st_method.endswith(GET_ALL_ENDINGS):
+            warnings.warn(
+                "It's better to use get_all() with methods that end with "
+                f"the following: {GET_ALL_ENDINGS}. You are using '{self.st_method}'.",
+                UserWarning,
+                stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
+            )
 
     async def run(self):
 
