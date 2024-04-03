@@ -67,10 +67,16 @@ def test_call_several_success(bx_dummy):
     from tests.real_responses.call_several_success import response
 
     bx_dummy.srh = MockSRH(response)
-    results = bx_dummy.call("crm.lead.get", [{"ID": 35943}, {"ID": 161}, {"ID": 171}])
+
+    ID_list = [161, 35943, 171]
+    results = bx_dummy.call("crm.lead.get", [{"ID": ID} for ID in ID_list])
+
     assert isinstance(results, tuple)
     assert len(results) == 3
     assert isinstance(results[0], dict)
+
+    # нужен какой-то другой тест для контроля порядока результатов
+    # assert [result["ID"] for result in results] == ID_list, "Incorrect order of IDs"
 
 
 def test_call_list_empty(bx_dummy):
