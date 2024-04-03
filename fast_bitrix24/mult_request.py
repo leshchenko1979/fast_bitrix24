@@ -48,10 +48,15 @@ class MultipleServerRequestHandler:
         return {
             "halt": 0,
             "cmd": {
-                f"cmd{i:010}": f"{self.method}?{http_build_query(item)}"
+                self.batch_command_label(
+                    i, item
+                ): f"{self.method}?{http_build_query(item)}"
                 for i, item in enumerate(chunk)
             },
         }
+
+    def batch_command_label(self, i, item):
+        return f"cmd{i:010}"
 
     async def run(self) -> Union[Dict, List]:
         self.top_up_tasks()
