@@ -19,9 +19,6 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    env:
-      FAST_BITRIX24_TEST_WEBHOOK: ${{ secrets.FAST_BITRIX24_TEST_WEBHOOK }}
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
