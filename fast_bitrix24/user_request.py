@@ -29,9 +29,10 @@ TOP_MOST_LIBRARY_MODULES = [
 GET_ALL_ENDINGS = (".list", ".getlist", ".fields", ".getavaliableforpayment", ".types")
 
 # методы, возвращающие как списки, так и отдельные сущности
-AMBIGUOUS_ENDINGS = (".get", )
+AMBIGUOUS_ENDINGS = (".get",)
 
 ALL_ENDINGS = (*GET_ALL_ENDINGS, *AMBIGUOUS_ENDINGS)
+
 
 class UserRequestAbstract:
     @beartype
@@ -177,9 +178,13 @@ class GetAllUserRequest(UserRequestAbstract):
         # будет рандомная и сущности будут повторяться на разных страницах
 
         # ряд методов не признают параметра "order", для таких ничего не делаем
-        excluded_methods = {"crm.address.list", "documentgenerator.template.list"}
+        EXCLUDED_METHODS = {
+            "crm.address.list",
+            "documentgenerator.template.list",
+            "userfieldconfig.list",
+        }
 
-        if self.method in excluded_methods:
+        if self.st_method in EXCLUDED_METHODS:
             return
 
         order_clause = {"order": {"ID": "ASC"}}
@@ -346,6 +351,7 @@ class CallUserRequest(GetByIDUserRequest):
             ChainMap(item, {self.ID_field_name: f"order{i:010}"})
             for i, item in enumerate(self.item_list)
         ]
+
 
 class RawCallUserRequest:
     """Отправляем на сервер один элемент, не обрабатывая его и не заворачивая в батчи.
