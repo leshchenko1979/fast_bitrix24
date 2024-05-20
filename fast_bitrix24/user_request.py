@@ -178,10 +178,16 @@ class GetAllUserRequest(UserRequestAbstract):
         # ряд методов не признают параметра "order", для таких ничего не делаем
         excluded_methods = {"crm.address.list", "documentgenerator.template.list"}
 
+        # ряд методов у которых параметры (в том числе и ID должен быть нижнего регистра)
+        lower_case_methods = {"userfieldconfig.list"}
+
         if self.method in excluded_methods:
             return
 
-        order_clause = {"order": {"ID": "ASC"}}
+        if self.method in lower_case_methods:
+            order_clause = {"order": {"id": "ASC"}}
+        else:
+            order_clause = {"order": {"ID": "ASC"}}
 
         if self.params:
             if "ORDER" not in self.st_params:
