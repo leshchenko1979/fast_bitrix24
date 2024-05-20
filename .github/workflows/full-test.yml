@@ -13,14 +13,11 @@ jobs:
   build:
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         os: [ubuntu-latest, windows-latest]
       # max-parallel: 2
 
     runs-on: ${{ matrix.os }}
-
-    env:
-      FAST_BITRIX24_TEST_WEBHOOK: ${{ secrets.FAST_BITRIX24_TEST_WEBHOOK }}
 
     steps:
     - uses: actions/checkout@v2
@@ -40,8 +37,6 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
-      env:
-        FAST_BITRIX24_TEST_WEBHOOK: ${{ secrets.FAST_BITRIX24_TEST_WEBHOOK }}
       run: |
         pytest --cov --asyncio-mode=auto .
     - name: Upload coverage reports to Codecov with GitHub Action
