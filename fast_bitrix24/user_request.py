@@ -327,13 +327,12 @@ class CallUserRequest(GetByIDUserRequest):
             get_by_ID=False,
         ).run()
 
-        if isinstance(raw_results, dict):
-            results = tuple(raw_results.values())
+        if isinstance(raw_results, dict) and not is_single_item:
+            return tuple(raw_results.values())
+        elif raw_results and isinstance(raw_results, list) and is_single_item:
+            return raw_results[0]
         else:
-            # бывают случаи, что возвращается список
-            results = raw_results
-
-        return results[0] if results and is_single_item else results
+            return raw_results
 
     def prepare_item_list(self):
         # При отправке батчей на сервер результаты приходят не в том порядке,
