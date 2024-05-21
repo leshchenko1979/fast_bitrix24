@@ -77,7 +77,7 @@ class ServerResponseParser:
         # метод `crm.stagehistory.list` возвращает dict["items", list] --
         # разворачиваем его в список
 
-        return  next(iter(result.values())) if self.is_nested(result) else result
+        return next(iter(result.values())) if self.is_nested(result) else result
 
     @staticmethod
     def is_nested(result) -> bool:
