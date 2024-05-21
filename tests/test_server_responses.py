@@ -260,3 +260,13 @@ def test_socialnetwork_api_workgroup_list(bx_dummy):
     )
 
     assert len(results) == 50
+
+
+def test_crm_add_item(bx_dummy):
+    from tests.real_responses.crm_item_add import response
+
+    bx_dummy.srh = MockSRH(response)
+    result = bx_dummy.call(
+        "crm.item.add", {"entityTypeId": 1, "fields": {"first_name": "first_name"}}
+    )
+    assert result != "item" and isinstance(result, dict) and "id" in result

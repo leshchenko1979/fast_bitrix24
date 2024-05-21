@@ -103,7 +103,7 @@ class MultipleServerRequestHandler:
             elif isinstance(extracted, dict):
                 self.results.update(extracted)
 
-            extracted_len += len(extracted)
+            extracted_len += len(extracted) if isinstance(extracted, list) else 1
 
         return extracted_len
 
