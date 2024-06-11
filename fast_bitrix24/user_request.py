@@ -46,10 +46,15 @@ class UserRequestAbstract:
     ):
         self.bitrix = bitrix
         self.srh: ServerRequestHandler = bitrix.srh
+
         self.method = method
         self.st_method = self.standardized_method(method)
+
+        # st_params будет использоваться для проверки параметров,
+        # но на сервер должны уходить параметры без изменения регистра
         self.params = params
         self.st_params = self.standardized_params(params)
+
         self.mute = mute
         self.check_special_limitations()
 
@@ -374,7 +379,7 @@ class RawCallUserRequest:
 
 class ListAndGetUserRequest:
     @beartype
-    def __init__(self, bitrix, method_branch: str, ID_field_name: str = "ID"):
+    def __init__(self, bitrix, method_branch: str, ID_field_name: str = "id"):
         self.bitrix = bitrix
         self.srh: ServerRequestHandler = bitrix.srh
         self.method_branch = method_branch
