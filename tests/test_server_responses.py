@@ -276,6 +276,6 @@ def test_crm_item_list(bx_dummy):
     from tests.real_responses.crm_item_list import response
 
     bx_dummy.srh = MockSRH(response)
-    results = bx_dummy.call("crm.item.list")
+    results = bx_dummy.get_all("crm.item.list")
 
     assert len(results) == 3
