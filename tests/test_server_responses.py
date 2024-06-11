@@ -270,3 +270,12 @@ def test_crm_add_item(bx_dummy):
         "crm.item.add", {"entityTypeId": 1, "fields": {"first_name": "first_name"}}
     )
     assert result != "item" and isinstance(result, dict) and "id" in result
+
+
+def test_crm_item_list(bx_dummy):
+    from tests.real_responses.crm_item_list import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.call("crm.item.list")
+
+    assert len(results) == 3
