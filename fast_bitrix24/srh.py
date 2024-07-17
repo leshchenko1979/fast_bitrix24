@@ -164,7 +164,7 @@ class ServerRequestHandler:
             async with self.acquire(method):
                 logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
                 
-                if len(self.auth):
+                if self.auth:
                     params["auth"] = self.auth
 
                 async with self.session.post(
