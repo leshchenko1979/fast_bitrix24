@@ -55,7 +55,7 @@ class MultipleServerRequestHandler:
             },
         }
 
-        if len(self.srh.auth):
+        if self.srh.auth:
             package_batch["auth"] = self.srh.auth
         
         return package_batch
