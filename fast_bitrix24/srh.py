@@ -54,6 +54,7 @@ class ServerRequestHandler:
     def __init__(
         self,
         webhook: str,
+        auth: str,
         respect_velocity_policy: bool,
         request_pool_size: int,
         requests_per_second: float,
@@ -61,6 +62,7 @@ class ServerRequestHandler:
         ssl: bool = True,
     ):
         self.webhook = self.standardize_webhook(webhook)
+        self.auth = auth
         self.respect_velocity_policy = respect_velocity_policy
 
         self.active_runs = 0
@@ -161,6 +163,9 @@ class ServerRequestHandler:
         try:
             async with self.acquire(method):
                 logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
+                
+                if len(self.auth):
+                    params["auth"] = self.auth
 
                 async with self.session.post(
                     url=self.webhook + method, json=params, ssl=self.ssl
