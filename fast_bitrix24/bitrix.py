@@ -28,6 +28,7 @@ class BitrixAsync:
     def __init__(
         self,
         webhook: str,
+        auth: str = "",
         verbose: bool = True,
         respect_velocity_policy: bool = True,
         request_pool_size: int = 50,
@@ -57,6 +58,7 @@ class BitrixAsync:
 
         self.srh = ServerRequestHandler(
             webhook=webhook,
+            auth=auth,
             respect_velocity_policy=respect_velocity_policy,
             request_pool_size=request_pool_size,
             requests_per_second=requests_per_second,
