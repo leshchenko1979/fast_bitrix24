@@ -208,7 +208,7 @@ class ServerRequestHandler:
             # нужно получить или освежить токен
 
             # TODO: нужно как-то отличать проблему протухания токена от других проблем
-            elif error.status == 403 and self.token_func:
+            elif error.status == 401 and self.token_func:
 
                 # запрашиваем новый токен, только если процесс получения токена еще не запущен
                 if not self.token_request_in_progress.is_set():
