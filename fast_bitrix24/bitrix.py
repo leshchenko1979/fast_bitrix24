@@ -3,7 +3,7 @@
 import asyncio
 import functools as ft
 from contextlib import contextmanager
-from typing import Iterable, Union
+from typing import Iterable, Union, Awaitable
 
 import aiohttp
 import icontract
@@ -25,10 +25,11 @@ from .user_request import (
 class BitrixAsync:
     """Клиент для асинхронных запросов к Битрикс24."""
 
+    @beartype
     def __init__(
         self,
         webhook: str,
-        token_func: callable = None,
+        token_func: Awaitable = None,
         verbose: bool = True,
         respect_velocity_policy: bool = True,
         request_pool_size: int = 50,

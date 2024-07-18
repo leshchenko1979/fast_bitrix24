@@ -59,7 +59,7 @@ class ServerRequestHandler:
     def __init__(
         self,
         webhook: str,
-        token_func: callable,
+        token_func,
         respect_velocity_policy: bool,
         request_pool_size: int,
         requests_per_second: float,
@@ -176,7 +176,7 @@ class ServerRequestHandler:
             async with self.acquire(method):
                 logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
 
-                params_with_auth = params.copy()
+                params_with_auth = params.copy() if params else {}
 
                 if self.token_func: # если требуется авторизация
 
@@ -318,5 +318,5 @@ class ServerRequestHandler:
         """Запросить новый токен авторизации."""
 
         self.token_request_in_progress.clear()
-        self.token = self.token_func
+        self.token = await self.token_func()
         self.token_request_in_progress.set()
