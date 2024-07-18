@@ -45,7 +45,7 @@ class MultipleServerRequestHandler:
             yield ensure_future(self.srh.single_request("batch", batch))
 
     def package_batch(self, chunk):
-        package_batch = {
+        return {
             "halt": 0,
             "cmd": {
                 self.batch_command_label(
@@ -54,11 +54,6 @@ class MultipleServerRequestHandler:
                 for i, item in enumerate(chunk)
             },
         }
-
-        if self.srh.auth:
-            package_batch["auth"] = self.srh.auth
-        
-        return package_batch
 
     def batch_command_label(self, i, item):
         return f"cmd{i:010}"
