@@ -73,7 +73,7 @@ class ServerRequestHandler:
 
         # token_received - сигнал о том, что процесс получения токена уже запущен
         self.token_request_in_progress = Event()
-        self.token_request_in_progress.clear()
+        self.token_request_in_progress.set()
 
         self.respect_velocity_policy = respect_velocity_policy
 
@@ -318,5 +318,5 @@ class ServerRequestHandler:
         """Запросить новый токен авторизации."""
 
         self.token_request_in_progress.clear()
-        self.token = await self.token_func()
+        self.token = self.token_func
         self.token_request_in_progress.set()
