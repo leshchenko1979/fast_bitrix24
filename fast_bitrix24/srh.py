@@ -178,13 +178,13 @@ class ServerRequestHandler:
 
                 params_with_auth = params.copy() if params else {}
 
-                if self.token_func: # если требуется авторизация
+                if self.token_func:  # если требуется авторизация
 
                     # если вдруг процесс получения токена уже запущен,
                     # то подождать его окончания
                     await self.token_request_in_progress.wait()
 
-                    if not self.token: # начальное получение токена
+                    if not self.token:  # начальное получение токена
                         await self.update_token()
 
                     params_with_auth["auth"] = self.token
@@ -316,6 +316,8 @@ class ServerRequestHandler:
 
     async def update_token(self):
         """Запросить новый токен авторизации."""
+
+        logger.debug("Requesting new token")
 
         self.token_request_in_progress.clear()
         self.token = await self.token_func()

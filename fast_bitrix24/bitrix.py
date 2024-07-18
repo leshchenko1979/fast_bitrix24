@@ -3,7 +3,7 @@
 import asyncio
 import functools as ft
 from contextlib import contextmanager
-from typing import Iterable, Union, Awaitable
+from typing import Awaitable, Iterable, Union
 
 import aiohttp
 import icontract
@@ -42,6 +42,8 @@ class BitrixAsync:
 
         Параметры:
         - `webhook: str` - URL вебхука, полученного от сервера Битрикс
+        - `token_func: Awaitable = None` - асинхронная функция для получения
+        и обновления токена в случае работы с приложениями и OAuth-авторизацией
         - `verbose: bool = True` - показывать ли прогрессбар при выполнении
         запроса
         - `respect_velocity_policy: bool = True` - соблюдать ли политику
