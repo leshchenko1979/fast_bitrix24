@@ -41,7 +41,6 @@ RETRIED_ERRORS = (
     ClientConnectionError,
     ServerError,
     TimeoutError,
-    TokenRejectedError,
 )
 
 
@@ -71,9 +70,9 @@ class ServerRequestHandler:
         self.token_func = token_func
         self.token = None
 
-        # token_received - сигнал о том, что процесс получения токена уже запущен
-        self.token_request_in_progress = Event()
-        self.token_request_in_progress.set()
+        # token_received - флаг, что получение токена начало и не закончено
+        self.token_received = Event()
+        self.token_received.set()
 
         self.respect_velocity_policy = respect_velocity_policy
 
@@ -161,7 +160,7 @@ class ServerRequestHandler:
 
         # начальное получение токена
         if self.token_func and not self.token:
-            await self.update_token()
+            await self.ensure_new_token()
 
         while True:
 
@@ -171,11 +170,7 @@ class ServerRequestHandler:
                 return result
 
             except TokenRejectedError:
-                # запрашиваем новый токен, только если процесс получения токена еще не запущен
-                if self.token_request_in_progress.is_set():
-                    await self.update_token()
-                else:
-                    await self.token_request_in_progress.wait()
+                await self.ensure_new_token()
 
             except RETRIED_ERRORS as err:
                 self.failure(err)
@@ -210,7 +205,9 @@ class ServerRequestHandler:
                 raise ServerError("The server returned an error") from error
 
             elif error.status == 401 and self.token_func:
-                raise TokenRejectedError("The server rejected the auth token") from error
+                raise TokenRejectedError(
+                    "The server rejected the auth token"
+                ) from error
 
             raise  # иначе повторяем полученное исключение
 
@@ -310,11 +307,15 @@ class ServerRequestHandler:
             self.concurrent_requests -= 1
             self.request_complete.set()
 
-    async def update_token(self):
-        """Запросить новый токен авторизации."""
+    async def ensure_new_token(self):
+        """Получает новый токен, если процесс получения токена еще не запущен,
+        или ждет его завершения."""
 
-        logger.debug("Requesting new token")
+        if self.token_received.is_set():
+            logger.debug("Requesting new token")
 
-        self.token_request_in_progress.clear()
-        self.token = await self.token_func()
-        self.token_request_in_progress.set()
+            self.token_received.clear()
+            self.token = await self.token_func()
+            self.token_received.set()
+        else:
+            await self.token_received.wait()
