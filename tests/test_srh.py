@@ -18,7 +18,7 @@ async def test_request_attempt():
     mock_session = AsyncMock()
     mock_session.post = mock_post
 
-    handler = ServerRequestHandler('https://google.com/webhook', True, 50, 2, mock_session)
+    handler = ServerRequestHandler('https://google.com/webhook', None, True, 50, 2, mock_session)
 
     # Call the method
     result = await handler.request_attempt('method', {'param': 'value'})

@@ -22,21 +22,25 @@ class MockSRH(ServerRequestHandler):
             self.element_no += 1
 
 
+@pytest.mark.skip(reason="TODO")
 def test_first_request():
     # нужно проверить, что вызывается функция запроса токена при первом запросе
 
     raise AssertionError
 
+@pytest.mark.skip(reason="TODO")
 def test_auth_success():
     # нужно проверить, что серверу передается токен, полученный от token_func
 
     raise AssertionError
 
+@pytest.mark.skip(reason="TODO")
 def test_auth_failure():
     # нужно проверить, что вызывается функция запроса токена, если сервер вернул ошибку токена
 
     raise AssertionError
 
+@pytest.mark.skip(reason="TODO")
 def test_abort_on_multiple_failures():
     # нужно проверить, что если token_func регулярно возвращает токен, который отвергается сервером,
     # то запрос оборвется после MAX_RETRIES неудачных попыток
