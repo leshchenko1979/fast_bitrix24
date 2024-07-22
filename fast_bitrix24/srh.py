@@ -32,7 +32,7 @@ class ServerError(Exception):
     pass
 
 
-class TokenRejected(Exception):
+class TokenRejectedError(Exception):
     pass
 
 
@@ -41,7 +41,7 @@ RETRIED_ERRORS = (
     ClientConnectionError,
     ServerError,
     TimeoutError,
-    TokenRejected,
+    TokenRejectedError,
 )
 
 
@@ -159,6 +159,10 @@ class ServerRequestHandler:
         """Делает единичный запрос к серверу,
         с повторными попытками при необходимости."""
 
+        # начальное получение токена
+        if self.token_func and not self.token:
+            await self.update_token()
+
         while True:
 
             try:
@@ -166,8 +170,17 @@ class ServerRequestHandler:
                 self.success()
                 return result
 
-            except RETRIED_ERRORS as err:  # all other exceptions will propagate
+            except TokenRejectedError:
+                # запрашиваем новый токен, только если процесс получения токена еще не запущен
+                if self.token_request_in_progress.is_set():
+                    await self.update_token()
+                else:
+                    await self.token_request_in_progress.wait()
+
+            except RETRIED_ERRORS as err:
                 self.failure(err)
+
+            # all other exceptions will propagate
 
     async def request_attempt(self, method, params=None) -> dict:
         """Делает попытку запроса к серверу, ожидая при необходимости."""
@@ -177,16 +190,7 @@ class ServerRequestHandler:
                 logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
 
                 params_with_auth = params.copy() if params else {}
-
-                if self.token_func:  # если требуется авторизация
-
-                    # если вдруг процесс получения токена уже запущен,
-                    # то подождать его окончания
-                    await self.token_request_in_progress.wait()
-
-                    if not self.token:  # начальное получение токена
-                        await self.update_token()
-
+                if self.token:
                     params_with_auth["auth"] = self.token
 
                 async with self.session.post(
@@ -205,16 +209,8 @@ class ServerRequestHandler:
             if error.status // 100 == 5:  # ошибки вида 5XX
                 raise ServerError("The server returned an error") from error
 
-            # нужно получить или освежить токен
-
-            # TODO: нужно как-то отличать проблему протухания токена от других проблем
             elif error.status == 401 and self.token_func:
-
-                # запрашиваем новый токен, только если процесс получения токена еще не запущен
-                if not self.token_request_in_progress.is_set():
-                    await self.update_token()
-
-                raise TokenRejected("The server rejected the auth token") from error
+                raise TokenRejectedError("The server rejected the auth token") from error
 
             raise  # иначе повторяем полученное исключение
 
