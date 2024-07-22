@@ -3,7 +3,8 @@
 import asyncio
 import functools as ft
 from contextlib import contextmanager
-from typing import Awaitable, Iterable, Union
+from inspect import iscoroutinefunction
+from typing import Iterable, Union
 
 import aiohttp
 import icontract
@@ -29,7 +30,7 @@ class BitrixAsync:
     def __init__(
         self,
         webhook: str,
-        token_func: Awaitable = None,
+        token_func=None,
         verbose: bool = True,
         respect_velocity_policy: bool = True,
         request_pool_size: int = 50,
@@ -58,6 +59,9 @@ class BitrixAsync:
         объект aiohttp.ClientSession, инициализированнный и настроенный
         пользователем. Ожидаеется, что пользователь сам откроет и закроет сессию.
         """
+
+        if token_func is not None and not iscoroutinefunction(token_func):
+            raise ValueError("`token_func` must be an async function.")
 
         self.srh = ServerRequestHandler(
             webhook=webhook,
