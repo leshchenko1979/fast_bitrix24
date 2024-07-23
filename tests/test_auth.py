@@ -4,12 +4,13 @@ from fast_bitrix24.srh import ServerRequestHandler, TokenRejectedError
 
 from typing import Dict, List, Union
 
+
 class MockSRH(ServerRequestHandler):
     def __init__(self, token_func, response: Union[Dict, List[Dict]]):
         self.response = response if isinstance(response, list) else [response]
         self.element_no = 0
 
-        super().__init__("https://google.com/path", token_func, False, 50, 2, None)
+        super().__init__("https://google.com/path", token_func, False, 50, 2, 480, None)
 
     async def request_attempt(self, *args, **kwargs):
         result = self.response[self.element_no]
@@ -28,11 +29,13 @@ def test_first_request():
 
     raise AssertionError
 
+
 @pytest.mark.skip(reason="TODO")
 def test_auth_success():
     # нужно проверить, что серверу передается токен, полученный от token_func
 
     raise AssertionError
+
 
 @pytest.mark.skip(reason="TODO")
 def test_auth_failure():
@@ -40,12 +43,14 @@ def test_auth_failure():
 
     raise AssertionError
 
+
 @pytest.mark.skip(reason="TODO")
 def test_abort_on_multiple_failures():
     # нужно проверить, что если token_func регулярно возвращает токен, который отвергается сервером,
     # то запрос оборвется после MAX_RETRIES неудачных попыток
 
     raise AssertionError
+
 
 def test_expired_token(bx_dummy):
     # нужно проверить, что вызывается функция запроса токена, если токен истек
