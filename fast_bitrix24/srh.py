@@ -12,10 +12,8 @@ from .throttle import SlidingWindowThrottler, LeakyBucketThrottler
 from .logger import logger
 from .utils import _url_valid
 
-BITRIX_MAX_BATCH_SIZE = 50
 BITRIX_MAX_CONCURRENT_REQUESTS = 50
 
-BITRIX_MAX_REQUEST_RUNNING_TIME = 480
 BITRIX_MEASUREMENT_PERIOD = 10 * 60
 
 MAX_RETRIES = 10
@@ -50,9 +48,6 @@ class ServerRequestHandler:
 
     Основная цель - вести учет количества запросов, которые можно передать
     серверу Битрикс без получения ошибки `5XX`.
-
-    Используется как контекстный менеджер, оборачивающий несколько
-    последовательных запросов к серверу.
     """
 
     def __init__(
@@ -62,6 +57,7 @@ class ServerRequestHandler:
         respect_velocity_policy: bool,
         request_pool_size: int,
         requests_per_second: float,
+        operating_time_limit: int,
         client,
         ssl: bool = True,
     ):
@@ -77,6 +73,8 @@ class ServerRequestHandler:
         self.respect_velocity_policy = respect_velocity_policy
 
         self.active_runs = 0
+
+        self.operating_time_limit = operating_time_limit
 
         # если пользователь при инициализации передал клиента со своими настройками,
         # то будем использовать его клиента
@@ -249,7 +247,7 @@ class ServerRequestHandler:
             if self.respect_velocity_policy:
                 if method not in self.method_throttlers:
                     self.method_throttlers[method] = SlidingWindowThrottler(
-                        BITRIX_MAX_REQUEST_RUNNING_TIME, BITRIX_MEASUREMENT_PERIOD
+                        self.operating_time_limit, BITRIX_MEASUREMENT_PERIOD
                     )
 
                 async with self.method_throttlers[method].acquire():

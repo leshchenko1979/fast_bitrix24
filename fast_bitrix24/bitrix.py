@@ -35,6 +35,8 @@ class BitrixAsync:
         respect_velocity_policy: bool = True,
         request_pool_size: int = 50,
         requests_per_second: float = 2.0,
+        batch_size: int = 50,
+        operating_time_limit: int = 480,
         client: aiohttp.ClientSession = None,
         ssl: bool = True,
     ):
@@ -53,6 +55,11 @@ class BitrixAsync:
         можно отправить на сервер без ожидания
         - `requests_per_second: float = 2.0` - максимальная скорость запросов,
         которая будет использоваться после переполнения пула
+        - `batch_size: int = 50` - максимальное количество запросов, которые
+        будут отправляться на сервер в одном батче
+        - `operating_time_limit: int = 480` - максимальное допустимое время отработки
+        запросов к одному методу REST API в секундах, допустимое за 10 минут,
+        после которого запросы будут замедляться
         - `ssl: bool = True` - использовать ли проверку SSL-сертификата
         при HTTP-соединениях с сервером Битрикс.
         - `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов
@@ -69,10 +76,12 @@ class BitrixAsync:
             respect_velocity_policy=respect_velocity_policy,
             request_pool_size=request_pool_size,
             requests_per_second=requests_per_second,
+            operating_time_limit=operating_time_limit,
             ssl=ssl,
             client=client,
         )
         self.verbose = verbose
+        self.batch_size = batch_size
 
     @log
     async def get_all(self, method: str, params: dict = None) -> Union[list, dict]:
