@@ -32,6 +32,10 @@ class ServerError(Exception):
     pass
 
 
+class TokenRejectedError(Exception):
+    pass
+
+
 RETRIED_ERRORS = (
     ClientPayloadError,
     ClientConnectionError,
@@ -54,6 +58,7 @@ class ServerRequestHandler:
     def __init__(
         self,
         webhook: str,
+        token_func,
         respect_velocity_policy: bool,
         request_pool_size: int,
         requests_per_second: float,
@@ -61,6 +66,14 @@ class ServerRequestHandler:
         ssl: bool = True,
     ):
         self.webhook = self.standardize_webhook(webhook)
+
+        self.token_func = token_func
+        self.token = None
+
+        # token_received - флаг, что получение токена начало и не закончено
+        self.token_received = Event()
+        self.token_received.set()
+
         self.respect_velocity_policy = respect_velocity_policy
 
         self.active_runs = 0
@@ -145,6 +158,10 @@ class ServerRequestHandler:
         """Делает единичный запрос к серверу,
         с повторными попытками при необходимости."""
 
+        # начальное получение токена
+        if self.token_func and not self.token:
+            await self.ensure_new_token()
+
         while True:
 
             try:
@@ -152,8 +169,13 @@ class ServerRequestHandler:
                 self.success()
                 return result
 
-            except RETRIED_ERRORS as err:  # all other exceptions will propagate
+            except TokenRejectedError:
+                await self.ensure_new_token()
+
+            except RETRIED_ERRORS as err:
                 self.failure(err)
+
+            # all other exceptions will propagate
 
     async def request_attempt(self, method, params=None) -> dict:
         """Делает попытку запроса к серверу, ожидая при необходимости."""
@@ -162,8 +184,12 @@ class ServerRequestHandler:
             async with self.acquire(method):
                 logger.debug(f"Requesting {{'method': {method}, 'params': {params}}}")
 
+                params_with_auth = params.copy() if params else {}
+                if self.token:
+                    params_with_auth["auth"] = self.token
+
                 async with self.session.post(
-                    url=self.webhook + method, json=params, ssl=self.ssl
+                    url=self.webhook + method, json=params_with_auth, ssl=self.ssl
                 ) as response:
                     json = await response.json(encoding="utf-8")
 
@@ -174,10 +200,16 @@ class ServerRequestHandler:
                     return json
 
         except ClientResponseError as error:
+
             if error.status // 100 == 5:  # ошибки вида 5XX
                 raise ServerError("The server returned an error") from error
 
-            raise
+            elif error.status == 401 and self.token_func:
+                raise TokenRejectedError(
+                    "The server rejected the auth token"
+                ) from error
+
+            raise  # иначе повторяем полученное исключение
 
     def add_throttler_records(self, method, params: dict, json: dict):
         if "result_time" in json:
@@ -274,3 +306,16 @@ class ServerRequestHandler:
         finally:
             self.concurrent_requests -= 1
             self.request_complete.set()
+
+    async def ensure_new_token(self):
+        """Получает новый токен, если процесс получения токена еще не запущен,
+        или ждет его завершения."""
+
+        if self.token_received.is_set():
+            logger.debug("Requesting new token")
+
+            self.token_received.clear()
+            self.token = await self.token_func()
+            self.token_received.set()
+        else:
+            await self.token_received.wait()

@@ -3,6 +3,7 @@
 import asyncio
 import functools as ft
 from contextlib import contextmanager
+from inspect import iscoroutinefunction
 from typing import Iterable, Union
 
 import aiohttp
@@ -25,9 +26,11 @@ from .user_request import (
 class BitrixAsync:
     """Клиент для асинхронных запросов к Битрикс24."""
 
+    @beartype
     def __init__(
         self,
         webhook: str,
+        token_func=None,
         verbose: bool = True,
         respect_velocity_policy: bool = True,
         request_pool_size: int = 50,
@@ -40,6 +43,8 @@ class BitrixAsync:
 
         Параметры:
         - `webhook: str` - URL вебхука, полученного от сервера Битрикс
+        - `token_func: Awaitable = None` - асинхронная функция для получения
+        и обновления токена в случае работы с приложениями и OAuth-авторизацией
         - `verbose: bool = True` - показывать ли прогрессбар при выполнении
         запроса
         - `respect_velocity_policy: bool = True` - соблюдать ли политику
@@ -55,8 +60,12 @@ class BitrixAsync:
         пользователем. Ожидаеется, что пользователь сам откроет и закроет сессию.
         """
 
+        if token_func is not None and not iscoroutinefunction(token_func):
+            raise ValueError("`token_func` must be an async function.")
+
         self.srh = ServerRequestHandler(
             webhook=webhook,
+            token_func=token_func,
             respect_velocity_policy=respect_velocity_policy,
             request_pool_size=request_pool_size,
             requests_per_second=requests_per_second,
