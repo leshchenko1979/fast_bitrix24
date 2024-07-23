@@ -52,7 +52,7 @@ class UserRequestAbstract:
 
         # st_params будет использоваться для проверки параметров,
         # но на сервер должны уходить параметры без изменения регистра
-        self.params = params.copy()
+        self.params = params.copy() if params else {}
         self.st_params = self.standardized_params(params)
 
         self.mute = mute
