@@ -4,7 +4,7 @@
 
 Внутри объекта ведётся учёт скорости отправки запросов к серверу, поэтому важно, чтобы все запросы приложения в отношении одного аккаунта с одного IP-адреса отправлялись из одного экземпляра `Bitrix`.
 
-### Метод ` __init__(self, webhook: str, token_func: Awaitable = None, verbose: bool = True, respect_velocity_policy: bool = True, request_pool_size: int = 50, requests_per_second: float = 2.0, ssl: bool = True, client: aiohttp.ClientSession = None):`
+### Метод ` __init__(self, webhook: str, token_func: Awaitable = None, verbose: bool = True, respect_velocity_policy: bool = True, request_pool_size: int = 50, requests_per_second: float = 2.0, batch_size: int = 50, operating_time_limit: int = 480, ssl: bool = True, client: aiohttp.ClientSession = None):`
 Создаёт клиента для доступа к Битрикс24.
 
 #### Параметры
@@ -16,6 +16,11 @@
 можно отправить на сервер без ожидания
 - `requests_per_second: float = 2.0` - максимальная скорость запросов,
 которая будет использоваться после переполнения пула
+- `batch_size: int = 50` - макисмальное количество запросов, которые
+будут отправляться на сервер в одном батче
+- `operating_time_limit: int = 480` - максимальное допустимое время отработки
+запросов к одному методу REST API в секундах, допустимое за 10 минут,
+после которого запросы будут замедляться
 - `ssl: bool = True` - использовать ли проверку SSL-сертификата при HTTP-соединениях с сервером Битрикс.
 - `client: aiohttp.ClientSession = None` - использовать для HTTP-вызовов клиента, инициализированного и настроенного пользователем.
 

@@ -5,7 +5,7 @@ from more_itertools import chunked
 from tqdm.auto import tqdm
 
 from .server_response import ServerResponseParser
-from .srh import BITRIX_MAX_BATCH_SIZE, ServerRequestHandler
+from .srh import ServerRequestHandler
 from .utils import http_build_query
 
 
@@ -38,7 +38,7 @@ class MultipleServerRequestHandler:
 
         batches = (
             self.package_batch(chunk)
-            for chunk in chunked(self.item_list, BITRIX_MAX_BATCH_SIZE)
+            for chunk in chunked(self.item_list, self.bitrix.batch_size)
         )
 
         for batch in batches:
