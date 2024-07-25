@@ -326,5 +326,5 @@ bx = Bitrix(webhook, request_pool_size=250, requests_per_second=5)
 ```
 
 ## Как связаться с автором
-- telegram: https://t.me/+U7hfrV7h53bRvKAS
+- telegram: https://t.me/fast_bitrix24
 - создать новый github issue: https://github.com/leshchenko1979/fast_bitrix24/issues/new
