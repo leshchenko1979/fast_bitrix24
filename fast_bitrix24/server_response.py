@@ -13,7 +13,9 @@ class ServerResponseParser:
         self.get_by_ID = get_by_ID
 
     def more_results_expected(self) -> bool:
-        return self.total and self.total > 50 and self.total != len(self.result)
+        return (
+            self.total and self.total > 50 and self.total != len(self.extract_results())
+        )
 
     @property
     def result(self):
@@ -45,7 +47,7 @@ class ServerResponseParser:
         if not self.is_batch():
             return self.extract_from_single_response(self.result)
 
-        if not self.get_by_ID:
+        if not self.get_by_ID:  # Почему? Откуда это правило?
             return self.extract_from_batch_response(self.result["result"])
 
         extracted = self.extract_from_single_response(self.result["result"])
@@ -81,10 +83,9 @@ class ServerResponseParser:
 
     @staticmethod
     def is_nested(result) -> bool:
-        return isinstance(result, dict) and len(result) == 1
+        return isinstance(result, (dict, list)) and len(result) == 1
 
     def extract_from_batch_response(self, result) -> list:
-
         if not result:
             return []
 
@@ -93,6 +94,11 @@ class ServerResponseParser:
         # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
 
         first_item = next(iter(result.values()))
+
+        # Если первый элемент - простое значение (не словарь/список),
+        # возвращаем само значение
+        if not isinstance(first_item, (dict, list)):
+            return first_item
 
         # если внутри - списки, то вернуть их в одном плоском списке
         if self.is_nested(first_item) or isinstance(first_item, list):
@@ -107,5 +113,5 @@ class ServerResponseParser:
 
             return result_list
 
-        # иначе (если внутри - dict), то вернуть в сам dict
+        # иначе (если внутри - dict), то вернуть сам dict
         return result

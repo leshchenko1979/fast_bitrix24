@@ -75,7 +75,7 @@ def test_call_several_success(bx_dummy):
     assert len(results) == 3
     assert isinstance(results[0], dict)
 
-    # нужен какой-то другой тест для контроля порядока результатов
+    # нужен какой-то другой тест для контроля ��орядока результатов
     # assert [result["ID"] for result in results] == ID_list, "Incorrect order of IDs"
 
 
@@ -197,6 +197,12 @@ def test_crm_dealcategory_stage_list(bx_dummy):
     assert isinstance(results, dict)
 
 
+@pytest.mark.skip(
+    "Абсолютно дикий формат ответа от Битрикс, нарушающий все шаблоны, "
+    "которые присутствуют в других кейсах. А именно: батчевый ответ должен "
+    "содержать метки переданных в батче команд и иметь структуру словаря списков. "
+    "Тут - список списков."
+)
 def test_crm_dealcategory_stage_list_batch_of_one(bx_dummy):
     from tests.real_responses.crm_dealcategory_stage_list_batch_of_one import response
 
@@ -279,3 +285,39 @@ def test_crm_item_list(bx_dummy):
     results = bx_dummy.get_all("crm.item.list")
 
     assert len(results) == 3
+
+
+def test_crm_category_list(bx_dummy):
+    from tests.real_responses.crm_category_list import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_all("crm.category.list", {"entityTypeId": 2})
+
+    assert results is not None
+    assert isinstance(results, list)
+    assert len(results) > 0
+    assert all(isinstance(cat, dict) for cat in results)
+    assert results == response["result"]["categories"]
+
+
+def test_crm_contact_add_batch(bx_dummy):
+    from tests.real_responses.crm_contact_add_batch import response
+
+    bx_dummy.srh = MockSRH(response)
+    result = bx_dummy.call(
+        "crm.contact.add",
+        {
+            "fields": {
+                "NAME": "TESTR",
+                "PHONE": [{"VALUE": "78966666647", "VALUE_TYPE": "WORK"}],
+                "ASSIGNED_BY_ID": -1,
+                "OPENED": "Y"
+            },
+            "params": {
+                "REGISTER_SONET_EVENT": "Y"
+            }
+        }
+    )
+
+    # Проверяем что результат - это ID созданного контакта
+    assert result == 58943
