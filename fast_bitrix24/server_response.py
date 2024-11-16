@@ -71,14 +71,17 @@ class ServerResponseParser:
     def is_batch(self) -> bool:
         return isinstance(self.result, dict) and "result" in self.result
 
-    def extract_from_single_response(self, result: dict):
+    def extract_from_single_response(self, result):
+        # Сначала проверяем, является ли result списком
+        if isinstance(result, list):
+            return result
+
         # если результат вызова содержит только словарь из одного элемента {ключ: содержимое},
         # то вернуть это содержимое.
         # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
 
         # метод `crm.stagehistory.list` возвращает dict["items", list] --
         # разворачиваем его в список
-
         return next(iter(result.values())) if self.is_nested(result) else result
 
     @staticmethod

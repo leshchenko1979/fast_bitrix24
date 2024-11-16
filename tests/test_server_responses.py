@@ -75,7 +75,7 @@ def test_call_several_success(bx_dummy):
     assert len(results) == 3
     assert isinstance(results[0], dict)
 
-    # нужен какой-то другой тест для контроля ��орядока результатов
+    # нужен какой-то другой тест для контроля орядока результатов
     # assert [result["ID"] for result in results] == ID_list, "Incorrect order of IDs"
 
 
@@ -321,3 +321,43 @@ def test_crm_contact_add_batch(bx_dummy):
 
     # Проверяем что результат - это ID созданного контакта
     assert result == 58943
+
+
+def test_crm_contact_list(bx_dummy):
+    response = {
+        'result': [
+            {
+                'ID': '10',
+                'NAME': 'Абдуалимова Татьяна Александровна',
+                'SECOND_NAME': None,
+                'LAST_NAME': None
+            }
+        ],
+        'total': 1,
+        'time': {
+            'start': 1731743829.0188,
+            'finish': 1731743829.06444,
+            'duration': 0.045639991760253906,
+            'processing': 0.019975900650024414,
+            'date_start': '2024-11-16T10:57:09+03:00',
+            'date_finish': '2024-11-16T10:57:09+03:00',
+            'operating_reset_at': 1731744429,
+            'operating': 0
+        }
+    }
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_all(
+        'crm.contact.list',
+        {
+            'params': {
+                'select': ['ID', 'NAME', 'SECOND_NAME', 'LAST_NAME'],
+                'filter': {'=ID': ['10']}
+            }
+        }
+    )
+
+    assert isinstance(results, list)
+    assert len(results) == 1
+    assert results[0]['ID'] == '10'
+    assert results[0]['NAME'] == 'Абдуалимова Татьяна Александровна'
