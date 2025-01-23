@@ -187,6 +187,9 @@ class GetAllUserRequest(UserRequestAbstract):
             "crm.address.list",
             "documentgenerator.template.list",
             "userfieldconfig.list",
+            "voximplant.statistic.get",
+            "crm.deal.userfield.list",
+            "task.elapseditem.getlist"
         }
 
         if self.st_method in EXCLUDED_METHODS:
