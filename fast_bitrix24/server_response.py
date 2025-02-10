@@ -52,7 +52,11 @@ class ServerResponseParser:
 
         extracted = self.extract_from_single_response(self.result["result"])
 
-        return extracted[0] if isinstance(extracted, list) else extracted
+        return (
+            extracted[0]
+            if isinstance(extracted, list) and len(extracted) == 1
+            else extracted
+        )
 
     def raise_for_errors(self):
         errors = self.extract_errors()
@@ -86,7 +90,7 @@ class ServerResponseParser:
 
     @staticmethod
     def is_nested(result) -> bool:
-        return isinstance(result, (dict, list)) and len(result) == 1
+        return isinstance(result, dict) and len(result.values()) == 1
 
     def extract_from_batch_response(self, result) -> list:
         if not result:

@@ -311,12 +311,10 @@ def test_crm_contact_add_batch(bx_dummy):
                 "NAME": "TESTR",
                 "PHONE": [{"VALUE": "78966666647", "VALUE_TYPE": "WORK"}],
                 "ASSIGNED_BY_ID": -1,
-                "OPENED": "Y"
+                "OPENED": "Y",
             },
-            "params": {
-                "REGISTER_SONET_EVENT": "Y"
-            }
-        }
+            "params": {"REGISTER_SONET_EVENT": "Y"},
+        },
     )
 
     # Проверяем что результат - это ID созданного контакта
@@ -325,39 +323,47 @@ def test_crm_contact_add_batch(bx_dummy):
 
 def test_crm_contact_list(bx_dummy):
     response = {
-        'result': [
+        "result": [
             {
-                'ID': '10',
-                'NAME': 'Абдуалимова Татьяна Александровна',
-                'SECOND_NAME': None,
-                'LAST_NAME': None
+                "ID": "10",
+                "NAME": "Абдуалимова Татьяна Александровна",
+                "SECOND_NAME": None,
+                "LAST_NAME": None,
             }
         ],
-        'total': 1,
-        'time': {
-            'start': 1731743829.0188,
-            'finish': 1731743829.06444,
-            'duration': 0.045639991760253906,
-            'processing': 0.019975900650024414,
-            'date_start': '2024-11-16T10:57:09+03:00',
-            'date_finish': '2024-11-16T10:57:09+03:00',
-            'operating_reset_at': 1731744429,
-            'operating': 0
-        }
+        "total": 1,
+        "time": {
+            "start": 1731743829.0188,
+            "finish": 1731743829.06444,
+            "duration": 0.045639991760253906,
+            "processing": 0.019975900650024414,
+            "date_start": "2024-11-16T10:57:09+03:00",
+            "date_finish": "2024-11-16T10:57:09+03:00",
+            "operating_reset_at": 1731744429,
+            "operating": 0,
+        },
     }
 
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_all(
-        'crm.contact.list',
+        "crm.contact.list",
         {
-            'params': {
-                'select': ['ID', 'NAME', 'SECOND_NAME', 'LAST_NAME'],
-                'filter': {'=ID': ['10']}
+            "params": {
+                "select": ["ID", "NAME", "SECOND_NAME", "LAST_NAME"],
+                "filter": {"=ID": ["10"]},
             }
-        }
+        },
     )
 
     assert isinstance(results, list)
     assert len(results) == 1
-    assert results[0]['ID'] == '10'
-    assert results[0]['NAME'] == 'Абдуалимова Татьяна Александровна'
+    assert results[0]["ID"] == "10"
+    assert results[0]["NAME"] == "Абдуалимова Татьяна Александровна"
+
+
+def test_crm_company_contact_items_get(bx_dummy):
+    from tests.real_responses.crm_company_contact_items_get import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_by_ID("crm.company.contact.items.get", ["205364"])
+    assert len(results) == 2
