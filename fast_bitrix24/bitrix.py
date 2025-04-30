@@ -10,7 +10,6 @@ import aiohttp
 import icontract
 from beartype import beartype
 
-from . import correct_asyncio
 from .logger import log, logger
 from .server_response import ServerResponseParser
 from .srh import ServerRequestHandler
