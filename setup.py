@@ -1,8 +1,5 @@
 import setuptools
-
-# Read version from __version__.py file
-with open("fast_bitrix24/__version__.py", "r", encoding="utf-8") as f:
-    exec(f.read())
+from fast_bitrix24.__version__ import __version__
 
 with open("README.md", "r", encoding='utf-8') as fh:
     long_description = fh.read()
