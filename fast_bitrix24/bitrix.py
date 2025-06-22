@@ -216,7 +216,7 @@ class BitrixAsync:
             await self.srh.run_async(RawCallUserRequest(self, "batch", params).run())
         )
 
-        response.raise_for_errors()
+        #response.raise_for_errors()
 
         return response.result["result"]
 
