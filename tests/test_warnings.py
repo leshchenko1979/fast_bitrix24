@@ -21,7 +21,7 @@ async def test_warning_get_all(bx_dummy_async, monkeypatch):
         await bx_dummy_async.get_all("crm.deal.add")
     assert len(w) == 1
     print(w[0])
-    assert w[0].filename == __file__  # Assuming the test is in the same file
+    assert w[0].filename.lower() == __file__.lower()  # Assuming the test is in the same file
 
 
 @pytest.mark.asyncio
@@ -35,7 +35,7 @@ async def test_warning_get_all_params(bx_dummy_async, monkeypatch):
         await bx_dummy_async.get_all("crm.deal.list", params={"filter": {"ID": None}})
     assert len(w) == 1
     print(w[0])
-    assert w[0].filename == __file__  # Assuming the test is in the same file
+    assert w[0].filename.lower() == __file__.lower()  # Assuming the test is in the same file
 
 
 
