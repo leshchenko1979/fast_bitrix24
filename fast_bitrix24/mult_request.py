@@ -99,9 +99,24 @@ class MultipleServerRequestHandler:
             if self.results is None:
                 self.results = extracted
             elif isinstance(extracted, list):
-                self.results.extend(extracted)
+                if isinstance(self.results, list):
+                    self.results.extend(extracted)
+                else:
+                    # Если self.results - словарь, а extracted - список,
+                    # то преобразуем список в словарь с числовыми ключами
+                    if not self.results:
+                        self.results = {}
+                    for i, item in enumerate(extracted):
+                        self.results[f"item_{i}"] = item
             elif isinstance(extracted, dict):
-                self.results.update(extracted)
+                if isinstance(self.results, dict):
+                    self.results.update(extracted)
+                else:
+                    # Если self.results - список, а extracted - словарь,
+                    # то преобразуем словарь в список
+                    if not self.results:
+                        self.results = []
+                    self.results.append(extracted)
 
             extracted_len += len(extracted) if isinstance(extracted, list) else 1
 

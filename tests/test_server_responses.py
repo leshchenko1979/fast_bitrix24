@@ -367,3 +367,35 @@ def test_crm_company_contact_items_get(bx_dummy):
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_by_ID("crm.company.contact.items.get", ["205364"])
     assert len(results) == 2
+
+
+def test_task_elapseditem_getlist_mixed_types(bx_dummy):
+    """Тест для проверки исправления ошибки с mixed types в get_by_ID.
+
+    Этот тест проверяет, что get_by_ID корректно обрабатывает случаи,
+    когда результаты могут быть как списками, так и словарями.
+    """
+    from tests.real_responses.task_elapseditem_getlist_mixed_types import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_by_ID("task.elapseditem.getlist", ["145572", "145578", "145485"])
+
+    # Проверяем, что результат - это словарь
+    assert isinstance(results, dict)
+
+    # Проверяем, что все ожидаемые ключи присутствуют
+    assert "145572" in results
+    assert "145578" in results
+    assert "145485" in results
+
+    # Проверяем типы результатов
+    assert isinstance(results["145572"], list)  # Пустой список
+    assert len(results["145572"]) == 0
+
+    assert isinstance(results["145578"], list)  # Список с одним элементом
+    assert len(results["145578"]) == 1
+    assert isinstance(results["145578"][0], dict)
+    assert results["145578"][0]["ID"] == "111301"
+
+    assert isinstance(results["145485"], dict)  # Одиночный словарь
+    assert results["145485"]["ID"] == "112004"
