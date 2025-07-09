@@ -191,7 +191,7 @@ class ServerRequestHandler:
                 ) as response:
                     json = await response.json(encoding="utf-8")
 
-                    logger.debug("Response: %s", json)
+                    logger.debug(f"Response: {str(json)}")
 
                     self.add_throttler_records(method, params, json)
 

@@ -42,7 +42,8 @@ class ServerResponseParser:
         Returns:
             Any: Результаты запроса, по возможности превращенные в плоский список.
         """
-        self.raise_for_errors()
+        # stop raising for errors
+        # self.raise_for_errors()
 
         if not self.is_batch():
             return self.extract_from_single_response(self.result)
