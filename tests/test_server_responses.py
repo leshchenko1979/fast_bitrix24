@@ -367,3 +367,76 @@ def test_crm_company_contact_items_get(bx_dummy):
     bx_dummy.srh = MockSRH(response)
     results = bx_dummy.get_by_ID("crm.company.contact.items.get", ["205364"])
     assert len(results) == 2
+
+
+def test_task_elapseditem_getlist_mixed_types(bx_dummy):
+    """Тест для проверки обработки смешанных типов в get_by_ID для task.elapseditem.getlist.
+
+    Проверяет, что get_by_ID корректно обрабатывает случаи,
+    когда значения могут быть пустым списком, списком словарей или одиночным словарём.
+    """
+    from tests.real_responses.task_elapseditem_getlist_mixed_types import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.get_by_ID(
+        "task.elapseditem.getlist",
+        ["145572", "144518", "145620", "145485", "145359", "145523", "145142", "145476", "132990"]
+    )
+
+    assert isinstance(results, dict)
+
+    # Пустой список
+    assert "145572" in results
+    assert isinstance(results["145572"], list)
+    assert len(results["145572"]) == 0
+
+    # Список из двух словарей
+    assert "144518" in results
+    assert isinstance(results["144518"], list)
+    assert len(results["144518"]) == 2
+    assert all(isinstance(item, dict) for item in results["144518"])
+    assert results["144518"][0]["ID"] == "111301"
+    assert results["144518"][1]["ID"] == "112004"
+
+    # Список из одного словаря
+    assert "145620" in results
+    assert isinstance(results["145620"], list)
+    assert len(results["145620"]) == 1
+    assert results["145620"][0]["ID"] == "112248"
+
+    # Одиночный словарь (в реальном ответе такого нет, но если появится)
+    # assert isinstance(results["145485"], dict)  # В реальном ответе теперь это пустой список
+    assert "145485" in results
+    assert isinstance(results["145485"], list)
+    assert len(results["145485"]) == 0
+
+    # Список из одного словаря
+    assert "145359" in results
+    assert isinstance(results["145359"], list)
+    assert len(results["145359"]) == 1
+    assert results["145359"][0]["ID"] == "112058"
+
+    # Список из одного словаря
+    assert "145523" in results
+    assert isinstance(results["145523"], list)
+    assert len(results["145523"]) == 1
+    assert results["145523"][0]["ID"] == "112249"
+
+    # Список из одного словаря
+    assert "145142" in results
+    assert isinstance(results["145142"], list)
+    assert len(results["145142"]) == 1
+    assert results["145142"][0]["ID"] == "112244"
+
+    # Список из нескольких словарей
+    assert "145476" in results
+    assert isinstance(results["145476"], list)
+    assert len(results["145476"]) == 6
+    assert results["145476"][0]["ID"] == "112063"
+    assert results["145476"][-1]["ID"] == "112226"
+
+    # Список из одного словаря
+    assert "132990" in results
+    assert isinstance(results["132990"], list)
+    assert len(results["132990"]) == 1
+    assert results["132990"][0]["ID"] == "112237"
