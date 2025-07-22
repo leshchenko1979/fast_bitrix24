@@ -440,3 +440,36 @@ def test_task_elapseditem_getlist_mixed_types(bx_dummy):
     assert isinstance(results["132990"], list)
     assert len(results["132990"]) == 1
     assert results["132990"][0]["ID"] == "112237"
+
+
+def test_lists_element_add_batch(bx_dummy):
+    """Тест для проверки правильного возвращения списка простых значений в batch ответе.
+
+    Проверяет, что при batch-вызове lists.element.add возвращается список всех ID,
+    а не только первый ID.
+    """
+    from tests.real_responses.lists_element_add_batch import response
+
+    bx_dummy.srh = MockSRH(response)
+    results = bx_dummy.call(
+        "lists.element.add",
+        [
+            {
+                "IBLOCK_TYPE_ID": "lists",
+                "IBLOCK_ID": 33,
+                "ELEMENT_CODE": "1",
+                "FIELDS": {"NAME": "Тест 1", "PROPERTY_117": "1"}
+            },
+            {
+                "IBLOCK_TYPE_ID": "lists",
+                "IBLOCK_ID": 33,
+                "ELEMENT_CODE": "2",
+                "FIELDS": {"NAME": "Тест 2", "PROPERTY_117": "2"}
+            }
+        ]
+    )
+
+    # Ожидаем получить кортеж из двух значений (53, 55)
+    assert isinstance(results, tuple)
+    assert len(results) == 2
+    assert results == (53, 55)

@@ -102,11 +102,10 @@ class ServerResponseParser:
 
         first_item = next(iter(result.values()))
 
-        # Если первый элемент - простое значение (не словарь/список),
-        # возвращаем само значение
+        # Если первый элемент - простое значение (не словарь/список)
         if not isinstance(first_item, (dict, list)):
-            return first_item
-
+            # Если в словаре только один элемент, возвращаем его значение
+            return first_item if len(result) == 1 else result
         # если внутри - списки, то вернуть их в одном плоском списке
         if self.is_nested(first_item) or isinstance(first_item, list):
             result_list = [
