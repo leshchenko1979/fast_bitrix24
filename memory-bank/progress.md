@@ -17,6 +17,13 @@
 - **Enterprise Optimization**: Support for higher request speeds on Enterprise accounts
 
 ### Recent Fixes
+- **Server Response Formatting Fix**: Fixed batch response handling for methods returning simple values (like `lists.element.add`)
+  - **Problem**: Batch responses for methods returning simple values (IDs) were not being processed correctly
+  - **Root Cause**: `extract_from_batch_response` method wasn't handling simple values properly in batch responses
+  - **Solution**: Enhanced batch response parsing to handle simple values (integers, strings) in addition to complex objects
+  - **Impact**: Batch calls to methods like `lists.element.add` now correctly return all IDs as a tuple/list instead of just the first value
+  - **Test Coverage**: Added comprehensive test `test_lists_element_add_batch` to verify the fix
+
 - **Issue #265**: Fixed pagination with rate limiting - get_all method now returns all results even under strict rate limiting
   - **Problem**: Under strict rate limiting, pagination was stopping after first page (50 items)
   - **Solution**: Moved hybrid batching/individual fallback logic to `MultipleServerRequestHandler` itself
@@ -66,6 +73,12 @@
 ## Known Issues
 
 ### Resolved Issues
+- **Server Response Formatting Fix**: Batch response handling for simple values - FIXED
+  - **Description**: Batch responses for methods returning simple values (like `lists.element.add`) were not being processed correctly
+  - **Root Cause**: `extract_from_batch_response` method wasn't handling simple values properly
+  - **Solution**: Enhanced batch response parsing to handle simple values (integers, strings) in addition to complex objects
+  - **Status**: RESOLVED
+
 - **Issue #265**: Pagination with rate limiting - FIXED
   - **Description**: get_all method was returning only 50 deals instead of full pagination
   - **Root Cause**: Batch processing was incompatible with strict rate limiting

@@ -27,6 +27,14 @@
 
 ## Recent Changes
 
+### Bug Fixes
+- **Server Response Formatting Fix**: Fixed batch response handling for methods returning simple values (like `lists.element.add`)
+  - **Problem**: Batch responses for methods returning simple values (IDs) were not being processed correctly
+  - **Root Cause**: `extract_from_batch_response` method wasn't handling simple values properly in batch responses
+  - **Solution**: Enhanced batch response parsing to handle simple values (integers, strings) in addition to complex objects
+  - **Impact**: Batch calls to methods like `lists.element.add` now correctly return all IDs as a tuple/list instead of just the first value
+  - **Test Coverage**: Added comprehensive test `test_lists_element_add_batch` to verify the fix
+
 ### Documentation Updates
 - **Memory Bank Creation**: Established comprehensive project documentation system
 - **Architecture Documentation**: Documented async-first design with sync wrapper
