@@ -253,3 +253,57 @@ class TestErrors:
             b.call("_", {"select": ["*"]})
 
         b.call("_", [1, {"a": 2}], raw=True)
+
+
+def test_get_all_pagination_with_rate_limiting():
+    """Test that get_all works correctly with pagination when rate limiting is active."""
+    from fast_bitrix24 import Bitrix
+
+    # Create a Bitrix instance with very low rate limits to trigger the issue
+    bx = Bitrix(
+        webhook="https://test.bitrix24.ru/rest/1/test/",
+        request_pool_size=1,
+        requests_per_second=0.1,
+        verbose=False
+    )
+
+    # Mock the server response to simulate pagination
+    async def mock_single_request(method, params=None):
+        if method == "batch":
+            # Handle batch requests - return the structure that ServerResponseParser expects
+            return {
+                'result': {
+                    'cmd0': [{'ID': i} for i in range(50, 100)]
+                }
+            }
+        else:
+            # Handle individual requests
+            if params and params.get('start', 0) == 0:
+                # First page: 50 items, total 100
+                return {
+                    'result': [{'ID': i} for i in range(50)],
+                    'total': 100,
+                    'next': 50
+                }
+            elif params and params.get('start', 0) == 50:
+                # Second page: 50 items
+                return {
+                    'result': [{'ID': i} for i in range(50, 100)],
+                    'total': 100
+                }
+            else:
+                # Any other start parameter
+                start = params.get('start', 0) if params else 0
+                return {
+                    'result': [{'ID': i} for i in range(start, min(start + 50, 100))],
+                    'total': 100
+                }
+
+    # Patch the single_request method
+    bx.srh.single_request = mock_single_request
+
+    # This should return all 100 items despite rate limiting
+    results = bx.get_all('crm.deal.list')
+
+    assert len(results) == 100
+    assert all('ID' in item for item in results)
