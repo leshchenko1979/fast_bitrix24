@@ -212,10 +212,13 @@ class GetAllUserRequest(UserRequestAbstract):
 
     @icontract.require(lambda self: isinstance(self.results, list))
     async def make_remaining_requests(self):
-        item_list = (
+        item_list = list(
             ChainMap({"start": start}, self.params)
             for start in range(len(self.results), self.total, BITRIX_PAGE_SIZE)
         )
+
+        expected_remaining = self.total - len(self.results)
+
         remaining_results = await MultipleServerRequestHandler(
             self.bitrix,
             method=self.method,
@@ -225,7 +228,35 @@ class GetAllUserRequest(UserRequestAbstract):
             mute=self.mute,
         ).run()
 
-        self.results.extend(remaining_results)
+        # More conservative validation to avoid false positives
+        if not remaining_results and expected_remaining > 0:
+            # Only warn if we expected a substantial number of results (> 100) and got none
+            # This avoids false positives for small datasets or edge cases
+            if expected_remaining > 100:
+                warnings.warn(
+                    f"Batch requests returned no results. Expected {expected_remaining} more items "
+                    f"but got 0. This may indicate batch request failures, network issues, "
+                    f"rate limiting, or data changes during pagination. "
+                    f"If this is unexpected, try reducing batch_size or request_pool_size.",
+                    RuntimeWarning,
+                    stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
+                )
+        elif isinstance(remaining_results, list) and len(remaining_results) < expected_remaining:
+            # Only warn for severe discrepancies (> 50% missing) on large datasets
+            shortage = expected_remaining - len(remaining_results)
+            if (expected_remaining > 100 and
+                shortage > expected_remaining * 0.5):  # More than 50% missing on large datasets
+                warnings.warn(
+                    f"Batch requests returned significantly fewer results than expected. "
+                    f"Expected {expected_remaining} more items but got {len(remaining_results)}. "
+                    f"Missing {shortage} items. This may indicate batch request failures, "
+                    f"data changes during pagination, or permission restrictions.",
+                    RuntimeWarning,
+                    stacklevel=get_warning_stack_level(TOP_MOST_LIBRARY_MODULES),
+                )
+
+        if remaining_results:
+            self.results.extend(remaining_results)
 
     def dedup_results(self):
         # дедупликация через сериализацию, превращение в set и десериализацию

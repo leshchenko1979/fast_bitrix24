@@ -292,19 +292,6 @@ class ServerRequestHandler:
         """Не позволяет одновременно выполнять
         более `self.mcr_cur_limit` запросов."""
 
-        # If we have no active requests, allow at least one to proceed
-        # This prevents pagination from getting stuck under strict rate limiting
-        # while maintaining rate limiting for multiple concurrent requests
-        if self.concurrent_requests == 0:
-            self.concurrent_requests += 1
-            try:
-                yield
-            finally:
-                self.concurrent_requests -= 1
-                self.request_complete.set()
-            return
-
-        # For multiple concurrent requests, apply normal rate limiting
         while self.concurrent_requests > self.mcr_cur_limit:
             self.request_complete.clear()
             await self.request_complete.wait()
