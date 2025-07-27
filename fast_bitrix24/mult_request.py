@@ -131,6 +131,10 @@ class MultipleServerRequestHandler:
 
         for item in items:
             try:
+                # Convert ChainMap to dict if necessary for JSON serialization
+                if hasattr(item, 'maps'):  # ChainMap object
+                    item = dict(item)
+
                 response = await self.srh.single_request(self.method, item)
                 result = ServerResponseParser(response).extract_results()
                 if isinstance(result, list):

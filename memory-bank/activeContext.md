@@ -28,6 +28,13 @@
 ## Recent Changes
 
 ### Bug Fixes
+- **ChainMap JSON Serialization Fix**: Fixed JSON serialization error when falling back to individual requests
+  - **Problem**: ChainMap objects created by `CallUserRequest.prepare_item_list()` were not JSON serializable when falling back to individual requests
+  - **Root Cause**: `_fallback_to_individual_requests` method was passing ChainMap objects directly to `single_request` without conversion
+  - **Solution**: Added ChainMap detection and conversion to regular dictionaries before sending to server
+  - **Impact**: Eliminates "Object of type ChainMap is not JSON serializable" errors during rate limiting fallbacks
+  - **Test Coverage**: Added comprehensive test `test_chainmap_serialization_in_fallback` to verify the fix
+
 - **Server Response Formatting Fix**: Fixed batch response handling for methods returning simple values (like `lists.element.add`)
   - **Problem**: Batch responses for methods returning simple values (IDs) were not being processed correctly
   - **Root Cause**: `extract_from_batch_response` method wasn't handling simple values properly in batch responses
