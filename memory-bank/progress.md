@@ -66,6 +66,7 @@
 - Type validation with beartype
 - Design by contract with icontract
 - Early error detection
+- Comprehensive boolean parameter conversion to Y/N format
 
 ### Authentication and Security
 ✅ **OAuth Support**
@@ -192,6 +193,22 @@
   - **Error propagation**: Rate limit errors (`QUERY_LIMIT_EXCEEDED`) can cause complete batch failure
   - **When mcr_cur_limit = 1**: Only 1 batch task processes at a time, drastically slowing pagination and increasing failure risk
 - **Status**: Fixed with comprehensive test coverage including false positive prevention and rate limit awareness
+
+✅ **Boolean Parameter Conversion Enhancement - COMPLETED**
+- **Issue**: Boolean parameters were only converted to Y/N format in URL parameters, not in all parameter processing
+- **Solution**: Centralized boolean parameter conversion in `standardized_params()` method
+- **Implementation**:
+  - Added inline `convert_bools()` function in `UserRequestAbstract.standardized_params()` method
+  - Removed boolean conversion from `http_build_query()` since it's now handled centrally
+  - Simple recursive conversion without separate utility function
+  - Handles nested dictionaries, lists, and complex data structures
+- **Benefits**:
+  - All boolean parameters now convert to Y/N format expected by Bitrix24 API
+  - Consistent parameter processing across all API methods
+  - Improved compatibility with Bitrix24 API expectations
+  - Recursive processing ensures deep boolean conversion in complex structures
+  - Single point of conversion eliminates duplication
+- **Status**: Completed with comprehensive test coverage
 
 ### User Experience Issues
 ⚠️ **Error Message Clarity**

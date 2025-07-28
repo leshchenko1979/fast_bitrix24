@@ -16,10 +16,13 @@
 ## Recent Changes
 
 ### Code Updates
-- **Boolean Parameter Handling**: Modified `http_build_query()` in `utils.py` to convert boolean values to "Y"/"N" format
-  - `True` values now convert to "Y"
-  - `False` values now convert to "N"
-  - Improves compatibility with Bitrix24 API boolean parameter expectations
+- **Boolean Parameter Handling**: Centralized boolean parameter conversion
+  - **All Parameters**: Added inline boolean conversion in `UserRequestAbstract.standardized_params()` method
+  - **Removed URL Conversion**: Removed boolean conversion from `http_build_query()` since it's now handled centrally
+  - **Simple Implementation**: Direct recursive conversion without separate utility function
+  - **Recursive Processing**: Handles nested dictionaries, lists, and complex data structures
+  - `True` values now convert to "Y" and `False` values convert to "N" in all parameter processing
+  - Improves compatibility with Bitrix24 API boolean parameter expectations across all API calls
 
 ### Documentation Updates
 - **Memory Bank Creation**: Established comprehensive project documentation system
@@ -40,6 +43,7 @@
 2. **Validate Documentation**: Review all created files for accuracy and completeness
 3. **Identify Gaps**: Check for missing information in Memory Bank
 4. **Update Strategy**: Plan for future Memory Bank maintenance
+5. **Test Boolean Conversion**: Verify comprehensive boolean parameter conversion works correctly
 
 ### Development Priorities
 1. **Code Quality**: Maintain high code quality standards
@@ -104,6 +108,7 @@
 3. **Rate Limiting Complexity**: Bitrix24's dual rate limiting requires careful implementation
 4. **Error Recovery**: Automatic throttling on errors improves reliability
 5. **Type Safety**: Runtime type checking prevents many runtime errors
+6. **Parameter Processing**: Comprehensive boolean parameter conversion improves API compatibility
 
 ### User Experience Insights
 1. **One-Line Operations**: Users greatly appreciate simple, powerful APIs

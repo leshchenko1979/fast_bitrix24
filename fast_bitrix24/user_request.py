@@ -70,6 +70,19 @@ class UserRequestAbstract:
         if p is None:
             return
 
+        # Convert boolean values to Y/N format
+        def convert_bools(obj):
+            if isinstance(obj, dict):
+                return {key: convert_bools(value) for key, value in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_bools(item) for item in obj]
+            elif isinstance(obj, bool):
+                return "Y" if obj else "N"
+            else:
+                return obj
+        
+        p = convert_bools(p)
+        
         p = {key.upper().strip(): value for key, value in p.items()}
         self.check_expected_clause_types(p)
 
