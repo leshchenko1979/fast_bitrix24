@@ -15,6 +15,12 @@
 
 ## Recent Changes
 
+### Code Updates
+- **Boolean Parameter Handling**: Modified `http_build_query()` in `utils.py` to convert boolean values to "Y"/"N" format
+  - `True` values now convert to "Y"
+  - `False` values now convert to "N"
+  - Improves compatibility with Bitrix24 API boolean parameter expectations
+
 ### Documentation Updates
 - **Memory Bank Creation**: Established comprehensive project documentation system
 - **Architecture Documentation**: Documented async-first design with sync wrapper

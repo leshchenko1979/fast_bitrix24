@@ -29,8 +29,11 @@ def http_build_query(params, convention="%s"):
             output += http_build_query(new_params, convention % key + "[%s]")
 
         else:
-
-            val = quote(str(params[key]))
+            # Convert boolean values to Y/N
+            if isinstance(params[key], bool):
+                val = quote("Y" if params[key] else "N")
+            else:
+                val = quote(str(params[key]))
             key = quote(key)
             output = output + convention % key + "=" + val + "&"
 
