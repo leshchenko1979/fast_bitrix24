@@ -1,6 +1,7 @@
 import os
 
 import pytest
+import pytest_asyncio
 
 from fast_bitrix24 import Bitrix, BitrixAsync
 
@@ -109,8 +110,7 @@ def create_100_tasks(get_test) -> Bitrix:
                     ID_field_name='taskId')
 
 
-@pytest.fixture(scope='function')
-@pytest.mark.asyncio
+@pytest_asyncio.fixture
 async def create_100_leads_async(get_test_async) -> BitrixAsync:
     b = get_test_async
 
