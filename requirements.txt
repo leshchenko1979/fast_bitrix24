@@ -2,4 +2,4 @@ aiohttp
 tqdm
 more_itertools
 icontract
-beartype>=0.10.0
+beartype>=0.22.2
