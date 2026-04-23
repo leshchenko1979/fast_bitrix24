@@ -143,8 +143,8 @@ class GetAllUserRequest(UserRequestAbstract):
         "get_all() doesn't support parameters 'start' or 'order'",
     )
     @icontract.require(
-        lambda self: not self.st_method.startswith("tasks.elapseditem."),
-        "get_all() shouldn't be used with 'tasks.elapseditem.*' method group. "
+        lambda self: not self.st_method.startswith("tasks."),
+        "get_all() shouldn't be used with 'tasks.*' method group. "
         "Use call(raw=True) instead. Read more: "
         "https://github.com/leshchenko1979/fast_bitrix24/issues/199",
     )
@@ -317,6 +317,12 @@ class GetByIDUserRequest(UserRequestAbstract):
         "get_by_ID(): 'ID_list' should be a Sequence "
         "if a progress bar is to be displayed",
     )
+    @icontract.require(
+        lambda self: not self.st_method.startswith("tasks."),
+        "get_by_ID() shouldn't be used with 'tasks.*' method group. "
+        "Use call(raw=True) instead. Read more: "
+        "https://github.com/leshchenko1979/fast_bitrix24/issues/199",
+    )
     def check_special_limitations(self):
         return True
 
@@ -353,6 +359,12 @@ class CallUserRequest(GetByIDUserRequest):
         or "__len__" in dir(self.ID_list),
         "call(): 'ID_list' should be a Sequence "
         "if a progress bar is to be displayed",
+    )
+    @icontract.require(
+        lambda self: not self.st_method.startswith("tasks."),
+        "call(raw=False) shouldn't be used with 'tasks.*' method group. "
+        "Use call(raw=True) instead. Read more: "
+        "https://github.com/leshchenko1979/fast_bitrix24/issues/199",
     )
     def check_special_limitations(self):
         if self.st_method.endswith(GET_ALL_ENDINGS):
