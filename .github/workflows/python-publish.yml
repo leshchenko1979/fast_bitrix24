@@ -1,32 +1,38 @@
-# This workflows will upload a Python Package using Twine when a release is created
-# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
+# Publish to PyPI via trusted publishing (OIDC)
+# Requires: PyPI project "fast-bitrix24" trusted publisher -> alexeyleshchenko/fast_bitrix24 (environment: release)
+# See: https://docs.pypi.org/trusted-publishers/
 
-name: Upload Python Package
+name: Publish to PyPI
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 jobs:
-  deploy:
-
+  build-and-publish:
     runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write  # mandatory for trusted publishing
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v7
+
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v7
       with:
         python-version: '3.x'
-    - name: Install dependencies
+
+    - name: Install build dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install setuptools wheel twine
+        pip install build
         pip install -r requirements.txt
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      run: |
-        python setup.py sdist bdist_wheel
-        twine upload dist/*
+
+    - name: Build package
+      run: python -m build
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        print-hash: true

@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@v7
     - name: Set up Python
-      uses: actions/setup-python@main
+      uses: actions/setup-python@v7
       with:
         python-version: 3.13
     - name: Install dependencies
