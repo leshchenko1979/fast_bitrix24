@@ -2,10 +2,10 @@
 API wrapper для Питона для быстрого получения данных от Битрикс24 через REST API.
 
 [![Статистика загрузок](https://img.shields.io/pypi/dm/fast-bitrix24.svg)](https://pypistats.org/packages/fast-bitrix24)
-![Статистика тестов](https://github.com/leshchenko1979/fast_bitrix24/workflows/tests/badge.svg)
-[![codecov](https://codecov.io/gh/leshchenko1979/fast_bitrix24/branch/master/graph/badge.svg?token=UEQ3KITRSX)](https://codecov.io/gh/leshchenko1979/fast_bitrix24)
+![Статистика тестов](https://github.com/alexeyleshchenko/fast_bitrix24/workflows/tests/badge.svg)
+[![codecov](https://codecov.io/gh/alexeyleshchenko/fast_bitrix24/branch/master/graph/badge.svg?token=UEQ3KITRSX)](https://codecov.io/gh/alexeyleshchenko/fast_bitrix24)
 [![Sourcery](https://img.shields.io/badge/Sourcery-enabled-brightgreen)](https://sourcery.ai)
-[![CodeFactor](https://www.codefactor.io/repository/github/leshchenko1979/fast_bitrix24/badge)](https://www.codefactor.io/repository/github/leshchenko1979/fast_bitrix24)
+[![CodeFactor](https://www.codefactor.io/repository/github/alexeyleshchenko/fast_bitrix24/badge)](https://www.codefactor.io/repository/github/alexeyleshchenko/fast_bitrix24)
 
 - [Основная функциональность](#Основная-функциональность)
 - [Начало работы](#Начало-работы)
@@ -24,7 +24,7 @@ API wrapper для Питона для быстрого получения да�
 - На больших списках скорость обмена данными с сервером достигает тысяч элементов в секунду.
 - Автоматическая упаковка запросов в батчи сокращает количество требуемых запросов к серверу и ускоряет обмен данными.
 - Батчи отправляются на сервер не последовательно, а параллельно.
-- Продвинутые стратегии работы с постраничным доступом ускоряют выгрузку на порядки (см. [результаты тестов](https://github.com/leshchenko1979/fast_bitrix24/discussions/113)).
+- Продвинутые стратегии работы с постраничным доступом ускоряют выгрузку на порядки (см. [результаты тестов](https://github.com/alexeyleshchenko/fast_bitrix24/discussions/113)).
 
 ### Избежание отказов сервера
 - Соблюдаются все [политики Битрикса по ограничению скорости запросов](#официальная-политика-битрикс24-по-скорости-запросов)
@@ -41,7 +41,7 @@ API wrapper для Питона для быстрого получения да�
 - Наличие [асинхронного клиента](#асинхронные-вызовы) позволяет использовать библиотеку для написания веб-приложений (например, телеграм-ботов).
 
 ### Нас используют
-- [Яндекс](https://github.com/leshchenko1979/fast_bitrix24/issues/159#issuecomment-1104539717)
+- [Яндекс](https://github.com/alexeyleshchenko/fast_bitrix24/issues/159#issuecomment-1104539717)
 
 ## Начало работы
 Установите модуль через `pip`:
@@ -130,7 +130,7 @@ bx.call('crm.deal.update', tasks)
 
 Подобный вызов можно использовать в отладочных целях, но кроме того, придется его использовать для отправки запросов, которые:
 - в параметрах имеют `None` (None применяется для стирания значения полей, а упаковка в батчи мешает передавать `None`),
-- используют устревшие методы Битрикс24, которые принимают на вход список (см. [#157](https://githubx.com/leshchenko1979/fast_bitrix24/issues/157)).
+- используют устревшие методы Битрикс24, которые принимают на вход список (см. [#157](https://github.com/alexeyleshchenko/fast_bitrix24/issues/157)).
 
 
 ```python
@@ -210,7 +210,7 @@ bx = Bitrix(webhook=ENDPOINT_ADDRESS, token_func=get_new_token)
 В связи с тем, что выполнение `get_all()` по длинным спискам может занимать долгое время, в течение которого пользователи могут добавлять новые элементы в список, может возникнуть ситуация, когда общее полученное количество элементов может не соответствовать изначальному значению `total`. В таких случаях будет выдано стандартное питоновское предупреждение (`warning`).
 
 ### Как `fast_bitrix24` регулирует скорость запросов
-Библиотека соблюдает официальные ограничения Битрикс24 по скорости запросов (см. ниже "Официальная политика Битрикс24 по скорости запросов"). Одновременно, она начинает снижать скорость запросов, если сервер начинает возвращать ошибки (autothrottling). Подобный подход позволяет на порядки увеличить скорость получения данных (см. [тесты скорости](https://github.com/leshchenko1979/fast_bitrix24/blob/master/speed_tests/strategies.ipynb)).
+Библиотека соблюдает официальные ограничения Битрикс24 по скорости запросов (см. ниже "Официальная политика Битрикс24 по скорости запросов"). Одновременно, она начинает снижать скорость запросов, если сервер начинает возвращать ошибки (autothrottling). Подобный подход позволяет на порядки увеличить скорость получения данных (см. [тесты скорости](https://github.com/alexeyleshchenko/fast_bitrix24/blob/master/speed_tests/strategies.ipynb)).
 
 ### Официальная политика Битрикс24 по скорости запросов
 Одновременно работает два ограничения:
@@ -337,4 +337,4 @@ bx = Bitrix(webhook, request_pool_size=250, requests_per_second=5)
 
 ## Как связаться с автором
 - telegram: https://t.me/fast_bitrix24
-- создать новый github issue: https://github.com/leshchenko1979/fast_bitrix24/issues/new
+- создать новый github issue: https://github.com/alexeyleshchenko/fast_bitrix24/issues/new

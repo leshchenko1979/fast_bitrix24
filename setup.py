@@ -18,7 +18,7 @@ setuptools.setup(
                 'и асинхронный клиенты.',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/leshchenko1979/fast_bitrix24",
+    url="https://github.com/alexeyleshchenko/fast_bitrix24",
     packages=['fast_bitrix24'],
     exclude_package_data={
         'fast_bitrix24': ["test**"]
