@@ -82,7 +82,7 @@ class ServerResponseParser:
 
         # если результат вызова содержит только словарь из одного элемента {ключ: содержимое},
         # то вернуть это содержимое.
-        # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
+        # См. https://github.com/alexeyleshchenko/fast_bitrix24/issues/132
 
         # метод `crm.stagehistory.list` возвращает dict["items", list] --
         # разворачиваем его в список
@@ -98,7 +98,7 @@ class ServerResponseParser:
 
         # если результат вызова содержит только словарь c одним ключом
         # и списком у него внутри, то вернуть этот список.
-        # См. https://github.com/leshchenko1979/fast_bitrix24/issues/132
+        # См. https://github.com/alexeyleshchenko/fast_bitrix24/issues/132
 
         first_item = next(iter(result.values()))
 
