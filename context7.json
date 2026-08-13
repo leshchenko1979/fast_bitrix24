@@ -1,0 +1,9 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "fast_bitrix24",
+  "description": "High-performance Python API wrapper for bulk Bitrix24 REST exchange, with sync and async clients.",
+  "branch": "master",
+  "folders": ["fast_bitrix24", "."],
+  "excludeFolders": [".github", "tests", "docs/superpowers"],
+  "excludeFiles": ["speed_test.gif"]
+}

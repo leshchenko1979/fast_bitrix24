@@ -1,9 +1,11 @@
 # fast_bitrix24
 API wrapper для Питона для быстрого получения данных от Битрикс24 через REST API.
 
+Canonical GitHub repository: [alexeyleshchenko/fast_bitrix24](https://github.com/alexeyleshchenko/fast_bitrix24). This is the same project previously published under `leshchenko1979/fast_bitrix24`. Install remains `pip install fast-bitrix24`; the PyPI homepage is the stable pointer.
+
 [![Статистика загрузок](https://img.shields.io/pypi/dm/fast-bitrix24.svg)](https://pypistats.org/packages/fast-bitrix24)
 ![Статистика тестов](https://github.com/alexeyleshchenko/fast_bitrix24/workflows/tests/badge.svg)
-[![codecov](https://codecov.io/gh/alexeyleshchenko/fast_bitrix24/branch/master/graph/badge.svg?token=UEQ3KITRSX)](https://codecov.io/gh/alexeyleshchenko/fast_bitrix24)
+[![codecov](https://codecov.io/gh/alexeyleshchenko/fast_bitrix24/graph/badge.svg)](https://codecov.io/gh/alexeyleshchenko/fast_bitrix24)
 [![Sourcery](https://img.shields.io/badge/Sourcery-enabled-brightgreen)](https://sourcery.ai)
 [![CodeFactor](https://www.codefactor.io/repository/github/alexeyleshchenko/fast_bitrix24/badge)](https://www.codefactor.io/repository/github/alexeyleshchenko/fast_bitrix24)
 
