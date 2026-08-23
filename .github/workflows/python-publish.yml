@@ -1,6 +1,5 @@
-# Publish to PyPI via trusted publishing (OIDC)
-# Requires: PyPI project "fast-bitrix24" trusted publisher -> leshchenko1979/fast_bitrix24 (environment: release)
-# See: https://docs.pypi.org/trusted-publishers/
+# Publish to PyPI. Prefer Trusted Publishing (OIDC) once configured for leshchenko1979/fast_bitrix24.
+# Fallback: repository secrets PYPI_USERNAME / PYPI_PASSWORD (legacy).
 
 name: Publish to PyPI
 
@@ -11,9 +10,9 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
-    environment: release
     permissions:
-      id-token: write  # mandatory for trusted publishing
+      id-token: write
+      contents: read
 
     steps:
     - uses: actions/checkout@v7
@@ -31,7 +30,9 @@ jobs:
     - name: Build package
       run: python -m build
 
-    - name: Publish to PyPI
+    - name: Publish to PyPI (password fallback)
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
+        user: ${{ secrets.PYPI_USERNAME }}
+        password: ${{ secrets.PYPI_PASSWORD }}
         print-hash: true
