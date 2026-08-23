@@ -1,6 +1,6 @@
 # fast_bitrix24
 
-Canonical GitHub repository: https://github.com/alexeyleshchenko/fast_bitrix24
+Canonical GitHub repository: https://github.com/leshchenko1979/fast_bitrix24
 
 Canonical Python package: `fast-bitrix24` on PyPI (https://pypi.org/project/fast-bitrix24/).
 

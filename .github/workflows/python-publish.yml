@@ -1,5 +1,5 @@
 # Publish to PyPI via trusted publishing (OIDC)
-# Requires: PyPI project "fast-bitrix24" trusted publisher -> alexeyleshchenko/fast_bitrix24 (environment: release)
+# Requires: PyPI project "fast-bitrix24" trusted publisher -> leshchenko1979/fast_bitrix24 (environment: release)
 # See: https://docs.pypi.org/trusted-publishers/
 
 name: Publish to PyPI

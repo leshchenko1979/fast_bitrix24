@@ -146,7 +146,7 @@ class GetAllUserRequest(UserRequestAbstract):
         lambda self: not self.st_method.startswith("tasks.elapseditem."),
         "get_all() shouldn't be used with 'tasks.elapseditem.*' method group. "
         "Use call(raw=True) instead. Read more: "
-        "https://github.com/alexeyleshchenko/fast_bitrix24/issues/199",
+        "https://github.com/leshchenko1979/fast_bitrix24/issues/199",
     )
     def check_special_limitations(self):
         if not self.st_method.endswith(ALL_ENDINGS):
@@ -408,10 +408,10 @@ class RawCallUserRequest:
     """Отправляем на сервер один элемент, не обрабатывая его и не заворачивая в батчи.
 
     Нужно для устревших методов, которые принимают на вход список
-    (https://github.com/alexeyleshchenko/fast_bitrix24/issues/157),
+    (https://github.com/leshchenko1979/fast_bitrix24/issues/157),
     а также для отправки на сервер значений None, которые преобразуются
     в строку при заворачивании в батч
-    (https://github.com/alexeyleshchenko/fast_bitrix24/issues/156).
+    (https://github.com/leshchenko1979/fast_bitrix24/issues/156).
     """
 
     @beartype
